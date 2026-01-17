@@ -131,6 +131,28 @@ public static class Obs
     }
 
     /// <summary>
+    /// Changes video settings after initialization. Uses the same options as WithVideo() during init.
+    /// Do not call while recording or streaming - stop outputs first.
+    /// </summary>
+    /// <param name="configure">Configuration action for video settings.</param>
+    public static void SetVideo(Action<VideoSettings> configure)
+    {
+        ThrowIfNotInitialized();
+        _context!.SetVideo(configure);
+    }
+
+    /// <summary>
+    /// Changes audio settings after initialization. Uses the same options as WithAudio() during init.
+    /// Do not call while recording or streaming - stop outputs first.
+    /// </summary>
+    /// <param name="configure">Configuration action for audio settings.</param>
+    public static void SetAudio(Action<AudioSettings> configure)
+    {
+        ThrowIfNotInitialized();
+        _context!.SetAudio(configure);
+    }
+
+    /// <summary>
     /// Called by ObsContext when it's disposed directly (not through Obs.Shutdown).
     /// </summary>
     internal static void OnContextDisposed()

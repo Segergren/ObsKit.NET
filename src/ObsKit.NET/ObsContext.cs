@@ -76,10 +76,10 @@ public sealed class ObsContext : IDisposable
         }
 
         // Reset video
-        ResetVideo();
+        ResetVideo(shutdownOnFailure: true);
 
         // Reset audio
-        ResetAudio();
+        ResetAudio(shutdownOnFailure: true);
 
         // Load modules
         LoadModules();
@@ -151,7 +151,7 @@ public sealed class ObsContext : IDisposable
                name.StartsWith("vk_swiftshader", StringComparison.OrdinalIgnoreCase);
     }
 
-    private void ResetVideo()
+    private void ResetVideo(bool shutdownOnFailure = false)
     {
         var graphicsModule = _config.Video.GraphicsModule ?? VideoSettings.GetDefaultGraphicsModule();
         var graphicsModulePtr = Marshal.StringToHGlobalAnsi(graphicsModule);
@@ -178,7 +178,8 @@ public sealed class ObsContext : IDisposable
             var result = ObsCore.obs_reset_video(ref ovi);
             if (result != 0)
             {
-                ObsCore.obs_shutdown();
+                if (shutdownOnFailure)
+                    ObsCore.obs_shutdown();
                 throw new ObsVideoResetException(result);
             }
         }
@@ -188,7 +189,7 @@ public sealed class ObsContext : IDisposable
         }
     }
 
-    private void ResetAudio()
+    private void ResetAudio(bool shutdownOnFailure = false)
     {
         var oai = new ObsAudioInfo
         {
@@ -198,7 +199,8 @@ public sealed class ObsContext : IDisposable
 
         if (!ObsCore.obs_reset_audio(ref oai))
         {
-            ObsCore.obs_shutdown();
+            if (shutdownOnFailure)
+                ObsCore.obs_shutdown();
             throw new ObsAudioResetException();
         }
     }
@@ -253,6 +255,28 @@ public sealed class ObsContext : IDisposable
     /// Gets the OBS version string.
     /// </summary>
     public string VersionString => ObsCore.obs_get_version_string();
+
+    /// <summary>
+    /// Changes video settings after initialization. Uses the same options as WithVideo() during init.
+    /// Do not call while recording or streaming - stop outputs first.
+    /// </summary>
+    /// <param name="configure">Configuration action for video settings.</param>
+    public void SetVideo(Action<VideoSettings> configure)
+    {
+        configure(_config.Video);
+        ResetVideo();
+    }
+
+    /// <summary>
+    /// Changes audio settings after initialization. Uses the same options as WithAudio() during init.
+    /// Do not call while recording or streaming - stop outputs first.
+    /// </summary>
+    /// <param name="configure">Configuration action for audio settings.</param>
+    public void SetAudio(Action<AudioSettings> configure)
+    {
+        configure(_config.Audio);
+        ResetAudio();
+    }
 
     /// <summary>
     /// Disposes the OBS context and shuts down OBS.

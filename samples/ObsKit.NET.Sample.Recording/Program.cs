@@ -33,6 +33,7 @@ if (!File.Exists(Path.Combine(obsPath, "obs.dll")))
 
 // Initialize OBS
 // ForHeadlessOperation() excludes obs-browser and frontend-tools which can hang in CLI apps
+// WithVideo/WithAudio configure initial video and audio settings
 using var obs = Obs.Initialize(config => config
     .WithDataPath(dataPath)
     .WithModulePath(pluginBinPath, pluginDataPath)
@@ -40,12 +41,24 @@ using var obs = Obs.Initialize(config => config
     .WithVideo(v => v.Resolution(1920, 1080).Fps(60))
     .WithAudio(a => a.WithSampleRate(48000)));
 
+// Get monitor info for dimensions
+var primaryMonitor = MonitorCapture.AvailableMonitors.FirstOrDefault(m => m.IsPrimary)
+                     ?? MonitorCapture.AvailableMonitors.First();
+using var monitorSource = MonitorCapture.FromMonitor(primaryMonitor);
+
+// You can also change video/audio settings after initialization using Obs.SetVideo/SetAudio.
+// These use the same configuration options as WithVideo/WithAudio above.
+// Note: Don't call these while recording - stop the output first.
+//
+// Example:
+Obs.SetVideo(v => v.Resolution((uint)primaryMonitor.Width, (uint)primaryMonitor.Height).Fps(60));
+Obs.SetAudio(a => a.WithSampleRate(48000));
+
 Console.WriteLine($"OBS {Obs.Version} initialized\n");
 
 // Create a scene with monitor capture
 using var scene = Obs.Scenes.Create("Recording Scene");
-using var monitor = MonitorCapture.FromPrimary();
-scene.AddSource(monitor);
+scene.AddSource(monitorSource);
 scene.SetAsProgram(); // Set as the output source for recording
 
 Console.WriteLine($"Scene created with {scene.ItemCount} source(s)");
