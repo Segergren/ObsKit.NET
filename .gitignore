@@ -1,0 +1,22 @@
+# Build outputs
+bin/
+obj/
+64bit/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.cache
+
+# NuGet
+packages/
+*.nupkg
+
+# Logs and generated files
+*.log
+*.mp4
+
+# OS files
+Thumbs.db
+.DS_Store

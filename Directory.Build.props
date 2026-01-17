@@ -1,0 +1,22 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <LangVersion>13.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!-- Package metadata -->
+    <Authors>Segra</Authors>
+    <Company>Segra</Company>
+    <Product>ObsKit.NET</Product>
+    <Description>A modern .NET wrapper for OBS Studio with a fluent API</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>obs;obs-studio;streaming;recording;video;capture;screen-recording</PackageTags>
+
+    <!-- Version -->
+    <Version>0.1.0</Version>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <FileVersion>0.1.0.0</FileVersion>
+  </PropertyGroup>
+</Project>

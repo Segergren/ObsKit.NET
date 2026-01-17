@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>ObsKit.NET.Sample.ReplayBuffer</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ObsKit.NET\ObsKit.NET.csproj" />
+  </ItemGroup>
+
+</Project>
