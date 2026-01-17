@@ -68,7 +68,7 @@ var outputPath = Path.Combine(Environment.CurrentDirectory, $"recording_{DateTim
 
 using var recording = new RecordingOutput("My Recording")
     .SetPath(outputPath)
-    .SetFormat("mp4")
+    .SetFormat(RecordingFormat.Mp4)
     .WithDefaultEncoders(videoBitrate: 6000, audioBitrate: 192);
 
 Console.WriteLine($"Output: {outputPath}\n");

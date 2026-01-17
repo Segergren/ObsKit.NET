@@ -106,7 +106,7 @@ scene.SetAsProgram(); // Set as output source
 // Set up recording
 using var recording = new RecordingOutput("My Recording")
     .SetPath("output.mp4")
-    .SetFormat("mp4")
+    .SetFormat(RecordingFormat.Mp4)
     .WithDefaultEncoders(videoBitrate: 6000, audioBitrate: 192);
 
 // Start recording
