@@ -365,6 +365,17 @@ internal static partial class ObsOutput
 
     #endregion
 
+    #region Proc Handler
+
+    /// <summary>
+    /// Gets the proc handler for the output.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_output_get_proc_handler")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_output_get_proc_handler(ObsOutputHandle output);
+
+    #endregion
+
     #region Service
 
     /// <summary>

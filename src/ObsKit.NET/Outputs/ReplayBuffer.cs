@@ -149,7 +149,11 @@ public sealed class ReplayBuffer : Output
         if (!IsActive)
             throw new InvalidOperationException("Replay buffer is not active. Call Start() first.");
 
-        // Save is triggered via proc handler - currently requires frontend API or hotkey
+        var procHandler = ObsOutput.obs_output_get_proc_handler(Handle);
+        if (procHandler == 0)
+            throw new InvalidOperationException("Failed to get proc handler for replay buffer.");
+
+        ObsSignal.proc_handler_call(procHandler, "save");
     }
 
     /// <summary>Starts the replay buffer.</summary>

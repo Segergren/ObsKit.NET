@@ -118,4 +118,21 @@ internal static partial class ObsSignal
     internal static partial SignalHandlerHandle obs_get_signal_handler();
 
     #endregion
+
+    #region Proc Handler
+
+    /// <summary>
+    /// Calls a procedure on a proc handler.
+    /// </summary>
+    public static bool proc_handler_call(nint handler, string name, nint calldata = 0)
+        => proc_handler_call_native(handler, name, calldata) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "proc_handler_call")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte proc_handler_call_native(
+        nint handler,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        nint calldata);
+
+    #endregion
 }
