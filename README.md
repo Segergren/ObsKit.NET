@@ -4,6 +4,7 @@ A modern .NET 9 wrapper for OBS Studio, providing a fluent C# API for video reco
 
 ## Features
 
+- **Cross-Platform** - Windows, Linux, and macOS support
 - **Fluent API** - Clean, chainable configuration
 - **Recording** - Record video to MP4, MKV, FLV, and more
 - **Replay Buffer** - Keep a rolling buffer of the last N seconds
@@ -15,30 +16,64 @@ A modern .NET 9 wrapper for OBS Studio, providing a fluent C# API for video reco
 ## Requirements
 
 - .NET 9.0 or later
-- Windows 10/11 (64-bit)
 - OBS Studio runtime (see setup below)
+
+### Platform-Specific Requirements
+
+| Platform | Requirements |
+|----------|-------------|
+| Windows  | Windows 10/11 (64-bit) |
+| Linux    | X11 (Wayland support is limited), PipeWire or PulseAudio |
+| macOS    | macOS 11+ (Big Sur or later), Universal binary support |
 
 ## OBS Runtime Setup
 
 ObsKit.NET requires OBS Studio binaries to function. These must be set up as a **standalone runtime** alongside your application.
 
-### Option 1: Using the Setup Script (Recommended)
+### Using the Setup Script (Recommended)
 
-Use the setup script to automatically download and configure the OBS runtime:
+Use the interactive setup script to download and configure the OBS runtime:
 
-**Bash (Git Bash):**
 ```bash
-./tools/setup-obs-runtime.sh 32.0.4 ./obs-runtime
+./tools/setup-obs-runtime.sh
 ```
 
-Then copy the contents to your application's output directory.
+The script will prompt you to:
+1. Enter the OBS version (default: 31.0.0)
+2. Select the platform (Windows, Linux, or macOS)
+3. Choose the output directory
 
-### Option 2: Manual Setup
+You can also pass arguments directly:
+
+```bash
+# Interactive mode
+./tools/setup-obs-runtime.sh
+
+# Specify version
+./tools/setup-obs-runtime.sh 31.0.0
+
+# Specify version and output path
+./tools/setup-obs-runtime.sh 31.0.0 ./my-app/obs-runtime
+```
+
+---
+
+## Windows Setup
+
+### Automatic Setup
+
+```bash
+./tools/setup-obs-runtime.sh
+# Select: 1) Windows (x64)
+```
+
+### Manual Setup
 
 1. Download OBS Studio from [GitHub Releases](https://github.com/obsproject/obs-studio/releases)
+   - File: `OBS-Studio-XX.X.X-Windows-x64.zip`
+
 2. Extract and restructure as follows:
 
-**Required Structure:**
 ```
 YourApp/
 ├── YourApp.exe
@@ -60,20 +95,197 @@ YourApp/
     └── 64bit/                   # Plugin DLLs
         ├── obs-ffmpeg.dll
         ├── obs-x264.dll
-        ├── coreaudio-encoder.dll
         ├── win-capture.dll
         ├── win-wasapi.dll
         └── ... (other plugins)
 ```
 
-**Important:** The `bin/64bit` contents must be in the **root** directory (same as your .exe), not in a `bin/64bit` subfolder. This is because OBS looks for helper executables (like `obs-ffmpeg-mux.exe`) relative to the running process.
+**Important:** The `bin/64bit` contents must be in the **root** directory (same folder as your .exe).
 
-**Files to Exclude** (optional, reduces size):
-- `obs-browser.dll`, `obs-browser-page.exe` - Browser source (requires Chromium)
-- `frontend-tools.dll` - OBS frontend integration
-- `obs-websocket.dll` - WebSocket server
-- `libcef.dll`, `chrome_elf.dll` - Chromium dependencies
-- `locales/` folder - Browser localization
+---
+
+## Linux Setup
+
+### Automatic Setup (Recommended)
+
+```bash
+./tools/setup-obs-runtime.sh
+# Select: 2) Linux (x64)
+```
+
+This downloads and sets up the OBS runtime:
+
+```
+obs-runtime-linux/
+├── lib/
+│   └── libobs.so.0, libobs-frontend-api.so, etc.
+├── obs-plugins/
+│   └── obs-ffmpeg.so, obs-x264.so, etc.
+└── data/
+    └── libobs/, obs-plugins/
+```
+
+Copy this to your application's output directory.
+
+### Manual Setup
+
+1. Download OBS Studio from [GitHub Releases](https://github.com/obsproject/obs-studio/releases)
+   - Look for `OBS-Studio-XX.X.X-Ubuntu-x86_64.tar.xz` or similar
+
+2. Extract and restructure:
+
+```
+YourApp/
+├── YourApp                      # Your .NET executable
+├── lib/
+│   └── libobs.so.0              # From OBS archive
+├── obs-plugins/
+│   └── obs-ffmpeg.so, etc.      # Plugin .so files
+└── data/
+    ├── libobs/                  # Shader files
+    └── obs-plugins/             # Plugin data
+```
+
+### Configuration
+
+```csharp
+var obsPath = AppContext.BaseDirectory;
+
+using var obs = Obs.Initialize(config => config
+    .WithDataPath(Path.Combine(obsPath, "data", "libobs"))
+    .WithModulePath(
+        Path.Combine(obsPath, "obs-plugins"),
+        Path.Combine(obsPath, "data", "obs-plugins", "%module%"))
+    .ForHeadlessOperation()
+    .WithVideo(v => v.Resolution(1920, 1080).Fps(60))
+    .WithAudio(a => a.WithSampleRate(48000)));
+```
+
+### Runtime Dependencies
+
+Install required system libraries:
+
+```bash
+# Ubuntu/Debian
+sudo apt install libx11-6 libxrandr2 libpipewire-0.3-0 libpulse0 \
+                 libavcodec-extra libavformat-dev libswscale-dev
+
+# Fedora
+sudo dnf install libX11 libXrandr pipewire-libs pulseaudio-libs \
+                 ffmpeg-libs
+
+# Arch Linux
+sudo pacman -S libx11 libxrandr pipewire-pulse ffmpeg
+```
+
+### Running Your Application
+
+Set `LD_LIBRARY_PATH` to include the OBS libraries:
+
+```bash
+cd /path/to/your/app
+export LD_LIBRARY_PATH="$PWD/lib:$LD_LIBRARY_PATH"
+./YourApp
+```
+
+Or create a launcher script:
+
+```bash
+#!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+export LD_LIBRARY_PATH="$SCRIPT_DIR/lib:$LD_LIBRARY_PATH"
+exec "$SCRIPT_DIR/YourApp" "$@"
+```
+
+---
+
+## macOS Setup
+
+### Automatic Setup (Recommended)
+
+```bash
+./tools/setup-obs-runtime.sh
+# Select: 3) macOS (Universal)
+```
+
+On macOS, this mounts the DMG and copies OBS.app:
+
+```
+obs-runtime-macos/
+└── OBS.app/
+    └── Contents/
+        ├── Frameworks/
+        │   └── libobs.0.dylib, etc.
+        ├── PlugIns/
+        │   └── obs-ffmpeg.so, obs-x264.so, etc.
+        └── Resources/
+            └── data/
+```
+
+Copy the `OBS.app` folder to your application's output directory.
+
+### Manual Setup
+
+1. Download OBS Studio from [GitHub Releases](https://github.com/obsproject/obs-studio/releases)
+   - File: `OBS-Studio-XX.X.X-macOS-Universal.dmg`
+
+2. Mount the DMG and copy `OBS.app` to your app's directory:
+
+```
+YourApp/
+├── YourApp                      # Your .NET executable
+└── OBS.app/
+    └── Contents/
+        ├── Frameworks/          # libobs.0.dylib, etc.
+        ├── PlugIns/             # Plugin .so files
+        └── Resources/
+            └── data/            # libobs/, obs-plugins/
+```
+
+### Configuration
+
+```csharp
+var obsPath = Path.Combine(AppContext.BaseDirectory, "OBS.app", "Contents");
+
+using var obs = Obs.Initialize(config => config
+    .WithDataPath(Path.Combine(obsPath, "Resources", "data", "libobs"))
+    .WithModulePath(
+        Path.Combine(obsPath, "PlugIns"),
+        Path.Combine(obsPath, "Resources", "data", "obs-plugins", "%module%"))
+    .ForHeadlessOperation()
+    .WithVideo(v => v.Resolution(1920, 1080).Fps(60))
+    .WithAudio(a => a.WithSampleRate(48000)));
+```
+
+### Running Your Application
+
+Set `DYLD_LIBRARY_PATH` to include the OBS frameworks:
+
+```bash
+cd /path/to/your/app
+export DYLD_LIBRARY_PATH="$PWD/OBS.app/Contents/Frameworks:$DYLD_LIBRARY_PATH"
+./YourApp
+```
+
+**Note:** macOS screen recording requires permission in System Preferences > Privacy & Security > Screen Recording.
+
+---
+
+## Files to Exclude (Optional)
+
+To reduce size, exclude these browser/frontend files:
+
+| Windows | Linux | Description |
+|---------|-------|-------------|
+| `obs-browser.dll` | `obs-browser.so` | Browser source (Chromium) |
+| `frontend-tools.dll` | `frontend-tools.so` | OBS frontend integration |
+| `obs-websocket.dll` | `obs-websocket.so` | WebSocket server |
+| `libcef.dll` | `libcef.so` | Chromium Embedded Framework |
+| `locales/` | `locales/` | Browser localization |
+
+The setup script automatically excludes these files.
+
+---
 
 ## Quick Start
 
@@ -162,20 +374,26 @@ Console.WriteLine($"Recorded {recording.TotalFrames} frames");
 using var monitor = MonitorCapture.FromPrimary();
 
 // Capture specific monitor by index
-using var monitor = MonitorCapture.FromIndex(1);
+using var monitor = MonitorCapture.FromMonitor(1);
+
+// List available monitors
+foreach (var m in MonitorCapture.AvailableMonitors)
+    Console.WriteLine($"{m.Index}: {m.Name} ({m.Width}x{m.Height})");
 ```
 
 ### Window Capture
 
 ```csharp
-// Capture by window title
-using var window = WindowCapture.FromTitle("Notepad");
+// Capture by window info
+var windows = WindowCapture.AvailableWindows;
+using var window = WindowCapture.FromWindow(windows[0]);
 
-// Capture by process name
-using var window = WindowCapture.FromProcess("notepad");
+// List available windows
+foreach (var w in WindowCapture.AvailableWindows)
+    Console.WriteLine($"{w.Title} ({w.ProcessName})");
 ```
 
-### Game Capture
+### Game Capture (Windows Only)
 
 ```csharp
 // Capture any fullscreen game
@@ -204,23 +422,29 @@ using var media = new MediaSource("Video", "video.mp4")
 ### Video Encoders
 
 ```csharp
-// x264 (CPU)
+// x264 (CPU) - All platforms
 var encoder = VideoEncoder.CreateX264("Video", bitrate: 6000);
 
-// NVENC H.264 (NVIDIA GPU)
+// With rate control options
+var encoder = VideoEncoder.CreateX264("Video",
+    bitrate: 6000,
+    rateControl: RateControl.CRF,
+    cqLevel: 23);
+
+// NVENC H.264 (NVIDIA GPU) - Windows/Linux
 var encoder = VideoEncoder.CreateNvencH264("Video", bitrate: 6000);
 
-// NVENC HEVC (NVIDIA GPU)
+// NVENC HEVC (NVIDIA GPU) - Windows/Linux
 var encoder = VideoEncoder.CreateNvencHevc("Video", bitrate: 6000);
 ```
 
 ### Audio Encoders
 
 ```csharp
-// AAC
+// AAC - All platforms
 var encoder = AudioEncoder.CreateAac("Audio", bitrate: 192);
 
-// CoreAudio AAC (Windows)
+// CoreAudio AAC (Windows/macOS)
 var encoder = AudioEncoder.CreateCoreAudioAac("Audio", bitrate: 192);
 ```
 
@@ -234,21 +458,42 @@ See the `samples/` directory for complete examples:
 ## Troubleshooting
 
 ### "OBS runtime not found"
-Ensure the OBS runtime is set up correctly with `obs.dll` in the application directory.
+Ensure the OBS runtime is set up correctly with `obs.dll` (Windows), `libobs.so.0` (Linux), or `libobs.0.dylib` (macOS) in the correct location.
 
 ### "Failed to find file 'default.effect'"
 The `data/libobs/` folder is missing or the data path is incorrect.
 
 ### "Source ID 'xxx' not found"
-The required plugin is not loaded. Ensure `obs-plugins/64bit/` contains the necessary plugin DLLs.
+The required plugin is not loaded. Ensure the plugins directory contains the necessary plugin files.
 
 ### Recording fails to start
-- Ensure `obs-ffmpeg-mux.exe` is in the application directory (same folder as your .exe)
+- Ensure `obs-ffmpeg-mux.exe` (Windows) is in the application directory
 - Check that video and audio encoders are properly configured
 - Verify the output path is writable
 
 ### Module loading hangs
 Use `.ForHeadlessOperation()` to exclude modules that require GUI (browser, frontend, websocket).
+
+### Linux: X11 errors
+Ensure X11 libraries are installed and you're running in an X11 session (not pure Wayland).
+
+### macOS: Library not found
+Ensure OBS.app is properly installed or the Frameworks path is correct.
+
+## Platform-Specific Notes
+
+### Windows
+- Game Capture only works on Windows (uses DirectX hooks)
+- DXGI Desktop Duplication may fail in some scenarios; use Windows Graphics Capture (WGC) instead
+
+### Linux
+- Monitor/window capture uses PipeWire (recommended) or X11
+- Wayland support is limited; X11 fallback is used for window enumeration
+- PulseAudio or PipeWire required for audio capture
+
+### macOS
+- Desktop audio capture requires additional setup (macOS restricts system audio capture)
+- Screen recording requires user permission (Privacy & Security settings)
 
 ## License
 

@@ -112,8 +112,10 @@ public sealed class ObsContext : IDisposable
         if (!Directory.Exists(binPath))
             return;
 
-        // Get all DLL files (Windows) or .so files (Linux) in the module directory
-        var extension = OperatingSystem.IsWindows() ? "*.dll" : "*.so";
+        // Get all module files based on platform
+        var extension = OperatingSystem.IsWindows() ? "*.dll" :
+                        OperatingSystem.IsMacOS() ? "*.so" : // macOS OBS plugins use .so, not .dylib
+                        "*.so";
         var moduleFiles = Directory.GetFiles(binPath, extension);
 
         foreach (var modulePath in moduleFiles)
