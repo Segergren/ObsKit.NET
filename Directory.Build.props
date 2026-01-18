@@ -11,7 +11,7 @@
     <Company>Segra</Company>
     <Product>ObsKit.NET</Product>
     <Description>A modern .NET wrapper for OBS Studio with a fluent API</Description>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseExpression>GPL-2.0-only</PackageLicenseExpression>
     <PackageTags>obs;obs-studio;streaming;recording;video;capture;screen-recording</PackageTags>
 
     <!-- Version -->
