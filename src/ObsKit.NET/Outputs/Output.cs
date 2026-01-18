@@ -2,6 +2,7 @@ using ObsKit.NET.Core;
 using ObsKit.NET.Encoders;
 using ObsKit.NET.Native.Interop;
 using ObsKit.NET.Native.Types;
+using ObsKit.NET.Signals;
 
 namespace ObsKit.NET.Outputs;
 
@@ -281,6 +282,35 @@ public class Output : ObsObject
     /// Gets the active output delay in seconds.
     /// </summary>
     public uint ActiveDelay => ObsOutput.obs_output_get_active_delay(Handle);
+
+    #endregion
+
+    #region Signal Handler
+
+    /// <summary>
+    /// Connects a callback to an output signal using a strongly-typed enum.
+    /// </summary>
+    /// <param name="signal">The signal to connect to.</param>
+    /// <param name="callback">The callback to invoke when the signal is emitted.</param>
+    /// <returns>A SignalConnection that can be disposed to disconnect the callback.</returns>
+    public SignalConnection ConnectSignal(OutputSignal signal, SignalCallback callback)
+    {
+        var signalHandler = ObsOutput.obs_output_get_signal_handler(Handle);
+        return new SignalConnection(signalHandler, signal.ToSignalName(), callback);
+    }
+
+    /// <summary>
+    /// Connects a callback to an output signal using a string name.
+    /// Use this overload for custom or plugin-specific signals not in the OutputSignal enum.
+    /// </summary>
+    /// <param name="signal">The signal name to connect to.</param>
+    /// <param name="callback">The callback to invoke when the signal is emitted.</param>
+    /// <returns>A SignalConnection that can be disposed to disconnect the callback.</returns>
+    public SignalConnection ConnectSignal(string signal, SignalCallback callback)
+    {
+        var signalHandler = ObsOutput.obs_output_get_signal_handler(Handle);
+        return new SignalConnection(signalHandler, signal, callback);
+    }
 
     #endregion
 

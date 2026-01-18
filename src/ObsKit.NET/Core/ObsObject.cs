@@ -25,6 +25,12 @@ public abstract class ObsObject : IDisposable
     }
 
     /// <summary>
+    /// Gets the native OBS handle for advanced interop scenarios.
+    /// Use with caution - incorrect usage can cause crashes or memory corruption.
+    /// </summary>
+    public nint NativeHandle => Handle;
+
+    /// <summary>
     /// Gets whether this object has been disposed.
     /// </summary>
     public bool IsDisposed => _disposed;

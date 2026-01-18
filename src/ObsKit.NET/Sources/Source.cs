@@ -1,6 +1,7 @@
 using ObsKit.NET.Core;
 using ObsKit.NET.Native.Interop;
 using ObsKit.NET.Native.Types;
+using ObsKit.NET.Signals;
 
 namespace ObsKit.NET.Sources;
 
@@ -207,6 +208,29 @@ public class Source : ObsObject
     #region Signal Handler
 
     internal SignalHandlerHandle SignalHandler => ObsSource.obs_source_get_signal_handler(Handle);
+
+    /// <summary>
+    /// Connects a callback to a source signal using a strongly-typed enum.
+    /// </summary>
+    /// <param name="signal">The signal to connect to.</param>
+    /// <param name="callback">The callback to invoke when the signal is emitted.</param>
+    /// <returns>A SignalConnection that can be disposed to disconnect the callback.</returns>
+    public SignalConnection ConnectSignal(SourceSignal signal, SignalCallback callback)
+    {
+        return new SignalConnection(SignalHandler, signal.ToSignalName(), callback);
+    }
+
+    /// <summary>
+    /// Connects a callback to a source signal using a string name.
+    /// Use this overload for custom or plugin-specific signals not in the SourceSignal enum.
+    /// </summary>
+    /// <param name="signal">The signal name to connect to.</param>
+    /// <param name="callback">The callback to invoke when the signal is emitted.</param>
+    /// <returns>A SignalConnection that can be disposed to disconnect the callback.</returns>
+    public SignalConnection ConnectSignal(string signal, SignalCallback callback)
+    {
+        return new SignalConnection(SignalHandler, signal, callback);
+    }
 
     #endregion
 

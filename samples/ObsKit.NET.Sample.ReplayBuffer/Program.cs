@@ -1,5 +1,6 @@
 using ObsKit.NET;
 using ObsKit.NET.Outputs;
+using ObsKit.NET.Signals;
 using ObsKit.NET.Sources;
 
 Console.WriteLine("ObsKit.NET - Replay Buffer Example");
@@ -60,6 +61,19 @@ using var replayBuffer = new ReplayBuffer("My Replay Buffer", maxSeconds: 30, ma
 
 Console.WriteLine($"Replay buffer: {replayBuffer.MaxSeconds} seconds");
 Console.WriteLine($"Output directory: {outputDir}\n");
+
+// Connect to replay buffer signals using strongly-typed enums
+// Available signals: Start, Stop, Saved, WritingError, etc.
+using var savedSignal = replayBuffer.ConnectSignal(OutputSignal.Saved, _ =>
+{
+    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Signal] Replay buffer saved successfully!");
+});
+
+using var stopSignal = replayBuffer.ConnectSignal(OutputSignal.Stop, calldata =>
+{
+    var code = Calldata.GetInt(calldata, "code");
+    Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Signal] Replay buffer stopped (code: {code})");
+});
 
 // Start the replay buffer
 Console.WriteLine("Starting replay buffer...\n");

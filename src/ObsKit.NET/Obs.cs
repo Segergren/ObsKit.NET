@@ -2,6 +2,7 @@ using ObsKit.NET.Core;
 using ObsKit.NET.Exceptions;
 using ObsKit.NET.Native;
 using ObsKit.NET.Native.Interop;
+using ObsKit.NET.Native.Types;
 using ObsKit.NET.Scenes;
 using ObsKit.NET.Sources;
 
@@ -150,6 +151,31 @@ public static class Obs
     {
         ThrowIfNotInitialized();
         _context!.SetAudio(configure);
+    }
+
+    /// <summary>
+    /// Sets a source for an output channel. OBS uses channels 0-5 for different purposes:
+    /// Channel 0: Primary video source (scene/game capture)
+    /// Channel 1: Secondary video (display capture fallback)
+    /// Channels 2-5: Audio sources (microphone, desktop audio, etc.)
+    /// </summary>
+    /// <param name="channel">The output channel (0-5).</param>
+    /// <param name="source">The source to assign, or null to clear the channel.</param>
+    public static void SetOutputSource(uint channel, Source? source)
+    {
+        ThrowIfNotInitialized();
+        var handle = source != null ? (ObsSourceHandle)(nint)source.NativeHandle : ObsSourceHandle.Null;
+        ObsCore.obs_set_output_source(channel, handle);
+    }
+
+    /// <summary>
+    /// Clears a source from an output channel.
+    /// </summary>
+    /// <param name="channel">The output channel to clear (0-5).</param>
+    public static void ClearOutputSource(uint channel)
+    {
+        ThrowIfNotInitialized();
+        ObsCore.obs_set_output_source(channel, ObsSourceHandle.Null);
     }
 
     /// <summary>

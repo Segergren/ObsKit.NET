@@ -1,5 +1,6 @@
 using ObsKit.NET;
 using ObsKit.NET.Outputs;
+using ObsKit.NET.Signals;
 using ObsKit.NET.Sources;
 
 Console.WriteLine("ObsKit.NET - Recording Example");
@@ -72,6 +73,15 @@ using var recording = new RecordingOutput("My Recording")
     .WithDefaultEncoders(videoBitrate: 6000, audioBitrate: 192);
 
 Console.WriteLine($"Output: {outputPath}\n");
+
+// Connect to output signals using strongly-typed enums
+// Available signals: Start, Stop, Pause, Unpause, Starting, Stopping, etc.
+using var stopSignal = recording.ConnectSignal(OutputSignal.Stop, calldata =>
+{
+    // The 'code' parameter indicates why the output stopped (0 = success)
+    var code = Calldata.GetInt(calldata, "code");
+    Console.WriteLine($"\n[Signal] Recording stopped with code: {code}");
+});
 
 // Start recording
 Console.WriteLine("Starting recording... Press any key to stop.\n");
