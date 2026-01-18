@@ -180,4 +180,67 @@ internal static partial class ObsSignal
         nint calldata);
 
     #endregion
+
+    #region Memory (for calldata management)
+
+    /// <summary>
+    /// Allocates zeroed memory using OBS's allocator.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "bzalloc")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint bzalloc(nuint size);
+
+    /// <summary>
+    /// Frees memory allocated by OBS's allocator.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "bfree")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void bfree(nint ptr);
+
+    #endregion
+
+    #region Calldata Management
+
+    /// <summary>
+    /// Size of the calldata structure (4 fields on x64: pointer + 2 size_t + bool with padding).
+    /// </summary>
+    internal static nuint CalldataSize => (nuint)(nint.Size * 4);
+
+    /// <summary>
+    /// Creates and initializes an empty calldata structure.
+    /// </summary>
+    internal static nint calldata_create()
+    {
+        var cd = bzalloc(CalldataSize);
+        // bzalloc already zeros the memory, which is equivalent to calldata_init
+        return cd;
+    }
+
+    /// <summary>
+    /// Destroys a calldata structure and frees its memory.
+    /// </summary>
+    internal static void calldata_destroy(nint calldata)
+    {
+        if (calldata == nint.Zero) return;
+
+        // Free the internal stack if allocated (first field is the stack pointer)
+        unsafe
+        {
+            var stackPtr = *(nint*)calldata;
+            // Check if not fixed (4th field, which is a bool - need to check offset)
+            // For simplicity, we'll just free the stack pointer if it's non-zero
+            // The 'fixed' flag is at offset: sizeof(nint) + sizeof(nuint) + sizeof(nuint)
+            var fixedOffset = nint.Size + nint.Size + nint.Size;
+            var isFixed = *(byte*)(calldata + fixedOffset) != 0;
+
+            if (stackPtr != nint.Zero && !isFixed)
+            {
+                bfree(stackPtr);
+            }
+        }
+
+        bfree(calldata);
+    }
+
+    #endregion
 }

@@ -156,6 +156,35 @@ public sealed class ReplayBuffer : Output
         ObsSignal.proc_handler_call(procHandler, "save");
     }
 
+    /// <summary>
+    /// Gets the file path of the last saved replay.
+    /// Returns null if no replay has been saved yet or if currently muxing.
+    /// </summary>
+    /// <returns>The file path of the last saved replay, or null if not available.</returns>
+    public string? GetLastReplayPath()
+    {
+        var procHandler = ObsOutput.obs_output_get_proc_handler(Handle);
+        if (procHandler == 0)
+            return null;
+
+        var calldata = ObsSignal.calldata_create();
+        try
+        {
+            ObsSignal.proc_handler_call(procHandler, "get_last_replay", calldata);
+
+            if (ObsSignal.calldata_get_string(calldata, "path", out var pathPtr) && pathPtr != nint.Zero)
+            {
+                return System.Runtime.InteropServices.Marshal.PtrToStringUTF8(pathPtr);
+            }
+
+            return null;
+        }
+        finally
+        {
+            ObsSignal.calldata_destroy(calldata);
+        }
+    }
+
     /// <summary>Starts the replay buffer.</summary>
     public new bool Start()
     {
