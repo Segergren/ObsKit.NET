@@ -7,6 +7,7 @@
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <PackageId>ObsKit.NET</PackageId>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/Segra/ObsKit.NET</PackageProjectUrl>
     <RepositoryUrl>https://github.com/Segra/ObsKit.NET</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
