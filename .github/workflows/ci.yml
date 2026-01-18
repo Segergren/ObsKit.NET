@@ -1,10 +1,7 @@
-name: CI
+name: Build & Test
 
 on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
+  workflow_dispatch:
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
@@ -13,6 +10,7 @@ env:
 
 jobs:
   build:
+    name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -28,11 +26,11 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: Restore dependencies
+      - name: Restore
         run: dotnet restore
 
       - name: Build
         run: dotnet build --configuration Release --no-restore
 
-      - name: Pack (verify packaging works)
+      - name: Pack
         run: dotnet pack src/ObsKit.NET/ObsKit.NET.csproj --configuration Release --no-build --output ./nupkg
