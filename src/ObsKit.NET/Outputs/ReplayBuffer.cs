@@ -10,12 +10,17 @@ namespace ObsKit.NET.Outputs;
 /// </summary>
 public sealed class ReplayBuffer : Output
 {
+    /// <summary>The OBS source type ID for the replay buffer.</summary>
     public const string SourceTypeId = "replay_buffer";
 
     private VideoEncoder? _videoEncoder;
     private AudioEncoder? _audioEncoder;
     private bool _encodersOwned;
 
+    /// <summary>
+    /// Creates a new replay buffer.
+    /// </summary>
+    /// <param name="name">The output name.</param>
     /// <param name="maxSeconds">Maximum seconds to buffer.</param>
     /// <param name="maxSizeMb">Maximum buffer size in MB.</param>
     public ReplayBuffer(string name = "Replay Buffer", int maxSeconds = 20, int maxSizeMb = 512)
@@ -29,7 +34,7 @@ public sealed class ReplayBuffer : Output
     }
 
     /// <summary>
-    /// Maximum buffer time in seconds.
+    /// Gets or sets the maximum buffer time in seconds.
     /// </summary>
     public int MaxSeconds
     {
@@ -42,7 +47,7 @@ public sealed class ReplayBuffer : Output
     }
 
     /// <summary>
-    /// Maximum buffer size in megabytes.
+    /// Gets or sets the maximum buffer size in megabytes.
     /// </summary>
     public int MaxSizeMb
     {
@@ -54,24 +59,30 @@ public sealed class ReplayBuffer : Output
         set => Update(s => s.Set("max_size_mb", value));
     }
 
+    /// <summary>Sets the maximum buffer time.</summary>
     public ReplayBuffer SetMaxTime(int seconds)
     {
         MaxSeconds = seconds;
         return this;
     }
 
+    /// <summary>Sets the maximum buffer size.</summary>
     public ReplayBuffer SetMaxSize(int megabytes)
     {
         MaxSizeMb = megabytes;
         return this;
     }
 
+    /// <summary>Sets the output directory for saved replays.</summary>
     public ReplayBuffer SetDirectory(string directory)
     {
         Update(s => s.Set("directory", directory));
         return this;
     }
 
+    /// <summary>
+    /// Sets the filename format for saved replays.
+    /// </summary>
     /// <param name="format">Filename format (e.g., "Replay %CCYY-%MM-%DD %hh-%mm-%ss").</param>
     public ReplayBuffer SetFilenameFormat(string format)
     {
@@ -79,7 +90,11 @@ public sealed class ReplayBuffer : Output
         return this;
     }
 
-    /// <param name="takeOwnership">Dispose encoder when output is disposed.</param>
+    /// <summary>
+    /// Sets the video encoder for the replay buffer.
+    /// </summary>
+    /// <param name="encoder">The video encoder.</param>
+    /// <param name="takeOwnership">If true, disposes the encoder when output is disposed.</param>
     public ReplayBuffer WithVideoEncoder(VideoEncoder encoder, bool takeOwnership = false)
     {
         _videoEncoder = encoder;
@@ -92,7 +107,12 @@ public sealed class ReplayBuffer : Output
         return this;
     }
 
-    /// <param name="takeOwnership">Dispose encoder when output is disposed.</param>
+    /// <summary>
+    /// Sets the audio encoder for the replay buffer.
+    /// </summary>
+    /// <param name="encoder">The audio encoder.</param>
+    /// <param name="takeOwnership">If true, disposes the encoder when output is disposed.</param>
+    /// <param name="track">The audio track index.</param>
     public ReplayBuffer WithAudioEncoder(AudioEncoder encoder, bool takeOwnership = false, int track = 0)
     {
         _audioEncoder = encoder;
@@ -108,6 +128,8 @@ public sealed class ReplayBuffer : Output
     /// <summary>
     /// Configures with default encoders (x264 video, AAC audio).
     /// </summary>
+    /// <param name="videoBitrate">Video bitrate in kbps.</param>
+    /// <param name="audioBitrate">Audio bitrate in kbps.</param>
     public ReplayBuffer WithDefaultEncoders(int videoBitrate = 6000, int audioBitrate = 192)
     {
         var videoEncoder = VideoEncoder.CreateX264("Replay Video", videoBitrate);
@@ -130,6 +152,7 @@ public sealed class ReplayBuffer : Output
         // Save is triggered via proc handler - currently requires frontend API or hotkey
     }
 
+    /// <summary>Starts the replay buffer.</summary>
     public new bool Start()
     {
         if (_videoEncoder == null)
@@ -140,11 +163,13 @@ public sealed class ReplayBuffer : Output
         return base.Start();
     }
 
-    public new void Stop()
+    /// <summary>Stops the replay buffer.</summary>
+    public void Stop()
     {
         base.Stop();
     }
 
+    /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
         if (disposing && _encodersOwned)

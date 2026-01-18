@@ -4,6 +4,7 @@
     <RootNamespace>ObsKit.NET</RootNamespace>
     <AssemblyName>ObsKit.NET</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <PackageId>ObsKit.NET</PackageId>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/Segra/ObsKit.NET</RepositoryUrl>

@@ -151,6 +151,10 @@ public sealed class MonitorCapture : Source
         return this;
     }
 
+    /// <summary>
+    /// Sets the monitor to capture by index.
+    /// </summary>
+    /// <param name="monitorIndex">The monitor index.</param>
     public MonitorCapture SetMonitor(int monitorIndex)
     {
         Update(s =>
@@ -172,6 +176,10 @@ public sealed class MonitorCapture : Source
         return this;
     }
 
+    /// <summary>
+    /// Sets the monitor to capture.
+    /// </summary>
+    /// <param name="monitor">The monitor to capture.</param>
     public MonitorCapture SetMonitor(MonitorInfo monitor)
     {
         Update(s =>

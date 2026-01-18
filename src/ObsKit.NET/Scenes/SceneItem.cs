@@ -20,8 +20,10 @@ public sealed class SceneItem : ObsObject
 
     internal new ObsSceneItemHandle Handle => (ObsSceneItemHandle)base.Handle;
 
+    /// <summary>Gets the parent scene.</summary>
     public Scene Scene => _scene;
 
+    /// <summary>Gets the source associated with this scene item.</summary>
     public Source Source
     {
         get
@@ -32,8 +34,10 @@ public sealed class SceneItem : ObsObject
         }
     }
 
+    /// <summary>Gets the unique ID of this scene item.</summary>
     public long Id => ObsScene.obs_sceneitem_get_id(Handle);
 
+    /// <summary>Gets or sets whether this item is visible.</summary>
     public bool IsVisible
     {
         get => ObsScene.obs_sceneitem_visible(Handle);
@@ -41,7 +45,7 @@ public sealed class SceneItem : ObsObject
     }
 
     /// <summary>
-    /// Whether this item is locked (cannot be moved/resized in UI).
+    /// Gets or sets whether this item is locked (cannot be moved/resized in UI).
     /// </summary>
     public bool IsLocked
     {
@@ -49,6 +53,7 @@ public sealed class SceneItem : ObsObject
         set => ObsScene.obs_sceneitem_set_locked(Handle, value);
     }
 
+    /// <summary>Gets or sets whether this item is selected.</summary>
     public bool IsSelected
     {
         get => ObsScene.obs_sceneitem_selected(Handle);
@@ -57,6 +62,7 @@ public sealed class SceneItem : ObsObject
 
     #region Position and Transform
 
+    /// <summary>Gets or sets the position.</summary>
     public Vec2 Position
     {
         get
@@ -72,7 +78,7 @@ public sealed class SceneItem : ObsObject
     }
 
     /// <summary>
-    /// Rotation in degrees.
+    /// Gets or sets the rotation in degrees.
     /// </summary>
     public float Rotation
     {
@@ -80,6 +86,7 @@ public sealed class SceneItem : ObsObject
         set => ObsScene.obs_sceneitem_set_rot(Handle, value);
     }
 
+    /// <summary>Gets or sets the scale.</summary>
     public Vec2 Scale
     {
         get
@@ -94,6 +101,7 @@ public sealed class SceneItem : ObsObject
         }
     }
 
+    /// <summary>Gets or sets the alignment.</summary>
     public uint Alignment
     {
         get => ObsScene.obs_sceneitem_get_alignment(Handle);
@@ -104,12 +112,14 @@ public sealed class SceneItem : ObsObject
 
     #region Bounds
 
+    /// <summary>Gets or sets the bounds type.</summary>
     public ObsBoundsType BoundsType
     {
         get => ObsScene.obs_sceneitem_get_bounds_type(Handle);
         set => ObsScene.obs_sceneitem_set_bounds_type(Handle, value);
     }
 
+    /// <summary>Gets or sets the bounds size.</summary>
     public Vec2 Bounds
     {
         get
@@ -128,6 +138,7 @@ public sealed class SceneItem : ObsObject
 
     #region Crop
 
+    /// <summary>Gets or sets the crop values.</summary>
     public ObsSceneItemCrop Crop
     {
         get
@@ -146,59 +157,71 @@ public sealed class SceneItem : ObsObject
 
     #region Order
 
+    /// <summary>Gets or sets the order position.</summary>
     public int OrderPosition
     {
         get => ObsScene.obs_sceneitem_get_order_position(Handle);
         set => ObsScene.obs_sceneitem_set_order_position(Handle, value);
     }
 
+    /// <summary>Sets the order movement.</summary>
     public void SetOrder(ObsOrderMovement movement)
     {
         ObsScene.obs_sceneitem_set_order(Handle, movement);
     }
 
+    /// <summary>Moves this item to the top of the scene.</summary>
     public void MoveToTop() => SetOrder(ObsOrderMovement.MoveTop);
 
+    /// <summary>Moves this item to the bottom of the scene.</summary>
     public void MoveToBottom() => SetOrder(ObsOrderMovement.MoveBottom);
 
+    /// <summary>Moves this item up one position.</summary>
     public void MoveUp() => SetOrder(ObsOrderMovement.MoveUp);
 
+    /// <summary>Moves this item down one position.</summary>
     public void MoveDown() => SetOrder(ObsOrderMovement.MoveDown);
 
     #endregion
 
     #region Fluent API
 
+    /// <summary>Sets the position.</summary>
     public SceneItem SetPosition(float x, float y)
     {
         Position = new Vec2 { X = x, Y = y };
         return this;
     }
 
+    /// <summary>Sets the scale.</summary>
     public SceneItem SetScale(float x, float y)
     {
         Scale = new Vec2 { X = x, Y = y };
         return this;
     }
 
+    /// <summary>Sets the rotation in degrees.</summary>
     public SceneItem SetRotation(float degrees)
     {
         Rotation = degrees;
         return this;
     }
 
+    /// <summary>Sets the visibility.</summary>
     public SceneItem SetVisible(bool visible)
     {
         IsVisible = visible;
         return this;
     }
 
+    /// <summary>Sets the locked state.</summary>
     public SceneItem SetLocked(bool locked)
     {
         IsLocked = locked;
         return this;
     }
 
+    /// <summary>Sets the bounds type and size.</summary>
     public SceneItem SetBounds(ObsBoundsType type, float width, float height)
     {
         BoundsType = type;
@@ -206,6 +229,7 @@ public sealed class SceneItem : ObsObject
         return this;
     }
 
+    /// <summary>Sets the crop values.</summary>
     public SceneItem SetCrop(int left, int top, int right, int bottom)
     {
         Crop = new ObsSceneItemCrop
@@ -220,16 +244,19 @@ public sealed class SceneItem : ObsObject
 
     #endregion
 
+    /// <summary>Removes this item from the scene.</summary>
     public void Remove()
     {
         ObsScene.obs_sceneitem_remove(Handle);
     }
 
+    /// <inheritdoc/>
     protected override void ReleaseHandle(nint handle)
     {
         ObsScene.obs_sceneitem_release((ObsSceneItemHandle)handle);
     }
 
+    /// <inheritdoc/>
     public override string ToString()
     {
         using var source = Source;

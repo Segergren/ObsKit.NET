@@ -35,13 +35,19 @@ public enum RecordingFormat
 /// </summary>
 public sealed class RecordingOutput : Output
 {
+    /// <summary>The OBS source type ID for the ffmpeg muxer.</summary>
     public const string SourceTypeId = "ffmpeg_muxer";
 
     private VideoEncoder? _videoEncoder;
     private AudioEncoder? _audioEncoder;
     private bool _encodersOwned;
 
-    /// <param name="format">Container format (e.g., "mp4", "mkv", "flv").</param>
+    /// <summary>
+    /// Creates a new recording output.
+    /// </summary>
+    /// <param name="name">The output name.</param>
+    /// <param name="path">Optional output file path.</param>
+    /// <param name="format">Optional container format string.</param>
     public RecordingOutput(string name = "Recording", string? path = null, string? format = null)
         : base(SourceTypeId, name)
     {
@@ -57,6 +63,7 @@ public sealed class RecordingOutput : Output
         }
     }
 
+    /// <summary>Gets or sets the output file path.</summary>
     public string? Path
     {
         get
@@ -73,6 +80,7 @@ public sealed class RecordingOutput : Output
         }
     }
 
+    /// <summary>Sets the output file path.</summary>
     public RecordingOutput SetPath(string path)
     {
         Path = path;
@@ -101,6 +109,7 @@ public sealed class RecordingOutput : Output
         return SetFormat(formatString);
     }
 
+    /// <summary>Sets the container format using a format string.</summary>
     /// <param name="format">Container format string for advanced use.</param>
     public RecordingOutput SetFormat(string format)
     {
@@ -108,7 +117,11 @@ public sealed class RecordingOutput : Output
         return this;
     }
 
-    /// <param name="takeOwnership">Dispose encoder when output is disposed.</param>
+    /// <summary>
+    /// Sets the video encoder for recording.
+    /// </summary>
+    /// <param name="encoder">The video encoder.</param>
+    /// <param name="takeOwnership">If true, disposes the encoder when output is disposed.</param>
     public RecordingOutput WithVideoEncoder(VideoEncoder encoder, bool takeOwnership = false)
     {
         _videoEncoder = encoder;
@@ -121,7 +134,12 @@ public sealed class RecordingOutput : Output
         return this;
     }
 
-    /// <param name="takeOwnership">Dispose encoder when output is disposed.</param>
+    /// <summary>
+    /// Sets the audio encoder for recording.
+    /// </summary>
+    /// <param name="encoder">The audio encoder.</param>
+    /// <param name="takeOwnership">If true, disposes the encoder when output is disposed.</param>
+    /// <param name="track">The audio track index.</param>
     public RecordingOutput WithAudioEncoder(AudioEncoder encoder, bool takeOwnership = false, int track = 0)
     {
         _audioEncoder = encoder;
@@ -153,6 +171,8 @@ public sealed class RecordingOutput : Output
     /// <summary>
     /// Configures with NVENC encoders (NVIDIA GPU required).
     /// </summary>
+    /// <param name="videoBitrate">Video bitrate in kbps.</param>
+    /// <param name="audioBitrate">Audio bitrate in kbps.</param>
     /// <param name="hevc">Use HEVC instead of H.264.</param>
     public RecordingOutput WithNvencEncoders(int videoBitrate = 6000, int audioBitrate = 192, bool hevc = false)
     {
@@ -167,6 +187,7 @@ public sealed class RecordingOutput : Output
         return this;
     }
 
+    /// <summary>Starts the recording.</summary>
     public new bool Start()
     {
         if (_videoEncoder == null)
@@ -177,11 +198,13 @@ public sealed class RecordingOutput : Output
         return base.Start();
     }
 
-    public new void Stop()
+    /// <summary>Stops the recording.</summary>
+    public void Stop()
     {
         base.Stop();
     }
 
+    /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
         if (disposing && _encodersOwned)
