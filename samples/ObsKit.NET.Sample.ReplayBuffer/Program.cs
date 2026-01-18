@@ -104,13 +104,25 @@ while (true)
         try
         {
             replayBuffer.Save();
-            Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Replay saved to {outputDir}");
+
+            // Poll every 100ms for the save to complete, then get the path
+            string? savedPath = null;
+            for (int i = 0; i < 10; i++)
+            {
+                Thread.Sleep(100);
+                savedPath = replayBuffer.GetLastReplayPath();
+                if (!string.IsNullOrEmpty(savedPath))
+                    break;
+            }
+
+            if (!string.IsNullOrEmpty(savedPath))
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Replay saved to: {savedPath}");
+            else
+                Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] Could not retrieve replay path");
         }
         catch (InvalidOperationException ex)
         {
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] {ex.Message}");
-            Console.WriteLine("  Note: Programmatic saving requires obs-frontend-api integration.");
-            Console.WriteLine("  The buffer is still recording - use OBS hotkeys to save if configured.");
         }
     }
     else if (key.Key == ConsoleKey.Q)

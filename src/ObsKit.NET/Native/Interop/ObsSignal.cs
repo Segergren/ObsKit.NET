@@ -184,11 +184,11 @@ internal static partial class ObsSignal
     #region Memory (for calldata management)
 
     /// <summary>
-    /// Allocates zeroed memory using OBS's allocator.
+    /// Allocates memory using OBS's allocator.
     /// </summary>
-    [LibraryImport(Lib, EntryPoint = "bzalloc")]
+    [LibraryImport(Lib, EntryPoint = "bmalloc")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    internal static partial nint bzalloc(nuint size);
+    internal static partial nint bmalloc(nuint size);
 
     /// <summary>
     /// Frees memory allocated by OBS's allocator.
@@ -211,8 +211,15 @@ internal static partial class ObsSignal
     /// </summary>
     internal static nint calldata_create()
     {
-        var cd = bzalloc(CalldataSize);
-        // bzalloc already zeros the memory, which is equivalent to calldata_init
+        var cd = bmalloc(CalldataSize);
+        if (cd != nint.Zero)
+        {
+            // Zero the memory (equivalent to bzalloc/calldata_init)
+            unsafe
+            {
+                new Span<byte>((void*)cd, (int)CalldataSize).Clear();
+            }
+        }
         return cd;
     }
 
@@ -228,7 +235,6 @@ internal static partial class ObsSignal
         {
             var stackPtr = *(nint*)calldata;
             // Check if not fixed (4th field, which is a bool - need to check offset)
-            // For simplicity, we'll just free the stack pointer if it's non-zero
             // The 'fixed' flag is at offset: sizeof(nint) + sizeof(nuint) + sizeof(nuint)
             var fixedOffset = nint.Size + nint.Size + nint.Size;
             var isFixed = *(byte*)(calldata + fixedOffset) != 0;
