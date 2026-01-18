@@ -5,6 +5,21 @@ using ObsKit.NET.Native.Types;
 namespace ObsKit.NET.Encoders;
 
 /// <summary>
+/// Rate control mode for video encoders.
+/// </summary>
+public enum RateControl
+{
+    /// <summary>Constant Bitrate - consistent file size, may vary quality.</summary>
+    CBR,
+    /// <summary>Variable Bitrate - consistent quality, variable file size.</summary>
+    VBR,
+    /// <summary>Constant Quality Parameter - quality-based encoding.</summary>
+    CQP,
+    /// <summary>Constrained Quality - VBR with quality target.</summary>
+    CRF
+}
+
+/// <summary>
 /// Represents an OBS video encoder (obs_encoder_t).
 /// </summary>
 public sealed class VideoEncoder : ObsObject
@@ -76,14 +91,28 @@ public sealed class VideoEncoder : ObsObject
     /// Creates an x264 software encoder.
     /// </summary>
     /// <param name="name">The encoder name.</param>
-    /// <param name="bitrate">Bitrate in kbps.</param>
+    /// <param name="bitrate">Bitrate in kbps (for CBR/VBR).</param>
     /// <param name="preset">x264 preset (e.g., "veryfast", "medium", "slow").</param>
-    public static VideoEncoder CreateX264(string name = "Video Encoder", int bitrate = 6000, string preset = "veryfast")
+    /// <param name="rateControl">Rate control mode.</param>
+    /// <param name="cqLevel">CQ level (for CQP/CRF modes, 0-51, lower is better quality).</param>
+    public static VideoEncoder CreateX264(string name = "Video Encoder", int bitrate = 6000, string preset = "veryfast", RateControl rateControl = RateControl.CBR, int cqLevel = 20)
     {
         using var settings = new Settings();
-        settings.Set("rate_control", "CBR");
-        settings.Set("bitrate", bitrate);
+        settings.Set("rate_control", rateControl.ToString());
         settings.Set("preset", preset);
+
+        switch (rateControl)
+        {
+            case RateControl.CBR:
+            case RateControl.VBR:
+                settings.Set("bitrate", bitrate);
+                break;
+            case RateControl.CQP:
+            case RateControl.CRF:
+                settings.Set("crf", cqLevel);
+                break;
+        }
+
         return new VideoEncoder(Types.X264, name, settings);
     }
 
@@ -91,14 +120,34 @@ public sealed class VideoEncoder : ObsObject
     /// Creates an NVIDIA NVENC H.264 encoder.
     /// </summary>
     /// <param name="name">The encoder name.</param>
-    /// <param name="bitrate">Bitrate in kbps.</param>
+    /// <param name="bitrate">Bitrate in kbps (for CBR/VBR).</param>
     /// <param name="preset">NVENC preset.</param>
-    public static VideoEncoder CreateNvencH264(string name = "NVENC H.264", int bitrate = 6000, string preset = "hq")
+    /// <param name="rateControl">Rate control mode.</param>
+    /// <param name="cqLevel">CQ level (for CQP mode, 0-51).</param>
+    /// <param name="maxBitrate">Maximum bitrate in kbps (for VBR mode, defaults to 1.5x bitrate).</param>
+    public static VideoEncoder CreateNvencH264(string name = "NVENC H.264", int bitrate = 6000, string preset = "hq", RateControl rateControl = RateControl.CBR, int cqLevel = 20, int? maxBitrate = null)
     {
         using var settings = new Settings();
-        settings.Set("rate_control", "CBR");
-        settings.Set("bitrate", bitrate);
+        settings.Set("rate_control", rateControl.ToString());
         settings.Set("preset", preset);
+
+        switch (rateControl)
+        {
+            case RateControl.CBR:
+                settings.Set("bitrate", bitrate);
+                break;
+            case RateControl.VBR:
+                settings.Set("bitrate", bitrate);
+                settings.Set("max_bitrate", maxBitrate ?? (int)(bitrate * 1.5));
+                break;
+            case RateControl.CQP:
+                settings.Set("cqp", cqLevel);
+                break;
+            case RateControl.CRF:
+                settings.Set("cqp", cqLevel); // NVENC uses cqp for quality-based encoding
+                break;
+        }
+
         return new VideoEncoder(Types.NvencH264, name, settings);
     }
 
@@ -106,14 +155,34 @@ public sealed class VideoEncoder : ObsObject
     /// Creates an NVIDIA NVENC HEVC encoder.
     /// </summary>
     /// <param name="name">The encoder name.</param>
-    /// <param name="bitrate">Bitrate in kbps.</param>
+    /// <param name="bitrate">Bitrate in kbps (for CBR/VBR).</param>
     /// <param name="preset">NVENC preset.</param>
-    public static VideoEncoder CreateNvencHevc(string name = "NVENC HEVC", int bitrate = 6000, string preset = "hq")
+    /// <param name="rateControl">Rate control mode.</param>
+    /// <param name="cqLevel">CQ level (for CQP mode, 0-51).</param>
+    /// <param name="maxBitrate">Maximum bitrate in kbps (for VBR mode, defaults to 1.5x bitrate).</param>
+    public static VideoEncoder CreateNvencHevc(string name = "NVENC HEVC", int bitrate = 6000, string preset = "hq", RateControl rateControl = RateControl.CBR, int cqLevel = 20, int? maxBitrate = null)
     {
         using var settings = new Settings();
-        settings.Set("rate_control", "CBR");
-        settings.Set("bitrate", bitrate);
+        settings.Set("rate_control", rateControl.ToString());
         settings.Set("preset", preset);
+
+        switch (rateControl)
+        {
+            case RateControl.CBR:
+                settings.Set("bitrate", bitrate);
+                break;
+            case RateControl.VBR:
+                settings.Set("bitrate", bitrate);
+                settings.Set("max_bitrate", maxBitrate ?? (int)(bitrate * 1.5));
+                break;
+            case RateControl.CQP:
+                settings.Set("cqp", cqLevel);
+                break;
+            case RateControl.CRF:
+                settings.Set("cqp", cqLevel); // NVENC uses cqp for quality-based encoding
+                break;
+        }
+
         return new VideoEncoder(Types.NvencHevc, name, settings);
     }
 
