@@ -214,8 +214,7 @@ public sealed class ObsContext : IDisposable
         {
             try
             {
-                // For now, just pass the format string - proper va_list handling is complex
-                var message = Marshal.PtrToStringUTF8(format) ?? string.Empty;
+                var message = FormatLogMessage(format, args);
                 handler((ObsLogLevel)level, message);
             }
             catch
@@ -226,6 +225,36 @@ public sealed class ObsContext : IDisposable
 
         ObsCore.base_set_log_handler(_logHandler, 0);
     }
+
+    private static string FormatLogMessage(nint format, nint args)
+    {
+        if (format == nint.Zero)
+            return string.Empty;
+
+        // Use vsnprintf to format the message with va_list arguments
+        // First call with null buffer to get required size
+        int size = NativeVsnprintf(nint.Zero, 0, format, args);
+        if (size <= 0)
+        {
+            // Fallback to just the format string if formatting fails
+            return Marshal.PtrToStringUTF8(format) ?? string.Empty;
+        }
+
+        // Allocate buffer and format the message
+        var buffer = Marshal.AllocHGlobal(size + 1);
+        try
+        {
+            NativeVsnprintf(buffer, (nuint)(size + 1), format, args);
+            return Marshal.PtrToStringUTF8(buffer) ?? string.Empty;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(buffer);
+        }
+    }
+
+    [DllImport("msvcrt.dll", EntryPoint = "vsnprintf", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int NativeVsnprintf(nint buffer, nuint size, nint format, nint args);
 
     [SupportedOSPlatform("windows")]
     private void InitializeComForWindows()
