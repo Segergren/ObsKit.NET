@@ -59,52 +59,97 @@ internal static partial class ObsSignal
     #region Calldata
 
     /// <summary>
+    /// Gets raw data from calldata. This is the core function that other helpers use.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "calldata_get_data")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte calldata_get_data_native(
+        nint calldata,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        nint outPtr,
+        nuint size);
+
+    /// <summary>
     /// Gets an integer from calldata.
     /// </summary>
-    [LibraryImport(Lib, EntryPoint = "calldata_get_int")]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    internal static partial long calldata_get_int(
-        nint calldata,
-        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+    internal static bool calldata_get_int(nint calldata, string name, out long value)
+    {
+        value = 0;
+        unsafe
+        {
+            fixed (long* ptr = &value)
+            {
+                return calldata_get_data_native(calldata, name, (nint)ptr, (nuint)sizeof(long)) != 0;
+            }
+        }
+    }
 
     /// <summary>
     /// Gets a float from calldata.
     /// </summary>
-    [LibraryImport(Lib, EntryPoint = "calldata_get_float")]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    internal static partial double calldata_get_float(
-        nint calldata,
-        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+    internal static bool calldata_get_float(nint calldata, string name, out double value)
+    {
+        value = 0;
+        unsafe
+        {
+            fixed (double* ptr = &value)
+            {
+                return calldata_get_data_native(calldata, name, (nint)ptr, (nuint)sizeof(double)) != 0;
+            }
+        }
+    }
 
     /// <summary>
     /// Gets a bool from calldata.
     /// </summary>
-    public static bool calldata_get_bool(nint calldata, string name)
-        => calldata_get_bool_native(calldata, name) != 0;
-
-    [LibraryImport(Lib, EntryPoint = "calldata_get_bool")]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    private static partial byte calldata_get_bool_native(
-        nint calldata,
-        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
-
-    /// <summary>
-    /// Gets a string from calldata.
-    /// </summary>
-    [LibraryImport(Lib, EntryPoint = "calldata_get_string")]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    internal static partial nint calldata_get_string(
-        nint calldata,
-        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+    internal static bool calldata_get_bool(nint calldata, string name, out bool value)
+    {
+        value = false;
+        unsafe
+        {
+            byte byteVal = 0;
+            var result = calldata_get_data_native(calldata, name, (nint)(&byteVal), (nuint)sizeof(byte)) != 0;
+            value = byteVal != 0;
+            return result;
+        }
+    }
 
     /// <summary>
     /// Gets a pointer from calldata.
     /// </summary>
-    [LibraryImport(Lib, EntryPoint = "calldata_get_ptr")]
+    internal static bool calldata_get_ptr(nint calldata, string name, out nint value)
+    {
+        value = nint.Zero;
+        unsafe
+        {
+            fixed (nint* ptr = &value)
+            {
+                return calldata_get_data_native(calldata, name, (nint)ptr, (nuint)sizeof(nint)) != 0;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets a string from calldata.
+    /// </summary>
+    internal static bool calldata_get_string(nint calldata, string name, out nint strPtr)
+    {
+        strPtr = nint.Zero;
+        unsafe
+        {
+            fixed (nint* ptr = &strPtr)
+            {
+                return calldata_get_string_native(calldata, name, (nint)ptr) != 0;
+            }
+        }
+    }
+
+    [LibraryImport(Lib, EntryPoint = "calldata_get_string")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    internal static partial nint calldata_get_ptr(
+    private static partial byte calldata_get_string_native(
         nint calldata,
-        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        nint strPtrPtr);
 
     #endregion
 

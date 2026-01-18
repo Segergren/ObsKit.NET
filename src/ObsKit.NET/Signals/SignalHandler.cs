@@ -23,8 +23,9 @@ public static class Calldata
     /// <returns>The string value, or null if not found.</returns>
     public static string? GetString(nint calldata, string name)
     {
-        var ptr = ObsSignal.calldata_get_string(calldata, name);
-        return ptr == nint.Zero ? null : Marshal.PtrToStringUTF8(ptr);
+        if (ObsSignal.calldata_get_string(calldata, name, out var ptr) && ptr != nint.Zero)
+            return Marshal.PtrToStringUTF8(ptr);
+        return null;
     }
 
     /// <summary>
@@ -32,36 +33,48 @@ public static class Calldata
     /// </summary>
     /// <param name="calldata">The calldata pointer.</param>
     /// <param name="name">The parameter name.</param>
-    /// <returns>The integer value.</returns>
+    /// <returns>The integer value, or 0 if not found.</returns>
     public static long GetInt(nint calldata, string name)
-        => ObsSignal.calldata_get_int(calldata, name);
+    {
+        ObsSignal.calldata_get_int(calldata, name, out var value);
+        return value;
+    }
 
     /// <summary>
     /// Gets a float value from calldata.
     /// </summary>
     /// <param name="calldata">The calldata pointer.</param>
     /// <param name="name">The parameter name.</param>
-    /// <returns>The float value.</returns>
+    /// <returns>The float value, or 0.0 if not found.</returns>
     public static double GetFloat(nint calldata, string name)
-        => ObsSignal.calldata_get_float(calldata, name);
+    {
+        ObsSignal.calldata_get_float(calldata, name, out var value);
+        return value;
+    }
 
     /// <summary>
     /// Gets a boolean value from calldata.
     /// </summary>
     /// <param name="calldata">The calldata pointer.</param>
     /// <param name="name">The parameter name.</param>
-    /// <returns>The boolean value.</returns>
+    /// <returns>The boolean value, or false if not found.</returns>
     public static bool GetBool(nint calldata, string name)
-        => ObsSignal.calldata_get_bool(calldata, name);
+    {
+        ObsSignal.calldata_get_bool(calldata, name, out var value);
+        return value;
+    }
 
     /// <summary>
     /// Gets a pointer value from calldata.
     /// </summary>
     /// <param name="calldata">The calldata pointer.</param>
     /// <param name="name">The parameter name.</param>
-    /// <returns>The pointer value.</returns>
+    /// <returns>The pointer value, or IntPtr.Zero if not found.</returns>
     public static nint GetPointer(nint calldata, string name)
-        => ObsSignal.calldata_get_ptr(calldata, name);
+    {
+        ObsSignal.calldata_get_ptr(calldata, name, out var value);
+        return value;
+    }
 }
 
 /// <summary>

@@ -5,6 +5,7 @@
     <AssemblyName>ObsKit.NET</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PackageId>ObsKit.NET</PackageId>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageProjectUrl>https://github.com/Segra/ObsKit.NET</PackageProjectUrl>
