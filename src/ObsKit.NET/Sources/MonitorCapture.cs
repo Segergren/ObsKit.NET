@@ -113,11 +113,16 @@ public sealed class MonitorCapture : Source
             var monitor = monitors.FirstOrDefault(m => m.Index == monitorIndex) ?? monitors.FirstOrDefault();
             if (monitor != null)
             {
-                settings.Set("monitor_id", monitor.DeviceName);
+                // Use DeviceId (full device interface ID like \\?\DISPLAY#SAM0FEC#...)
+                // This is what OBS uses to match monitors for DXGI capture (duplicator_capture_info)
+                settings.Set("monitor_id", monitor.DeviceId ?? monitor.DeviceName);
             }
+            // Also set integer monitor index for GDI-based capture (monitor_capture_info)
+            // OBS registers different source implementations with the same "monitor_capture" ID
+            // depending on whether graphics_uses_d3d11 is true or false
+            settings.Set("monitor", monitorIndex);
             settings.Set("capture_cursor", captureCursor);
-            // Default to WGC (Windows Graphics Capture) to avoid DXGI errors
-            // DXGI Desktop Duplication can fail with 0x887A0004 in certain scenarios
+            // Default to WGC (Windows.Graphics.Capture) for better performance
             settings.Set("method", 2); // 0=auto, 1=DXGI, 2=WGC
         }
         else if (OperatingSystem.IsLinux())
@@ -165,8 +170,11 @@ public sealed class MonitorCapture : Source
                 var monitor = monitors.FirstOrDefault(m => m.Index == monitorIndex) ?? monitors.FirstOrDefault();
                 if (monitor != null)
                 {
-                    s.Set("monitor_id", monitor.DeviceName);
+                    // For DXGI-based duplicator_capture_info (string monitor_id)
+                    s.Set("monitor_id", monitor.DeviceId ?? monitor.DeviceName);
                 }
+                // For GDI-based monitor_capture_info (integer monitor)
+                s.Set("monitor", monitorIndex);
             }
             else if (OperatingSystem.IsMacOS())
             {
@@ -186,7 +194,10 @@ public sealed class MonitorCapture : Source
         {
             if (OperatingSystem.IsWindows())
             {
-                s.Set("monitor_id", monitor.DeviceName);
+                // For DXGI-based duplicator_capture_info (string monitor_id)
+                s.Set("monitor_id", monitor.DeviceId ?? monitor.DeviceName);
+                // For GDI-based monitor_capture_info (integer monitor)
+                s.Set("monitor", monitor.Index);
             }
             else if (OperatingSystem.IsMacOS())
             {
@@ -215,6 +226,19 @@ public sealed class MonitorCapture : Source
                 };
                 s.Set("method", methodValue);
             });
+        }
+        return this;
+    }
+
+    /// <summary>
+    /// Forces SDR output mode (Windows only). May help with HDR-related capture issues.
+    /// </summary>
+    /// <param name="forceSdr">Whether to force SDR mode.</param>
+    public MonitorCapture SetForceSdr(bool forceSdr)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Update(s => s.Set("force_sdr", forceSdr));
         }
         return this;
     }

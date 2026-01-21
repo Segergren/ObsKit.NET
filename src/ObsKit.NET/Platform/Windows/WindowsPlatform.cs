@@ -12,6 +12,9 @@ internal sealed class WindowsPlatform : IPlatformServices
 {
     public IReadOnlyList<MonitorInfo> GetMonitors()
     {
+        // First, build a map of device name to device interface ID using EnumDisplayDevices
+        var deviceIdMap = BuildDeviceIdMap();
+
         var monitors = new List<MonitorInfo>();
         int index = 0;
 
@@ -29,11 +32,15 @@ internal sealed class WindowsPlatform : IPlatformServices
                     info = Marshal.PtrToStructure<User32.MONITORINFOEX>(infoPtr);
                     var deviceName = info.GetDeviceName();
 
+                    // Get the full device interface ID for OBS monitor capture
+                    deviceIdMap.TryGetValue(deviceName, out var deviceId);
+
                     monitors.Add(new MonitorInfo
                     {
                         Index = index++,
                         Handle = hMonitor,
                         DeviceName = deviceName,
+                        DeviceId = deviceId ?? deviceName, // Fall back to device name if not found
                         Name = deviceName,
                         X = info.rcMonitor.Left,
                         Y = info.rcMonitor.Top,
@@ -54,6 +61,67 @@ internal sealed class WindowsPlatform : IPlatformServices
         User32.EnumDisplayMonitors(0, 0, callback, 0);
         GC.KeepAlive(callback);
         return monitors;
+    }
+
+    /// <summary>
+    /// Builds a map of device names (e.g., \\.\DISPLAY1) to device interface IDs
+    /// using EnumDisplayDevices with EDD_GET_DEVICE_INTERFACE_NAME flag.
+    /// </summary>
+    private static Dictionary<string, string> BuildDeviceIdMap()
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        uint deviceIndex = 0;
+        int displayDeviceSize = Marshal.SizeOf<User32.DISPLAY_DEVICE>();
+        nint displayDevicePtr = Marshal.AllocHGlobal(displayDeviceSize);
+
+        try
+        {
+            while (true)
+            {
+                // Initialize DISPLAY_DEVICE structure
+                var displayDevice = new User32.DISPLAY_DEVICE { cb = displayDeviceSize };
+                Marshal.StructureToPtr(displayDevice, displayDevicePtr, false);
+
+                // Get display adapter info
+                if (User32.EnumDisplayDevices(0, deviceIndex, displayDevicePtr, 0) == 0)
+                    break;
+
+                displayDevice = Marshal.PtrToStructure<User32.DISPLAY_DEVICE>(displayDevicePtr);
+                var adapterName = displayDevice.DeviceName; // e.g., \\.\DISPLAY1
+
+                // Now get the monitor attached to this adapter with the device interface name flag
+                var monitorDevice = new User32.DISPLAY_DEVICE { cb = displayDeviceSize };
+                Marshal.StructureToPtr(monitorDevice, displayDevicePtr, false);
+
+                nint adapterNamePtr = Marshal.StringToHGlobalAnsi(adapterName);
+                try
+                {
+                    if (User32.EnumDisplayDevices(adapterNamePtr, 0, displayDevicePtr, User32.EDD_GET_DEVICE_INTERFACE_NAME) != 0)
+                    {
+                        monitorDevice = Marshal.PtrToStructure<User32.DISPLAY_DEVICE>(displayDevicePtr);
+                        var deviceId = monitorDevice.DeviceID; // Full device interface ID
+
+                        if (!string.IsNullOrEmpty(deviceId))
+                        {
+                            map[adapterName] = deviceId;
+                        }
+                    }
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(adapterNamePtr);
+                }
+
+                deviceIndex++;
+            }
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(displayDevicePtr);
+        }
+
+        return map;
     }
 
     public MonitorInfo? GetPrimaryMonitor()

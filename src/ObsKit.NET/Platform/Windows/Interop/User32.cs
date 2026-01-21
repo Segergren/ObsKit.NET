@@ -84,6 +84,20 @@ internal static partial class User32
 
     #endregion
 
+    #region Display Device Enumeration
+
+    [LibraryImport(Lib, EntryPoint = "EnumDisplayDevicesA", SetLastError = true)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvStdcall)])]
+    internal static partial byte EnumDisplayDevices(
+        nint lpDevice,
+        uint iDevNum,
+        nint lpDisplayDevice,
+        uint dwFlags);
+
+    internal const uint EDD_GET_DEVICE_INTERFACE_NAME = 0x00000001;
+
+    #endregion
+
     #region Structures
 
     [StructLayout(LayoutKind.Sequential)]
@@ -112,6 +126,26 @@ internal static partial class User32
         public const uint MONITORINFOF_PRIMARY = 1;
 
         public readonly string GetDeviceName() => szDevice ?? string.Empty;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+    internal struct DISPLAY_DEVICE
+    {
+        public int cb;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        public string DeviceName;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        public string DeviceString;
+
+        public uint StateFlags;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        public string DeviceID;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
+        public string DeviceKey;
     }
 
     #endregion

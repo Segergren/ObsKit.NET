@@ -75,14 +75,20 @@ public sealed class ObsContext : IDisposable
             ObsCore.obs_add_module_path(binPath, dataPath);
         }
 
-        // Reset video
-        ResetVideo(shutdownOnFailure: true);
-
-        // Reset audio
-        ResetAudio(shutdownOnFailure: true);
-
-        // Load modules
-        LoadModules();
+        if (_config.LoadModulesBeforeVideo)
+        {
+            // Non-standard order: Load modules first (may help with DXGI)
+            LoadModules();
+            ResetVideo(shutdownOnFailure: true);
+            ResetAudio(shutdownOnFailure: true);
+        }
+        else
+        {
+            // Standard order per OBS documentation
+            ResetVideo(shutdownOnFailure: true);
+            ResetAudio(shutdownOnFailure: true);
+            LoadModules();
+        }
     }
 
     private void LoadModules()

@@ -15,6 +15,7 @@ public sealed class ObsConfiguration
     internal List<(string Bin, string Data)> ModulePaths { get; } = [];
     internal Action<ObsLogLevel, string>? LogHandler { get; private set; }
     internal HashSet<string> ExcludedModules { get; } = new(StringComparer.OrdinalIgnoreCase);
+    internal bool LoadModulesBeforeVideo { get; private set; } = false;
 
     /// <summary>
     /// Sets the locale for OBS (e.g., "en-US").
@@ -138,6 +139,18 @@ public sealed class ObsConfiguration
         ExcludeWebSocket();
         return this;
     }
+
+    /// <summary>
+    /// Loads modules before initializing video/audio subsystems.
+    /// This is NOT the recommended order per OBS documentation, but may be required
+    /// for DXGI Desktop Duplication to work correctly in some configurations
+    /// (particularly when COM is initialized in STA mode by the host application).
+    /// </summary>
+    public ObsConfiguration WithModulesLoadedFirst()
+    {
+        LoadModulesBeforeVideo = true;
+        return this;
+    }
 }
 
 /// <summary>
@@ -249,6 +262,16 @@ public sealed class VideoSettings
     {
         FpsNumerator = numerator;
         FpsDenominator = denominator;
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the GPU adapter index to use.
+    /// </summary>
+    /// <param name="adapterIndex">The adapter index (0 = default).</param>
+    public VideoSettings WithAdapter(uint adapterIndex)
+    {
+        Adapter = adapterIndex;
         return this;
     }
 

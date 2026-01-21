@@ -47,6 +47,12 @@ public sealed class MonitorInfo
     public string DeviceName { get; init; } = string.Empty;
 
     /// <summary>
+    /// Gets the full device interface ID for OBS monitor capture.
+    /// This is the preferred ID for DXGI/WGC capture methods.
+    /// </summary>
+    public string DeviceId { get; init; } = string.Empty;
+
+    /// <summary>
     /// Gets the monitor handle.
     /// </summary>
     public nint Handle { get; init; }

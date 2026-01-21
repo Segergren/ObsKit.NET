@@ -8,8 +8,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <PackageId>ObsKit.NET</PackageId>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageProjectUrl>https://github.com/Segra/ObsKit.NET</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/Segra/ObsKit.NET</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Segergren/ObsKit.NET</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Segergren/ObsKit.NET</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
