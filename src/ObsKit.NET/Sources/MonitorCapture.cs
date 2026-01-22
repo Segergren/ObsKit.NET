@@ -1,5 +1,6 @@
 using ObsKit.NET.Core;
 using ObsKit.NET.Platform;
+using ObsKit.NET.Platform.Windows.Interop;
 
 namespace ObsKit.NET.Sources;
 
@@ -215,6 +216,15 @@ public sealed class MonitorCapture : Source
     {
         if (OperatingSystem.IsWindows())
         {
+            // Check DPI awareness when using DXGI Desktop Duplication
+            if ((method == MonitorCaptureMethod.DesktopDuplication || method == MonitorCaptureMethod.Auto) && !User32.IsPerMonitorDpiAware())
+            {
+                Console.Error.WriteLine("[ObsKit.NET] Warning: Desktop Duplication (DXGI) requires per-monitor DPI awareness.");
+                Console.Error.WriteLine("[ObsKit.NET] Your application must include an app.manifest with DPI awareness settings.");
+                Console.Error.WriteLine("[ObsKit.NET] Or use MonitorCaptureMethod.WindowsGraphicsCapture instead.");
+                Console.Error.WriteLine("[ObsKit.NET] See: https://github.com/Segergren/ObsKit.NET/blob/main/docs/dpi-awareness.md");
+            }
+
             Update(s =>
             {
                 // OBS uses integer values: 0=auto, 1=DXGI, 2=WGC

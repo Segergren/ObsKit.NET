@@ -98,6 +98,57 @@ internal static partial class User32
 
     #endregion
 
+    #region DPI Awareness
+
+    /// <summary>
+    /// Gets the DPI awareness context for the current thread.
+    /// </summary>
+    [LibraryImport(Lib, SetLastError = true)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvStdcall)])]
+    internal static partial nint GetThreadDpiAwarenessContext();
+
+    /// <summary>
+    /// Gets the DPI_AWARENESS value from a DPI_AWARENESS_CONTEXT.
+    /// </summary>
+    [LibraryImport(Lib, SetLastError = true)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvStdcall)])]
+    internal static partial int GetAwarenessFromDpiAwarenessContext(nint value);
+
+    /// <summary>
+    /// DPI unaware. The thread does not scale for DPI changes.
+    /// </summary>
+    internal const int DPI_AWARENESS_UNAWARE = 0;
+
+    /// <summary>
+    /// System DPI aware. The thread queries for DPI once at startup.
+    /// </summary>
+    internal const int DPI_AWARENESS_SYSTEM_AWARE = 1;
+
+    /// <summary>
+    /// Per-monitor DPI aware. The thread receives DPI change notifications.
+    /// </summary>
+    internal const int DPI_AWARENESS_PER_MONITOR_AWARE = 2;
+
+    /// <summary>
+    /// Checks if the current thread is per-monitor DPI aware.
+    /// </summary>
+    internal static bool IsPerMonitorDpiAware()
+    {
+        try
+        {
+            var context = GetThreadDpiAwarenessContext();
+            var awareness = GetAwarenessFromDpiAwarenessContext(context);
+            return awareness >= DPI_AWARENESS_PER_MONITOR_AWARE;
+        }
+        catch
+        {
+            // API not available (pre-Windows 10 1607)
+            return false;
+        }
+    }
+
+    #endregion
+
     #region Structures
 
     [StructLayout(LayoutKind.Sequential)]

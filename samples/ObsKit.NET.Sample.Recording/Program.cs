@@ -45,7 +45,8 @@ using var obs = Obs.Initialize(config => config
 // Get monitor info for dimensions
 var primaryMonitor = MonitorCapture.AvailableMonitors.FirstOrDefault(m => m.IsPrimary)
                      ?? MonitorCapture.AvailableMonitors.First();
-using var monitorSource = MonitorCapture.FromMonitor(primaryMonitor);
+using var monitorSource = MonitorCapture.FromMonitor(primaryMonitor)
+    .SetCaptureMethod(MonitorCaptureMethod.DesktopDuplication);
 
 // You can also change video/audio settings after initialization using Obs.SetVideo/SetAudio.
 // These use the same configuration options as WithVideo/WithAudio above.
