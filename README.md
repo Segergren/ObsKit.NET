@@ -137,6 +137,42 @@ var encoder = VideoEncoder.CreateNvencHevc("Video", bitrate: 6000);
 var encoder = AudioEncoder.CreateAac("Audio", bitrate: 192);
 ```
 
+## DPI Awareness (Windows)
+
+When using DXGI Desktop Duplication for monitor capture on Windows, your application must be configured as **per-monitor DPI aware**.
+
+**For Windows Forms / WPF apps**, add to your `.csproj`:
+
+```xml
+<PropertyGroup>
+  <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+</PropertyGroup>
+```
+
+**For console apps**, add an `app.manifest` file:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
+      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true/pm</dpiAware>
+    </windowsSettings>
+  </application>
+</assembly>
+```
+
+And reference it in your `.csproj`:
+
+```xml
+<PropertyGroup>
+  <ApplicationManifest>app.manifest</ApplicationManifest>
+</PropertyGroup>
+```
+
+Alternatively, use `MonitorCaptureMethod.WindowsGraphicsCapture` which doesn't require DPI awareness.
+
 ## Troubleshooting
 
 | Problem | Solution |
@@ -146,6 +182,7 @@ var encoder = AudioEncoder.CreateAac("Audio", bitrate: 192);
 | "Source ID 'xxx' not found" | Required plugin not loaded |
 | Recording fails | Ensure `obs-ffmpeg-mux.exe` exists (Windows) and output path is writable |
 | Module loading hangs | Use `.ForHeadlessOperation()` to exclude GUI modules |
+| DXGI DuplicateOutput1 DPI error | See [DPI Awareness](#dpi-awareness-windows) section above |
 
 ## License
 

@@ -222,7 +222,7 @@ public sealed class MonitorCapture : Source
                 Console.Error.WriteLine("[ObsKit.NET] Warning: Desktop Duplication (DXGI) requires per-monitor DPI awareness.");
                 Console.Error.WriteLine("[ObsKit.NET] Your application must include an app.manifest with DPI awareness settings.");
                 Console.Error.WriteLine("[ObsKit.NET] Or use MonitorCaptureMethod.WindowsGraphicsCapture instead.");
-                Console.Error.WriteLine("[ObsKit.NET] See: https://github.com/Segergren/ObsKit.NET/blob/main/docs/dpi-awareness.md");
+                Console.Error.WriteLine("[ObsKit.NET] See: https://github.com/Segergren/ObsKit.NET#dpi-awareness-windows");
             }
 
             Update(s =>
