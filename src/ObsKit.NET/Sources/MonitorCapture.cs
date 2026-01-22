@@ -123,8 +123,8 @@ public sealed class MonitorCapture : Source
             // depending on whether graphics_uses_d3d11 is true or false
             settings.Set("monitor", monitorIndex);
             settings.Set("capture_cursor", captureCursor);
-            // Default to WGC (Windows.Graphics.Capture) for better performance
-            settings.Set("method", 2); // 0=auto, 1=DXGI, 2=WGC
+            // Let OBS choose the best capture method automatically
+            settings.Set("method", 0); // 0=auto, 1=DXGI, 2=WGC
         }
         else if (OperatingSystem.IsLinux())
         {
