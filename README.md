@@ -6,6 +6,7 @@ A modern .NET 9 wrapper for OBS Studio, providing a fluent C# API for video reco
 
 - **Cross-Platform** - Windows, Linux, and macOS support
 - **Fluent API** - Clean, chainable configuration
+- **Streaming** - Stream to Twitch, YouTube, Facebook, or custom RTMP servers
 - **Recording** - Record video to MP4, MKV, FLV, and more
 - **Replay Buffer** - Keep a rolling buffer of the last N seconds
 - **Sources** - Monitor capture, window capture, game capture, images, media files
@@ -135,6 +136,48 @@ var encoder = VideoEncoder.CreateNvencHevc("Video", bitrate: 6000);
 
 // Audio - AAC
 var encoder = AudioEncoder.CreateAac("Audio", bitrate: 192);
+```
+
+## Streaming
+
+```csharp
+using ObsKit.NET.Outputs;
+using ObsKit.NET.Services;
+
+// Stream to Twitch
+using var streaming = new StreamingOutput("My Stream")
+    .ToTwitch("your_stream_key")
+    .WithDefaultEncoders(videoBitrate: 4500, audioBitrate: 160);
+
+// Stream to YouTube
+using var streaming = new StreamingOutput("My Stream")
+    .ToYouTube("your_stream_key")
+    .WithDefaultEncoders(videoBitrate: 4500, audioBitrate: 160);
+
+// Stream to custom RTMP server
+using var streaming = new StreamingOutput("My Stream")
+    .ToCustomServer("rtmp://live.example.com/app", "stream_key")
+    .WithDefaultEncoders(videoBitrate: 4500, audioBitrate: 160);
+
+// Full control with Service class
+using var service = Service.CreateCustom("rtmp://live.example.com/app", "stream_key");
+using var streaming = new StreamingOutput("My Stream")
+    .WithService(service)
+    .WithNvencEncoders(videoBitrate: 6000, audioBitrate: 160)
+    .WithReconnect(enabled: true, retryDelaySec: 10, maxRetries: 20)
+    .WithLowLatencyMode(enabled: true);
+
+// Start streaming
+streaming.Start();
+
+// Monitor stream status
+Console.WriteLine($"Streaming: {streaming.IsActive}");
+Console.WriteLine($"Bytes sent: {streaming.TotalBytes}");
+Console.WriteLine($"Frames dropped: {streaming.FramesDropped}");
+Console.WriteLine($"Congestion: {streaming.Congestion:P0}");
+
+// Stop streaming
+streaming.Stop();
 ```
 
 ## DPI Awareness (Windows)
