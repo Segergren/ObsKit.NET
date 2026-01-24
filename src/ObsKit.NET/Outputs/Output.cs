@@ -124,19 +124,24 @@ public class Output : ObsObject
     /// Stops the output.
     /// </summary>
     /// <param name="waitForCompletion">If true, waits for the output to fully stop.</param>
-    /// <param name="timeoutMs">Maximum time to wait in milliseconds (default 5000).</param>
-    public void Stop(bool waitForCompletion = true, int timeoutMs = 5000)
+    /// <param name="timeoutMs">Maximum time to wait in milliseconds (default 30000).</param>
+    /// <returns>True if the output stopped successfully, false if timed out.</returns>
+    public bool Stop(bool waitForCompletion = true, int timeoutMs = 30000)
     {
+        if (!IsActive) return true;
+
         ObsOutput.obs_output_stop(Handle);
 
         if (waitForCompletion)
         {
-            var startTime = Environment.TickCount;
-            while (IsActive && (Environment.TickCount - startTime) < timeoutMs)
+            var startTime = Environment.TickCount64;
+            while (IsActive && (Environment.TickCount64 - startTime) < timeoutMs)
             {
-                Thread.Sleep(10);
+                Thread.Sleep(50);
             }
         }
+
+        return !IsActive;
     }
 
     /// <summary>

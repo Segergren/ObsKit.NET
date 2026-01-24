@@ -199,10 +199,8 @@ public sealed class RecordingOutput : Output
     }
 
     /// <summary>Stops the recording.</summary>
-    public void Stop()
-    {
-        base.Stop();
-    }
+    /// <returns>True if the recording stopped successfully, false if timed out.</returns>
+    public bool Stop() => base.Stop();
 
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)
