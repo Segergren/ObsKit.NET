@@ -12,6 +12,8 @@ namespace ObsKit.NET.Outputs;
 /// </summary>
 public class Output : ObsObject
 {
+    private VideoEncoder? _videoEncoder;
+    private readonly Dictionary<int, AudioEncoder> _audioEncoders = new();
     /// <summary>
     /// Creates a new output with the specified type ID and name.
     /// </summary>
@@ -122,26 +124,56 @@ public class Output : ObsObject
 
     /// <summary>
     /// Stops the output.
+    /// If Obs.AutoDispose is true, the output is disposed and encoders are detached
+    /// (encoders auto-dispose when their ref count reaches 0).
     /// </summary>
     /// <param name="waitForCompletion">If true, waits for the output to fully stop.</param>
     /// <param name="timeoutMs">Maximum time to wait in milliseconds (default 30000).</param>
     /// <returns>True if the output stopped successfully, false if timed out.</returns>
     public bool Stop(bool waitForCompletion = true, int timeoutMs = 30000)
     {
-        if (!IsActive) return true;
+        if (!IsActive && !Obs.AutoDispose) return true;
 
-        ObsOutput.obs_output_stop(Handle);
-
-        if (waitForCompletion)
+        if (IsActive)
         {
-            var startTime = Environment.TickCount64;
-            while (IsActive && (Environment.TickCount64 - startTime) < timeoutMs)
+            ObsOutput.obs_output_stop(Handle);
+
+            if (waitForCompletion)
             {
-                Thread.Sleep(50);
+                var startTime = Environment.TickCount64;
+                while (IsActive && (Environment.TickCount64 - startTime) < timeoutMs)
+                {
+                    Thread.Sleep(50);
+                }
             }
         }
 
-        return !IsActive;
+        var stopped = !IsActive;
+
+        // Auto-dispose: detach encoders and dispose output
+        if (Obs.AutoDispose)
+        {
+            DetachEncoders();
+            Obs.OnOutputStopped(this);
+            Dispose();
+        }
+
+        return stopped;
+    }
+
+    /// <summary>
+    /// Detaches all encoders from this output, decrementing their ref counts.
+    /// </summary>
+    private void DetachEncoders()
+    {
+        _videoEncoder?.Detach();
+        _videoEncoder = null;
+
+        foreach (var encoder in _audioEncoders.Values)
+        {
+            encoder.Detach();
+        }
+        _audioEncoders.Clear();
     }
 
     /// <summary>
@@ -201,20 +233,38 @@ public class Output : ObsObject
 
     /// <summary>
     /// Sets the video encoder for this output.
+    /// The encoder's ref count is incremented for automatic lifecycle management.
     /// </summary>
     /// <param name="encoder">The video encoder.</param>
     public void SetVideoEncoder(VideoEncoder encoder)
     {
+        // Detach previous encoder if any
+        _videoEncoder?.Detach();
+
+        _videoEncoder = encoder;
+        encoder.Attach();
+
         ObsOutput.obs_output_set_video_encoder(Handle, encoder.Handle);
     }
 
     /// <summary>
     /// Sets the audio encoder for this output.
+    /// The encoder's ref count is incremented for automatic lifecycle management.
+    /// If a different encoder was previously set for this track, it will be detached.
     /// </summary>
     /// <param name="encoder">The audio encoder.</param>
     /// <param name="track">The audio track index (default 0).</param>
     public void SetAudioEncoder(AudioEncoder encoder, int track = 0)
     {
+        // Detach previous encoder for this track if any
+        if (_audioEncoders.TryGetValue(track, out var previous) && previous != encoder)
+        {
+            previous.Detach();
+        }
+
+        _audioEncoders[track] = encoder;
+        encoder.Attach();
+
         ObsOutput.obs_output_set_audio_encoder(Handle, encoder.Handle, (nuint)track);
     }
 
@@ -321,6 +371,7 @@ public class Output : ObsObject
 
     protected override void ReleaseHandle(nint handle)
     {
+        DetachEncoders();
         ObsOutput.obs_output_release((ObsOutputHandle)handle);
     }
 

@@ -11,6 +11,7 @@ namespace ObsKit.NET.Scenes;
 public sealed class SceneItem : ObsObject
 {
     private readonly Scene _scene;
+    private bool _removed;
 
     internal SceneItem(ObsSceneItemHandle handle, Scene scene, bool ownsHandle = true)
         : base(handle, ownsHandle)
@@ -247,13 +248,22 @@ public sealed class SceneItem : ObsObject
     /// <summary>Removes this item from the scene.</summary>
     public void Remove()
     {
+        if (_removed)
+            return;
+
+        _removed = true;
         ObsScene.obs_sceneitem_remove(Handle);
     }
 
     /// <inheritdoc/>
     protected override void ReleaseHandle(nint handle)
     {
-        ObsScene.obs_sceneitem_release((ObsSceneItemHandle)handle);
+        // obs_sceneitem_remove internally calls obs_sceneitem_release
+        if (!_removed)
+        {
+            _removed = true;
+            ObsScene.obs_sceneitem_remove((ObsSceneItemHandle)handle);
+        }
     }
 
     /// <inheritdoc/>

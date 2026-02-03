@@ -13,6 +13,9 @@ namespace ObsKit.NET.Scenes;
 /// </summary>
 public sealed class Scene : ObsObject, IEnumerable<SceneItem>
 {
+    private uint? _assignedChannel;
+    private readonly List<SceneItem> _ownedSceneItems = new();
+
     /// <summary>
     /// Creates a new scene with the specified name.
     /// </summary>
@@ -118,8 +121,9 @@ public sealed class Scene : ObsObject, IEnumerable<SceneItem>
         if (itemHandle.IsNull)
             throw new InvalidOperationException("Failed to add source to scene");
 
-        // obs_scene_add returns a reference
-        return new SceneItem(itemHandle, this, ownsHandle: true);
+        var sceneItem = new SceneItem(itemHandle, this, ownsHandle: true);
+        _ownedSceneItems.Add(sceneItem);
+        return sceneItem;
     }
 
     /// <summary>
@@ -268,11 +272,54 @@ public sealed class Scene : ObsObject, IEnumerable<SceneItem>
     {
         var sourceHandle = ObsScene.obs_scene_get_source(Handle);
         ObsCore.obs_set_output_source(channel, sourceHandle);
+
+        // Track the channel so we can clear it on disposal
+        _assignedChannel = channel;
+    }
+
+    /// <summary>
+    /// Clears this scene from its assigned output channel (if any).
+    /// This is called automatically on disposal, but can be called manually if needed.
+    /// </summary>
+    public void ClearFromProgram()
+    {
+        if (_assignedChannel.HasValue)
+        {
+            ObsCore.obs_set_output_source(_assignedChannel.Value, ObsSourceHandle.Null);
+            _assignedChannel = null;
+        }
     }
 
     protected override void ReleaseHandle(nint handle)
     {
-        ObsScene.obs_scene_release((ObsSceneHandle)handle);
+        var sceneHandle = (ObsSceneHandle)handle;
+
+        // Clear from output channel
+        if (_assignedChannel.HasValue)
+        {
+            try { ObsCore.obs_set_output_source(_assignedChannel.Value, ObsSourceHandle.Null); }
+            catch { /* Ignore */ }
+            _assignedChannel = null;
+        }
+
+        // Dispose all tracked SceneItems
+        foreach (var item in _ownedSceneItems)
+        {
+            try { if (!item.IsDisposed) item.Dispose(); }
+            catch { /* Ignore */ }
+        }
+        _ownedSceneItems.Clear();
+
+        // Remove scene source from canvas (must be done before release)
+        var sourceHandle = ObsScene.obs_scene_get_source(sceneHandle);
+        if (!sourceHandle.IsNull)
+        {
+            try { ObsSource.obs_source_remove(sourceHandle); }
+            catch { /* Ignore */ }
+        }
+
+        // Release the scene
+        ObsScene.obs_scene_release(sceneHandle);
     }
 
     public override string ToString() => $"Scene: {Name}";

@@ -21,9 +21,12 @@ public enum RateControl
 
 /// <summary>
 /// Represents an OBS video encoder (obs_encoder_t).
+/// Supports ref counting for automatic disposal when no outputs reference it.
 /// </summary>
 public sealed class VideoEncoder : ObsObject
 {
+    private int _refCount = 0;
+    private readonly object _refLock = new();
     /// <summary>Known video encoder type IDs.</summary>
     public static class Types
     {
@@ -257,6 +260,53 @@ public sealed class VideoEncoder : ObsObject
     internal void SetVideo(VideoHandle video)
     {
         ObsEncoder.obs_encoder_set_video(Handle, video);
+    }
+
+    /// <summary>
+    /// Attaches this encoder to an output, incrementing the ref count.
+    /// </summary>
+    internal void Attach()
+    {
+        lock (_refLock)
+        {
+            _refCount++;
+        }
+    }
+
+    /// <summary>
+    /// Detaches this encoder from an output, decrementing the ref count.
+    /// When ref count reaches 0 and AutoDispose is enabled, the encoder is disposed.
+    /// </summary>
+    internal void Detach()
+    {
+        bool shouldDispose = false;
+        lock (_refLock)
+        {
+            _refCount--;
+            if (_refCount <= 0 && Obs.AutoDispose)
+            {
+                shouldDispose = true;
+            }
+        }
+
+        if (shouldDispose)
+        {
+            Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Gets the current reference count (number of outputs using this encoder).
+    /// </summary>
+    public int RefCount
+    {
+        get
+        {
+            lock (_refLock)
+            {
+                return _refCount;
+            }
+        }
     }
 
     /// <inheritdoc/>

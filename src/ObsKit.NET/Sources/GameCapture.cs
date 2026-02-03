@@ -1,13 +1,18 @@
 using ObsKit.NET.Core;
+using ObsKit.NET.Native.Interop;
+using ObsKit.NET.Signals;
 
 namespace ObsKit.NET.Sources;
 
 /// <summary>
 /// Represents a game capture source (Windows-only).
 /// Uses GPU-based capture for better performance with games.
+/// Automatically tracks hook state via IsHooked property.
 /// </summary>
 public sealed class GameCapture : Source
 {
+    private SignalConnection? _hookedConnection;
+    private SignalConnection? _unhookedConnection;
     /// <summary>
     /// The source type ID for game capture.
     /// </summary>
@@ -35,6 +40,36 @@ public sealed class GameCapture : Source
     }
 
     /// <summary>
+    /// Gets whether the game capture has successfully hooked into a game.
+    /// </summary>
+    public bool IsHooked { get; private set; }
+
+    /// <summary>
+    /// Gets the executable name of the hooked game, or null if not hooked.
+    /// </summary>
+    public string? HookedExecutable { get; private set; }
+
+    /// <summary>
+    /// Gets the window title of the hooked game, or null if not hooked.
+    /// </summary>
+    public string? HookedWindowTitle { get; private set; }
+
+    /// <summary>
+    /// Gets the window class of the hooked game, or null if not hooked.
+    /// </summary>
+    public string? HookedWindowClass { get; private set; }
+
+    /// <summary>
+    /// Event raised when the game capture hooks into a game.
+    /// </summary>
+    public event Action<GameCapture>? Hooked;
+
+    /// <summary>
+    /// Event raised when the game capture unhooks from a game.
+    /// </summary>
+    public event Action<GameCapture>? Unhooked;
+
+    /// <summary>
     /// Creates a game capture source.
     /// </summary>
     /// <param name="name">The source name.</param>
@@ -47,6 +82,31 @@ public sealed class GameCapture : Source
             throw new PlatformNotSupportedException("Game capture is only supported on Windows.");
 
         ApplySettings(mode, null, captureCursor);
+        SubscribeToHookSignals();
+    }
+
+    private void SubscribeToHookSignals()
+    {
+        _hookedConnection = ConnectSignal(SourceSignal.Hooked, OnHooked);
+        _unhookedConnection = ConnectSignal(SourceSignal.Unhooked, OnUnhooked);
+    }
+
+    private void OnHooked(nint calldata)
+    {
+        HookedWindowTitle = Calldata.GetString(calldata, "title");
+        HookedWindowClass = Calldata.GetString(calldata, "class");
+        HookedExecutable = Calldata.GetString(calldata, "executable");
+        IsHooked = true;
+        Hooked?.Invoke(this);
+    }
+
+    private void OnUnhooked(nint calldata)
+    {
+        IsHooked = false;
+        HookedWindowTitle = null;
+        HookedWindowClass = null;
+        HookedExecutable = null;
+        Unhooked?.Invoke(this);
     }
 
     /// <summary>
@@ -168,5 +228,20 @@ public sealed class GameCapture : Source
     {
         Update(s => s.Set("limit_framerate", limit));
         return this;
+    }
+
+    /// <summary>
+    /// Disposes the game capture and disconnects signal handlers.
+    /// </summary>
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _hookedConnection?.Dispose();
+            _hookedConnection = null;
+            _unhookedConnection?.Dispose();
+            _unhookedConnection = null;
+        }
+        base.Dispose(disposing);
     }
 }

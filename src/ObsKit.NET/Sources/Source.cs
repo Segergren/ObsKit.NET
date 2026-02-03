@@ -104,6 +104,11 @@ public class Source : ObsObject
     public bool IsRemoved => ObsSource.obs_source_removed(Handle);
 
     /// <summary>
+    /// Gets the output channel this source is assigned to, or null if not assigned.
+    /// </summary>
+    public uint? AssignedChannel { get; internal set; }
+
+    /// <summary>
     /// Gets or sets the volume level (0.0 to 1.0).
     /// </summary>
     public float Volume
@@ -237,6 +242,7 @@ public class Source : ObsObject
     /// <inheritdoc/>
     protected override void ReleaseHandle(nint handle)
     {
+        Obs.OnSourceDisposed(this);
         ObsSource.obs_source_release((ObsSourceHandle)handle);
     }
 
