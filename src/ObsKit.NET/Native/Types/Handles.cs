@@ -275,3 +275,72 @@ public readonly struct AudioHandle : IEquatable<AudioHandle>
     public static bool operator !=(AudioHandle left, AudioHandle right) => !left.Equals(right);
     public override string ToString() => $"Audio(0x{Value:X})";
 }
+
+/// <summary>
+/// Strongly-typed handle for gs_texrender_t.
+/// </summary>
+public readonly struct GsTexRenderHandle : IEquatable<GsTexRenderHandle>
+{
+    public readonly nint Value;
+
+    public GsTexRenderHandle(nint value) => Value = value;
+
+    public bool IsNull => Value == 0;
+    public static GsTexRenderHandle Null => default;
+
+    public static implicit operator nint(GsTexRenderHandle handle) => handle.Value;
+    public static explicit operator GsTexRenderHandle(nint ptr) => new(ptr);
+
+    public bool Equals(GsTexRenderHandle other) => Value == other.Value;
+    public override bool Equals(object? obj) => obj is GsTexRenderHandle h && Equals(h);
+    public override int GetHashCode() => Value.GetHashCode();
+    public static bool operator ==(GsTexRenderHandle left, GsTexRenderHandle right) => left.Equals(right);
+    public static bool operator !=(GsTexRenderHandle left, GsTexRenderHandle right) => !left.Equals(right);
+    public override string ToString() => $"GsTexRender(0x{Value:X})";
+}
+
+/// <summary>
+/// Strongly-typed handle for gs_stagesurface_t.
+/// </summary>
+public readonly struct GsStageSurfaceHandle : IEquatable<GsStageSurfaceHandle>
+{
+    public readonly nint Value;
+
+    public GsStageSurfaceHandle(nint value) => Value = value;
+
+    public bool IsNull => Value == 0;
+    public static GsStageSurfaceHandle Null => default;
+
+    public static implicit operator nint(GsStageSurfaceHandle handle) => handle.Value;
+    public static explicit operator GsStageSurfaceHandle(nint ptr) => new(ptr);
+
+    public bool Equals(GsStageSurfaceHandle other) => Value == other.Value;
+    public override bool Equals(object? obj) => obj is GsStageSurfaceHandle h && Equals(h);
+    public override int GetHashCode() => Value.GetHashCode();
+    public static bool operator ==(GsStageSurfaceHandle left, GsStageSurfaceHandle right) => left.Equals(right);
+    public static bool operator !=(GsStageSurfaceHandle left, GsStageSurfaceHandle right) => !left.Equals(right);
+    public override string ToString() => $"GsStageSurface(0x{Value:X})";
+}
+
+/// <summary>
+/// Strongly-typed handle for gs_texture_t.
+/// </summary>
+public readonly struct GsTextureHandle : IEquatable<GsTextureHandle>
+{
+    public readonly nint Value;
+
+    public GsTextureHandle(nint value) => Value = value;
+
+    public bool IsNull => Value == 0;
+    public static GsTextureHandle Null => default;
+
+    public static implicit operator nint(GsTextureHandle handle) => handle.Value;
+    public static explicit operator GsTextureHandle(nint ptr) => new(ptr);
+
+    public bool Equals(GsTextureHandle other) => Value == other.Value;
+    public override bool Equals(object? obj) => obj is GsTextureHandle h && Equals(h);
+    public override int GetHashCode() => Value.GetHashCode();
+    public static bool operator ==(GsTextureHandle left, GsTextureHandle right) => left.Equals(right);
+    public static bool operator !=(GsTextureHandle left, GsTextureHandle right) => !left.Equals(right);
+    public override string ToString() => $"GsTexture(0x{Value:X})";
+}

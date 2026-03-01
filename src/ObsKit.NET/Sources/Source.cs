@@ -1,9 +1,18 @@
+using System.Runtime.InteropServices;
 using ObsKit.NET.Core;
 using ObsKit.NET.Native.Interop;
 using ObsKit.NET.Native.Types;
 using ObsKit.NET.Signals;
 
 namespace ObsKit.NET.Sources;
+
+/// <summary>
+/// Screenshot pixel data captured from a source.
+/// </summary>
+/// <param name="Pixels">BGRA pixel data (4 bytes per pixel).</param>
+/// <param name="Width">Image width in pixels.</param>
+/// <param name="Height">Image height in pixels.</param>
+public record ScreenshotData(byte[] Pixels, uint Width, uint Height);
 
 /// <summary>
 /// Represents an OBS source (obs_source_t).
@@ -235,6 +244,134 @@ public class Source : ObsObject
     public SignalConnection ConnectSignal(string signal, SignalCallback callback)
     {
         return new SignalConnection(SignalHandler, signal, callback);
+    }
+
+    #endregion
+
+    #region Screenshot
+
+    // OBS graphics constants
+    private const int GS_BGRA = 5;
+    private const int GS_ZS_NONE = 0;
+    private const uint GS_CLEAR_COLOR = 1;
+    private const int GS_BLEND_ONE = 1;
+    private const int GS_BLEND_ZERO = 3;
+
+    /// <summary>
+    /// Captures a screenshot of the source as BGRA pixel data.
+    /// Must be called while OBS is initialized and the source is active.
+    /// </summary>
+    /// <returns>Screenshot data (pixels, width, height) or null if capture fails.</returns>
+    public ScreenshotData? TakeScreenshot() => TakeScreenshot(0, 0, 0, 0);
+
+    /// <summary>
+    /// Captures a cropped screenshot of the source as BGRA pixel data.
+    /// Only the specified region is rendered and transferred from GPU, avoiding
+    /// the cost of copying the full frame.
+    /// </summary>
+    /// <param name="cropX">Left edge of the crop region in source pixels.</param>
+    /// <param name="cropY">Top edge of the crop region in source pixels.</param>
+    /// <param name="cropWidth">Width of the crop region. 0 = full width.</param>
+    /// <param name="cropHeight">Height of the crop region. 0 = full height.</param>
+    /// <returns>Screenshot data (pixels, width, height) or null if capture fails.</returns>
+    public unsafe ScreenshotData? TakeScreenshot(uint cropX, uint cropY, uint cropWidth, uint cropHeight)
+    {
+        var srcWidth = Width;
+        var srcHeight = Height;
+        if (srcWidth == 0 || srcHeight == 0)
+            return null;
+
+        // Resolve crop region (0 = full dimension)
+        if (cropWidth == 0) cropWidth = srcWidth - cropX;
+        if (cropHeight == 0) cropHeight = srcHeight - cropY;
+
+        // Clamp to source bounds
+        if (cropX + cropWidth > srcWidth) cropWidth = srcWidth - cropX;
+        if (cropY + cropHeight > srcHeight) cropHeight = srcHeight - cropY;
+        if (cropWidth == 0 || cropHeight == 0)
+            return null;
+
+        var texrender = GsTexRenderHandle.Null;
+        var stagesurface = GsStageSurfaceHandle.Null;
+
+        try
+        {
+            ObsGraphics.obs_enter_graphics();
+
+            try
+            {
+                texrender = ObsGraphics.gs_texrender_create(GS_BGRA, GS_ZS_NONE);
+                if (texrender.IsNull)
+                    return null;
+
+                // Texture is only as large as the crop region
+                if (!ObsGraphics.gs_texrender_begin(texrender, cropWidth, cropHeight))
+                    return null;
+
+                float* clearColor = stackalloc float[4];
+                clearColor[0] = 0.0f;
+                clearColor[1] = 0.0f;
+                clearColor[2] = 0.0f;
+                clearColor[3] = 0.0f;
+                ObsGraphics.gs_clear(GS_CLEAR_COLOR, clearColor, 0.0f, 0);
+
+                // Project only the crop region into the texture
+                ObsGraphics.gs_ortho(cropX, cropX + cropWidth, cropY, cropY + cropHeight, -100.0f, 100.0f);
+
+                ObsGraphics.gs_blend_state_push();
+                ObsGraphics.gs_blend_function(GS_BLEND_ONE, GS_BLEND_ZERO);
+
+                ObsGraphics.obs_source_video_render(Handle);
+
+                ObsGraphics.gs_blend_state_pop();
+                ObsGraphics.gs_texrender_end(texrender);
+
+                var texture = ObsGraphics.gs_texrender_get_texture(texrender);
+                if (texture.IsNull)
+                    return null;
+
+                // Staging surface matches the crop size
+                stagesurface = ObsGraphics.gs_stagesurface_create(cropWidth, cropHeight, GS_BGRA);
+                if (stagesurface.IsNull)
+                    return null;
+
+                ObsGraphics.gs_stage_texture(stagesurface, texture);
+
+                if (!ObsGraphics.gs_stagesurface_map(stagesurface, out nint data, out uint linesize))
+                    return null;
+
+                try
+                {
+                    var pixels = new byte[cropWidth * cropHeight * 4];
+                    var rowBytes = (int)(cropWidth * 4);
+
+                    for (uint y = 0; y < cropHeight; y++)
+                    {
+                        Marshal.Copy(data + (nint)(y * linesize), pixels, (int)(y * rowBytes), rowBytes);
+                    }
+
+                    return new ScreenshotData(pixels, cropWidth, cropHeight);
+                }
+                finally
+                {
+                    ObsGraphics.gs_stagesurface_unmap(stagesurface);
+                }
+            }
+            catch
+            {
+                // Source may lose its texture during alt-tab; return null gracefully
+                return null;
+            }
+        }
+        finally
+        {
+            if (!stagesurface.IsNull)
+                ObsGraphics.gs_stagesurface_destroy(stagesurface);
+            if (!texrender.IsNull)
+                ObsGraphics.gs_texrender_destroy(texrender);
+
+            ObsGraphics.obs_leave_graphics();
+        }
     }
 
     #endregion
