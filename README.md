@@ -129,15 +129,14 @@ using var media = new MediaSource("Video", "video.mp4").SetLooping(true);
 ```csharp
 // Full source screenshot (returns BGRA pixels, width, height — or null)
 var screenshot = source.TakeScreenshot();
+// Cropped screenshot (only transfers the crop region from GPU)
+var cropped = source.TakeScreenshot(cropX: 960, cropY: 200, cropWidth: 640, cropHeight: 160);
 if (screenshot != null)
 {
     using var bmp = new Bitmap((int)screenshot.Width, (int)screenshot.Height, (int)(screenshot.Width * 4),
         PixelFormat.Format32bppArgb, Marshal.UnsafeAddrOfPinnedArrayElement(screenshot.Pixels, 0));
     bmp.Save("screenshot.jpg", ImageFormat.Jpeg);
 }
-
-// Cropped screenshot — only transfers the crop region from GPU
-var cropped = source.TakeScreenshot(cropX: 960, cropY: 200, cropWidth: 640, cropHeight: 160);
 ```
 
 ## Encoders
