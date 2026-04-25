@@ -7,6 +7,7 @@ using ObsKit.NET.Native.Types;
 using ObsKit.NET.Outputs;
 using ObsKit.NET.Scenes;
 using ObsKit.NET.Sources;
+using ObsKit.NET.Video;
 
 namespace ObsKit.NET;
 
@@ -300,6 +301,45 @@ public static class Obs
         {
             _context = null;
         }
+    }
+
+    /// <summary>
+    /// Subscribes to raw video frames produced by OBS's main canvas.
+    /// OBS will scale/convert each frame on the GPU to match <paramref name="format"/>/<paramref name="width"/>/<paramref name="height"/>
+    /// before invoking the callback on its video thread.
+    /// Dispose the returned subscription to stop receiving frames.
+    /// </summary>
+    /// <param name="format">Desired pixel format. Use <see cref="VideoFormat.BGRA"/> for the simplest CPU-side handling.</param>
+    /// <param name="width">Desired output width in pixels. Pass 0 for the canvas width.</param>
+    /// <param name="height">Desired output height in pixels. Pass 0 for the canvas height.</param>
+    /// <param name="callback">Invoked on OBS's video thread for each delivered frame. Do not block.</param>
+    /// <param name="frameRateDivisor">Deliver every Nth frame (1 = every frame, 2 = half rate, etc.).</param>
+    /// <param name="colorspace">Color space. <see cref="VideoColorspace.Default"/> inherits the canvas setting.</param>
+    /// <param name="range">Color range. <see cref="VideoRangeType.Default"/> inherits the canvas setting.</param>
+    /// <exception cref="ObsNotInitializedException">Thrown if OBS is not initialized.</exception>
+    public static RawVideoSubscription SubscribeRawVideo(
+        VideoFormat format,
+        uint width,
+        uint height,
+        RawVideoFrameCallback callback,
+        uint frameRateDivisor = 1,
+        VideoColorspace colorspace = VideoColorspace.Default,
+        VideoRangeType range = VideoRangeType.Default)
+    {
+        ThrowIfNotInitialized();
+        ArgumentNullException.ThrowIfNull(callback);
+        if (frameRateDivisor == 0)
+            throw new ArgumentOutOfRangeException(nameof(frameRateDivisor), "Must be at least 1.");
+
+        var conversion = new VideoScaleInfo
+        {
+            Format = format,
+            Width = width,
+            Height = height,
+            Colorspace = colorspace,
+            Range = range,
+        };
+        return new RawVideoSubscription(conversion, frameRateDivisor, callback);
     }
 
     /// <summary>

@@ -139,6 +139,27 @@ if (screenshot != null)
 }
 ```
 
+## Raw Video Frames
+
+Subscribe to the live canvas output. OBS scales/converts each frame on the GPU to your requested format and resolution before invoking the callback on its video thread.
+
+```csharp
+using ObsKit.NET;
+using ObsKit.NET.Native.Types;
+
+// Get every Nth frame at 480x270 BGRA (e.g. for a low-overhead preview).
+using var preview = Obs.SubscribeRawVideo(
+    VideoFormat.BGRA, width: 480, height: 270,
+    callback: (in RawVideoFrame frame) =>
+    {
+        ReadOnlySpan<byte> pixels = frame.GetPackedPlane();   // BGRA bytes (may have row padding — see GetLinesize(0))
+        // ... encode to JPEG, push over IPC, etc. Don't block — this is OBS's video thread.
+    },
+    frameRateDivisor: 6); // 60fps canvas → ~10fps callback
+
+// Dispose to stop receiving frames.
+```
+
 ## Encoders
 
 ```csharp

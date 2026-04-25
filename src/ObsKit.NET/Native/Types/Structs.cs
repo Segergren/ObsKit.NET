@@ -257,3 +257,57 @@ internal struct ObsModuleFailureInfo
     public nint FailedModules; // char** - array of module names that failed
     public nuint Count;
 }
+
+/// <summary>
+/// Conversion / scaling info for raw video output.
+/// Maps to OBS's <c>struct video_scale_info</c>.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct VideoScaleInfo
+{
+    /// <summary>Pixel format the frames will be delivered in.</summary>
+    public VideoFormat Format;
+
+    /// <summary>Output width (after scaling).</summary>
+    public uint Width;
+
+    /// <summary>Output height (after scaling).</summary>
+    public uint Height;
+
+    /// <summary>Color range. Use <see cref="VideoRangeType.Default"/> to inherit canvas range.</summary>
+    public VideoRangeType Range;
+
+    /// <summary>Color space. Use <see cref="VideoColorspace.Default"/> to inherit canvas colorspace.</summary>
+    public VideoColorspace Colorspace;
+}
+
+/// <summary>
+/// Native layout of OBS's <c>struct video_data</c>.
+/// Holds up to <see cref="MaxAvPlanes"/> data plane pointers, their linesizes, and a timestamp.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct VideoDataNative
+{
+    /// <summary>Maximum number of planes OBS exposes per frame.</summary>
+    public const int MaxAvPlanes = 8;
+
+    public nint Data0;
+    public nint Data1;
+    public nint Data2;
+    public nint Data3;
+    public nint Data4;
+    public nint Data5;
+    public nint Data6;
+    public nint Data7;
+
+    public uint Linesize0;
+    public uint Linesize1;
+    public uint Linesize2;
+    public uint Linesize3;
+    public uint Linesize4;
+    public uint Linesize5;
+    public uint Linesize6;
+    public uint Linesize7;
+
+    public ulong Timestamp;
+}

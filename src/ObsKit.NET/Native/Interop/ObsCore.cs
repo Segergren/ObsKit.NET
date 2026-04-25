@@ -85,6 +85,47 @@ internal static partial class ObsCore
 
     #endregion
 
+    #region Raw Video Callbacks
+
+    /// <summary>
+    /// Native callback signature for <c>obs_add_raw_video_callback</c>.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void RawVideoCallbackNative(nint param, nint frame);
+
+    /// <summary>
+    /// Subscribes <paramref name="callback"/> to receive raw video frames from the main canvas.
+    /// Pass <paramref name="conversion"/> to request a specific format/resolution; pass <see cref="nint.Zero"/> for the canvas defaults.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_add_raw_video_callback")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_add_raw_video_callback(
+        nint conversion,
+        RawVideoCallbackNative callback,
+        nint param);
+
+    /// <summary>
+    /// Like <see cref="obs_add_raw_video_callback"/> but only delivers every Nth frame.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_add_raw_video_callback2")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_add_raw_video_callback2(
+        nint conversion,
+        uint frameRateDivisor,
+        RawVideoCallbackNative callback,
+        nint param);
+
+    /// <summary>
+    /// Removes a previously registered raw video callback.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_remove_raw_video_callback")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_remove_raw_video_callback(
+        RawVideoCallbackNative callback,
+        nint param);
+
+    #endregion
+
     #region Audio Configuration
 
     /// <summary>
