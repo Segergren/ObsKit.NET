@@ -248,6 +248,44 @@ public class Source : ObsObject
 
     #endregion
 
+    #region Properties (option lists)
+
+    /// <summary>
+    /// Enumerates the items of a list-type property exposed by this source's plugin.
+    /// Returns (display name, value) pairs. Used to discover devices, resolutions, etc.
+    /// </summary>
+    /// <param name="propertyName">The property key (e.g. "video_device_id").</param>
+    public IReadOnlyList<(string Name, string Value)> GetListPropertyItems(string propertyName)
+    {
+        var result = new List<(string, string)>();
+        var props = ObsProperties.obs_source_properties(Handle);
+        if (props == 0)
+            return result;
+
+        try
+        {
+            var prop = ObsProperties.obs_properties_get(props, propertyName);
+            if (prop == 0)
+                return result;
+
+            var count = ObsProperties.obs_property_list_item_count(prop);
+            for (nuint i = 0; i < count; i++)
+            {
+                var name = ObsProperties.obs_property_list_item_name(prop, i) ?? string.Empty;
+                var value = ObsProperties.obs_property_list_item_string(prop, i) ?? string.Empty;
+                result.Add((name, value));
+            }
+        }
+        finally
+        {
+            ObsProperties.obs_properties_destroy(props);
+        }
+
+        return result;
+    }
+
+    #endregion
+
     #region Screenshot
 
     // OBS graphics constants

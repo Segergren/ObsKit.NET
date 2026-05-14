@@ -9,7 +9,7 @@ A modern .NET 9 wrapper for OBS Studio, providing a fluent C# API for video reco
 - **Streaming** - Stream to Twitch, YouTube, Facebook, or custom RTMP servers
 - **Recording** - Record video to MP4, MKV, FLV, and more
 - **Replay Buffer** - Keep a rolling buffer of the last N seconds
-- **Sources** - Monitor capture, window capture, game capture, images, media files
+- **Sources** - Monitor capture, window capture, game capture, webcam, images, media files
 - **Encoders** - x264, NVENC (H.264/HEVC), AAC audio
 - **Headless Operation** - Run without GUI dependencies
 
@@ -122,6 +122,13 @@ using var game = new GameCapture("Game", GameCapture.CaptureMode.AnyFullscreen);
 // Image and media
 using var image = ImageSource.FromFile("logo.png");
 using var media = new MediaSource("Video", "video.mp4").SetLooping(true);
+
+// Webcam / video capture device (DirectShow on Windows, V4L2 on Linux, AVFoundation on macOS)
+foreach (var d in WebcamCapture.ListDevices())
+    Console.WriteLine($"  {d.Name}  ->  {d.DeviceId}");
+using var webcam = WebcamCapture.FromDeviceName("BRIO")     // partial name match
+                   ?? WebcamCapture.FromDefault();          // first device
+webcam?.SetCustomResolution(3840, 2160, 30, videoFormat: "MJPEG"); // optional: force 4K30
 ```
 
 ## Screenshots
