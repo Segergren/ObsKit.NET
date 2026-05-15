@@ -1,6 +1,6 @@
 # ObsKit.NET
 
-A modern .NET 9 wrapper for OBS Studio, providing a fluent C# API for video recording, streaming, and replay buffer functionality.
+A modern .NET 10 wrapper for OBS Studio, providing a fluent C# API for video recording, streaming, and replay buffer functionality.
 
 ## Features
 
@@ -15,7 +15,7 @@ A modern .NET 9 wrapper for OBS Studio, providing a fluent C# API for video reco
 
 ## Requirements
 
-- .NET 9.0 or later
+- .NET 10.0 or later
 - OBS Studio runtime (see [OBS Runtime Setup](#obs-runtime-setup))
 
 ## Quick Start

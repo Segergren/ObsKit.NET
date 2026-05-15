@@ -73,9 +73,13 @@ public sealed class WebcamCapture : Source
     /// Returns null if no capture devices are present on the system.
     /// </summary>
     /// <param name="name">Optional source name.</param>
-    public static WebcamCapture? FromDefault(string? name = null)
+    /// <param name="includeVirtualDevices">
+    /// If true, also consider virtual / proxy entries that have no DirectShow device path
+    /// (Meta Quest companion app, NVIDIA Broadcast, OBS Virtual Camera, etc.). Default false.
+    /// </param>
+    public static WebcamCapture? FromDefault(string? name = null, bool includeVirtualDevices = false)
     {
-        var device = ListDevices().FirstOrDefault();
+        var device = ListDevices(includeVirtualDevices).FirstOrDefault();
         if (device == null)
             return null;
         return new WebcamCapture(name ?? device.Name, device.DeviceId);
@@ -87,10 +91,14 @@ public sealed class WebcamCapture : Source
     /// </summary>
     /// <param name="nameSubstring">Substring to match against device names.</param>
     /// <param name="name">Optional source name; defaults to the matched device's name.</param>
+    /// <param name="includeVirtualDevices">
+    /// If true, virtual / proxy entries (Meta Quest, NVIDIA Broadcast, OBS Virtual Camera, ...)
+    /// are also eligible for matching. Default false.
+    /// </param>
     /// <returns>A configured WebcamCapture, or null if no device matches.</returns>
-    public static WebcamCapture? FromDeviceName(string nameSubstring, string? name = null)
+    public static WebcamCapture? FromDeviceName(string nameSubstring, string? name = null, bool includeVirtualDevices = false)
     {
-        var device = ListDevices().FirstOrDefault(d =>
+        var device = ListDevices(includeVirtualDevices).FirstOrDefault(d =>
             d.Name.Contains(nameSubstring, StringComparison.OrdinalIgnoreCase));
         if (device == null)
             return null;
@@ -102,7 +110,12 @@ public sealed class WebcamCapture : Source
     /// a temporary dshow_input source and asking OBS to populate its property list, which is
     /// the same code path the OBS UI uses for the device dropdown.
     /// </summary>
-    public static IReadOnlyList<WebcamDeviceInfo> ListDevices()
+    /// <param name="includeVirtualDevices">
+    /// If true, also return virtual / proxy entries that have no DirectShow device path —
+    /// e.g. Meta Quest companion app, NVIDIA Broadcast, OBS Virtual Camera. These are usually
+    /// not openable in a headless app, so they are excluded by default.
+    /// </param>
+    public static IReadOnlyList<WebcamDeviceInfo> ListDevices(bool includeVirtualDevices = false)
     {
         // The dshow plugin only populates the device list when an instance exists, so we
         // create a private (un-saved) source just for the property query and dispose it.
@@ -114,6 +127,19 @@ public sealed class WebcamCapture : Source
         {
             if (string.IsNullOrEmpty(itemValue))
                 continue;
+
+            // OBS encodes device ids as "Name:Path" (the dshow plugin escapes any literal
+            // ':' and '#' inside the components, so the first ':' is always the separator).
+            // Entries with an empty path component are virtual / proxy devices (Meta Quest
+            // companion app, NVIDIA Broadcast, OBS Virtual Camera, ...). Skip them unless
+            // the caller opts in.
+            if (!includeVirtualDevices && OperatingSystem.IsWindows())
+            {
+                var sep = itemValue.IndexOf(':');
+                if (sep < 0 || sep == itemValue.Length - 1)
+                    continue;
+            }
+
             result.Add(new WebcamDeviceInfo(itemName, itemValue));
         }
         return result;

@@ -29,7 +29,7 @@ Console.WriteLine($"OBS {Obs.Version} initialized\n");
 var devices = WebcamCapture.ListDevices();
 Console.WriteLine($"Available video capture devices ({devices.Count}):");
 for (int i = 0; i < devices.Count; i++)
-    Console.WriteLine($"  [{i}] {devices[i].Name}");
+    Console.WriteLine($"  [{i}] {devices[i].Name}\n        id={devices[i].DeviceId}");
 
 if (devices.Count == 0)
 {

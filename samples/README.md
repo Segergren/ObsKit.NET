@@ -19,10 +19,10 @@ Before running the samples, you must set up the OBS runtime in the sample's outp
 
 ```powershell
 # For Recording sample
-Copy-Item -Recurse .\samples\obs-runtime\* .\samples\ObsKit.NET.Sample.Recording\bin\Debug\net9.0\
+Copy-Item -Recurse .\samples\obs-runtime\* .\samples\ObsKit.NET.Sample.Recording\bin\Debug\net10.0\
 
 # For ReplayBuffer sample
-Copy-Item -Recurse .\samples\obs-runtime\* .\samples\ObsKit.NET.Sample.ReplayBuffer\bin\Debug\net9.0\
+Copy-Item -Recurse .\samples\obs-runtime\* .\samples\ObsKit.NET.Sample.ReplayBuffer\bin\Debug\net10.0\
 ```
 
 3. Build and run:
@@ -56,7 +56,7 @@ Each sample directory should look like this after setup:
 
 ```
 ObsKit.NET.Sample.Recording/
-├── bin/Debug/net9.0/
+├── bin/Debug/net10.0/
 │   ├── ObsKit.NET.Sample.Recording.exe
 │   ├── obs.dll
 │   ├── obs-ffmpeg-mux.exe
