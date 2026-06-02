@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
 using ObsKit.NET.Core;
 
 namespace ObsKit.NET.Sources;
@@ -106,9 +108,12 @@ public sealed class WebcamCapture : Source
     }
 
     /// <summary>
-    /// Enumerates the available video capture devices on the system. This works by creating
-    /// a temporary dshow_input source and asking OBS to populate its property list, which is
-    /// the same code path the OBS UI uses for the device dropdown.
+    /// Enumerates the available video capture devices on the system. On Windows this reads
+    /// the DirectShow device monikers via <c>ICreateDevEnum</c> / <c>IPropertyBag</c>, which
+    /// only touches the registry-backed moniker — it never calls <c>CoCreateInstance</c> on
+    /// the underlying filter. That avoids loading third-party DShow filter DLLs (e.g. Meta
+    /// Quest's <c>magicdsfilterQuest3.dll</c>) that crash when instantiated headlessly.
+    /// On Linux/macOS it falls back to the OBS property-list probe, which is safe there.
     /// </summary>
     /// <param name="includeVirtualDevices">
     /// If true, also return virtual / proxy entries that have no DirectShow device path —
@@ -117,8 +122,17 @@ public sealed class WebcamCapture : Source
     /// </param>
     public static IReadOnlyList<WebcamDeviceInfo> ListDevices(bool includeVirtualDevices = false)
     {
-        // The dshow plugin only populates the device list when an instance exists, so we
-        // create a private (un-saved) source just for the property query and dispose it.
+        if (OperatingSystem.IsWindows())
+            return ListDevicesWindows(includeVirtualDevices);
+
+        return ListDevicesViaObsProbe(includeVirtualDevices);
+    }
+
+    // Fallback path used on Linux/macOS. On Windows this code is unsafe in the presence of
+    // buggy third-party DShow filters because the dshow plugin CoCreates each filter when
+    // populating its property list.
+    private static IReadOnlyList<WebcamDeviceInfo> ListDevicesViaObsProbe(bool includeVirtualDevices)
+    {
         using var probe = Source.CreatePrivate(TypeIdForPlatform, "__obskit_webcam_probe__");
         var items = probe.GetListPropertyItems(VideoDeviceIdKey);
 
@@ -128,11 +142,6 @@ public sealed class WebcamCapture : Source
             if (string.IsNullOrEmpty(itemValue))
                 continue;
 
-            // OBS encodes device ids as "Name:Path" (the dshow plugin escapes any literal
-            // ':' and '#' inside the components, so the first ':' is always the separator).
-            // Entries with an empty path component are virtual / proxy devices (Meta Quest
-            // companion app, NVIDIA Broadcast, OBS Virtual Camera, ...). Skip them unless
-            // the caller opts in.
             if (!includeVirtualDevices && OperatingSystem.IsWindows())
             {
                 var sep = itemValue.IndexOf(':');
@@ -143,6 +152,141 @@ public sealed class WebcamCapture : Source
             result.Add(new WebcamDeviceInfo(itemName, itemValue));
         }
         return result;
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static IReadOnlyList<WebcamDeviceInfo> ListDevicesWindows(bool includeVirtualDevices)
+    {
+        var result = new List<WebcamDeviceInfo>();
+        object? devEnumObj = null;
+        IEnumMoniker? enumMoniker = null;
+
+        try
+        {
+            var sysDeviceEnumType = Type.GetTypeFromCLSID(CLSID_SystemDeviceEnum, throwOnError: false);
+            if (sysDeviceEnumType == null)
+                return result;
+
+            devEnumObj = Activator.CreateInstance(sysDeviceEnumType);
+            if (devEnumObj is not ICreateDevEnum devEnum)
+                return result;
+
+            int hr = devEnum.CreateClassEnumerator(CLSID_VideoInputDeviceCategory, out enumMoniker, 0);
+            // S_FALSE (1) means the category is empty.
+            if (hr != 0 || enumMoniker == null)
+                return result;
+
+            var monikers = new IMoniker[1];
+            while (enumMoniker.Next(1, monikers, IntPtr.Zero) == 0)
+            {
+                var moniker = monikers[0];
+                if (moniker == null)
+                    continue;
+
+                try
+                {
+                    string? name = ReadStringProperty(moniker, "FriendlyName");
+                    if (string.IsNullOrEmpty(name))
+                        name = ReadStringProperty(moniker, "Description");
+                    if (string.IsNullOrEmpty(name))
+                        continue;
+
+                    string? path = ReadStringProperty(moniker, "DevicePath") ?? string.Empty;
+
+                    if (!includeVirtualDevices && string.IsNullOrEmpty(path))
+                        continue;
+
+                    string deviceId = EncodeDeviceId(name!, path);
+                    result.Add(new WebcamDeviceInfo(name!, deviceId));
+                }
+                finally
+                {
+                    Marshal.ReleaseComObject(moniker);
+                }
+            }
+        }
+        catch
+        {
+            // Swallow — enumeration must never throw past this boundary. Callers can deal
+            // with an empty list (e.g. show a "no devices found" UI) but a thrown exception
+            // would propagate up through the OBS thread and look like a crash.
+        }
+        finally
+        {
+            if (enumMoniker != null)
+                Marshal.ReleaseComObject(enumMoniker);
+            if (devEnumObj != null)
+                Marshal.ReleaseComObject(devEnumObj);
+        }
+
+        return result;
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static string? ReadStringProperty(IMoniker moniker, string propertyName)
+    {
+        object? bagObj = null;
+        try
+        {
+            var bagGuid = IID_IPropertyBag;
+            moniker.BindToStorage(null!, null!, ref bagGuid, out bagObj);
+            if (bagObj is not IPropertyBag bag)
+                return null;
+
+            object? value = null;
+            int hr = bag.Read(propertyName, ref value, IntPtr.Zero);
+            if (hr != 0 || value == null)
+                return null;
+            return value.ToString();
+        }
+        catch
+        {
+            return null;
+        }
+        finally
+        {
+            if (bagObj != null)
+                Marshal.ReleaseComObject(bagObj);
+        }
+    }
+
+    // Mirror of obs-studio's win-dshow/encode-dstr.hpp::encode_dstr. The OBS dshow plugin
+    // produces device ids of the form "{name}:{path}" with '#' replaced by "#22" and ':'
+    // by "#3A" inside each component, so we must produce the exact same string for the
+    // dshow plugin to recognise the device when we later assign it via SetDevice().
+    private static string EncodeDeviceId(string name, string path)
+    {
+        string encName = EncodeDshowComponent(name);
+        string encPath = EncodeDshowComponent(path);
+        return $"{encName}:{encPath}";
+    }
+
+    private static string EncodeDshowComponent(string s)
+    {
+        if (string.IsNullOrEmpty(s))
+            return s;
+        return s.Replace("#", "#22").Replace(":", "#3A");
+    }
+
+    private static readonly Guid CLSID_SystemDeviceEnum = new("62BE5D10-60EB-11d0-BD3B-00A0C911CE86");
+    private static readonly Guid CLSID_VideoInputDeviceCategory = new("860BB310-5D01-11d0-BD3B-00A0C911CE86");
+    private static readonly Guid IID_IPropertyBag = new("55272A00-42CB-11CE-8135-00AA004BB851");
+
+    [ComImport, Guid("29840822-5B84-11D0-BD3B-00A0C911CE86"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface ICreateDevEnum
+    {
+        [PreserveSig]
+        int CreateClassEnumerator([In] in Guid clsidDeviceClass, out IEnumMoniker? ppEnumMoniker, [In] int dwFlags);
+    }
+
+    [ComImport, Guid("55272A00-42CB-11CE-8135-00AA004BB851"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IPropertyBag
+    {
+        [PreserveSig]
+        int Read([MarshalAs(UnmanagedType.LPWStr)] string pszPropName, [In, Out, MarshalAs(UnmanagedType.Struct)] ref object? pVar, IntPtr pErrorLog);
+
+        [PreserveSig]
+        int Write([MarshalAs(UnmanagedType.LPWStr)] string pszPropName, [In, MarshalAs(UnmanagedType.Struct)] ref object pVar);
     }
 
     private static Settings BuildInitialSettings(string? deviceId)

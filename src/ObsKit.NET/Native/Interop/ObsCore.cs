@@ -83,6 +83,28 @@ internal static partial class ObsCore
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial VideoHandle obs_get_video();
 
+    /// <summary>
+    /// Sets the SDR white level and HDR nominal peak level (nits). Call after a successful
+    /// <see cref="obs_reset_video"/>; drives HDR tone-mapping and HDR metadata.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_set_video_levels")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_set_video_levels(float sdrWhiteLevel, float hdrNominalPeakLevel);
+
+    /// <summary>
+    /// Gets the SDR white level in nits (returns 300 if no video).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_video_sdr_white_level")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial float obs_get_video_sdr_white_level();
+
+    /// <summary>
+    /// Gets the HDR nominal peak level in nits (returns 1000 if no video).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_video_hdr_nominal_peak_level")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial float obs_get_video_hdr_nominal_peak_level();
+
     #endregion
 
     #region Raw Video Callbacks

@@ -190,6 +190,9 @@ public sealed class ObsContext : IDisposable
                     ObsCore.obs_shutdown();
                 throw new ObsVideoResetException(result);
             }
+
+            // OBS clears these on every obs_reset_video, so re-apply them after a successful reset.
+            ObsCore.obs_set_video_levels(_config.Video.SdrWhiteLevel, _config.Video.HdrNominalPeakLevel);
         }
         finally
         {

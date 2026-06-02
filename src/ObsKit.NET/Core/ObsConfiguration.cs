@@ -224,6 +224,18 @@ public sealed class VideoSettings
     public string? GraphicsModule { get; set; }
 
     /// <summary>
+    /// SDR white level in nits. Used for HDR tone-mapping of SDR sources and HDR metadata.
+    /// Applied via obs_set_video_levels after each successful video reset. OBS default is 300.
+    /// </summary>
+    public float SdrWhiteLevel { get; set; } = 300f;
+
+    /// <summary>
+    /// HDR nominal peak level in nits. Drives the HDR MaxCLL / mastering-display luminance
+    /// metadata written by encoders and the recording muxer. OBS default is 1000.
+    /// </summary>
+    public float HdrNominalPeakLevel { get; set; } = 1000f;
+
+    /// <summary>
     /// Sets both base and output resolution.
     /// </summary>
     public VideoSettings Resolution(uint width, uint height)
@@ -262,6 +274,36 @@ public sealed class VideoSettings
     {
         FpsNumerator = numerator;
         FpsDenominator = denominator;
+        return this;
+    }
+
+    /// <summary>
+    /// Configures the canvas for HDR: 10-bit P010 with a Rec.2100 colorspace (PQ by default)
+    /// and limited range, plus the SDR-white / HDR-peak levels used for tone-mapping and metadata.
+    /// Requires a 10-bit-capable HEVC or AV1 encoder; H.264/x264 cannot encode this.
+    /// </summary>
+    public VideoSettings Hdr(float nominalPeakNits = 1000f, float sdrWhiteNits = 300f, VideoColorspace colorspace = VideoColorspace.CS2100PQ)
+    {
+        Format = VideoFormat.P010;
+        Colorspace = colorspace;
+        Range = VideoRangeType.Partial;
+        HdrNominalPeakLevel = nominalPeakNits;
+        SdrWhiteLevel = sdrWhiteNits;
+        return this;
+    }
+
+    /// <summary>
+    /// Configures the canvas for SDR (8-bit NV12, default colorspace/range). This is the
+    /// default state; call it explicitly to undo a previous <see cref="Hdr"/> configuration
+    /// because the underlying settings object is reused across resets.
+    /// </summary>
+    public VideoSettings Sdr()
+    {
+        Format = VideoFormat.NV12;
+        Colorspace = VideoColorspace.Default;
+        Range = VideoRangeType.Default;
+        SdrWhiteLevel = 300f;
+        HdrNominalPeakLevel = 1000f;
         return this;
     }
 
