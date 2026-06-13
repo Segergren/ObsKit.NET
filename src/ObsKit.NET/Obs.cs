@@ -1,3 +1,4 @@
+using ObsKit.NET.Audio;
 using ObsKit.NET.Core;
 using ObsKit.NET.Encoders;
 using ObsKit.NET.Exceptions;
@@ -68,6 +69,27 @@ public static class Obs
         {
             ThrowIfNotInitialized();
             return _context!.VersionNumber;
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the locale (e.g. "en-US") used for localized strings such as source
+    /// display names and property descriptions. Set this before creating sources whose
+    /// labels you want localized.
+    /// </summary>
+    /// <exception cref="ObsNotInitializedException">Thrown if OBS is not initialized.</exception>
+    public static string Locale
+    {
+        get
+        {
+            ThrowIfNotInitialized();
+            return ObsCore.obs_get_locale() ?? "en-US";
+        }
+        set
+        {
+            ThrowIfNotInitialized();
+            ArgumentException.ThrowIfNullOrEmpty(value);
+            ObsCore.obs_set_locale(value);
         }
     }
 
@@ -299,6 +321,14 @@ public static class Obs
     {
         lock (_lock)
         {
+            // obs_shutdown() has already freed every native source/output, so we must NOT
+            // dispose the wrappers here (that would obs_*_release dangling handles). Just drop
+            // the stale references so a subsequent Initialize()/Shutdown() can't iterate them
+            // and release freed handles (use-after-free), and so their finalizers don't either.
+            foreach (var source in _channelSources.Values)
+                source.AssignedChannel = null;
+            _channelSources.Clear();
+            _managedOutputs.Clear();
             _context = null;
         }
     }
@@ -331,6 +361,22 @@ public static class Obs
         if (frameRateDivisor == 0)
             throw new ArgumentOutOfRangeException(nameof(frameRateDivisor), "Must be at least 1.");
 
+        // OBS substitutes the canvas OUTPUT resolution for a 0 width/height and then delivers
+        // full-size frames, but the native video_data carries no dimensions. Resolve 0 here so
+        // RawVideoFrame reports the true size (otherwise Width/Height would be 0 and the plane
+        // spans would come back empty over a fully-populated buffer).
+        if (width == 0 || height == 0)
+        {
+            var info = GetVideoInfo();
+            if (info.HasValue)
+            {
+                if (width == 0)
+                    width = info.Value.OutputWidth;
+                if (height == 0)
+                    height = info.Value.OutputHeight;
+            }
+        }
+
         var conversion = new VideoScaleInfo
         {
             Format = format,
@@ -340,6 +386,233 @@ public static class Obs
             Range = range,
         };
         return new RawVideoSubscription(conversion, frameRateDivisor, callback);
+    }
+
+    /// <summary>
+    /// Subscribes to a track of OBS's mixed audio output. OBS converts the audio to the
+    /// requested format/sample rate/layout before invoking the callback on its audio thread.
+    /// Dispose the returned subscription to stop receiving audio.
+    /// </summary>
+    /// <param name="callback">Invoked on OBS's audio thread for each audio block (~every 21 ms at 48 kHz). Do not block.</param>
+    /// <param name="track">The 1-based audio track to tap (1-6).</param>
+    /// <param name="format">Desired sample format. Defaults to planar 32-bit float (OBS native).</param>
+    /// <param name="sampleRate">Desired sample rate in Hz. Pass 0 for the output's rate.</param>
+    /// <param name="speakers">Desired speaker layout. <see cref="SpeakerLayout.Unknown"/> uses the output's layout.</param>
+    /// <exception cref="ObsNotInitializedException">Thrown if OBS is not initialized.</exception>
+    public static RawAudioSubscription SubscribeRawAudio(
+        RawAudioFrameCallback callback,
+        int track = 1,
+        AudioFormat format = AudioFormat.FloatPlanar,
+        uint sampleRate = 0,
+        SpeakerLayout speakers = SpeakerLayout.Unknown)
+    {
+        ThrowIfNotInitialized();
+        ArgumentNullException.ThrowIfNull(callback);
+
+        return new RawAudioSubscription(track, format, sampleRate, speakers, callback);
+    }
+
+    /// <summary>
+    /// Gets the current video settings (canvas/output resolution, frame rate, format),
+    /// or null if video is not initialized.
+    /// </summary>
+    public static ObsVideoInfo? GetVideoInfo()
+    {
+        ThrowIfNotInitialized();
+
+        var ovi = default(ObsVideoInfo);
+        return ObsCore.obs_get_video_info(ref ovi) ? ovi : null;
+    }
+
+    /// <summary>
+    /// Gets a snapshot of rendering/encoding performance counters
+    /// (equivalent to the OBS Studio stats dock). Use it to detect rendering
+    /// lag (GPU overload) and encoding lag (encoder overload) while active.
+    /// </summary>
+    /// <exception cref="ObsNotInitializedException">Thrown if OBS is not initialized.</exception>
+    public static PerformanceStats GetPerformanceStats()
+    {
+        ThrowIfNotInitialized();
+
+        var video = ObsCore.obs_get_video();
+        var totalOutputFrames = video.IsNull ? 0u : ObsCore.video_output_get_total_frames(video);
+        var skippedFrames = video.IsNull ? 0u : ObsCore.video_output_get_skipped_frames(video);
+
+        return new PerformanceStats(
+            ObsCore.obs_get_active_fps(),
+            ObsCore.obs_get_average_frame_time_ns(),
+            ObsCore.obs_get_total_frames(),
+            ObsCore.obs_get_lagged_frames(),
+            totalOutputFrames,
+            skippedFrames);
+    }
+
+    /// <summary>
+    /// Enumerates the audio devices that can be used for audio monitoring.
+    /// </summary>
+    /// <returns>A list of (Name, Id) pairs; pass an Id to <see cref="SetAudioMonitoringDevice"/>.</returns>
+    public static IReadOnlyList<(string Name, string Id)> EnumerateAudioMonitoringDevices()
+    {
+        ThrowIfNotInitialized();
+
+        var devices = new List<(string, string)>();
+        ObsCore.EnumAudioDeviceCallback callback = (_, namePtr, idPtr) =>
+        {
+            var name = System.Runtime.InteropServices.Marshal.PtrToStringUTF8(namePtr);
+            var id = System.Runtime.InteropServices.Marshal.PtrToStringUTF8(idPtr);
+            if (name != null && id != null)
+                devices.Add((name, id));
+            return 1;
+        };
+
+        ObsCore.obs_enum_audio_monitoring_devices(callback, nint.Zero);
+        GC.KeepAlive(callback);
+        return devices;
+    }
+
+    /// <summary>
+    /// Sets the output device used for audio monitoring
+    /// (sources with <c>AudioMonitoring</c> enabled play through this device).
+    /// </summary>
+    /// <param name="id">The device ID ("default" for the system default).</param>
+    /// <param name="name">The device name for display/logging.</param>
+    /// <returns>True if the device was set.</returns>
+    public static bool SetAudioMonitoringDevice(string id = "default", string name = "Default")
+    {
+        ThrowIfNotInitialized();
+        return ObsCore.obs_set_audio_monitoring_device(name, id);
+    }
+
+    /// <summary>
+    /// Gets the current audio monitoring device, or null if none is set.
+    /// </summary>
+    public static (string Name, string Id)? GetAudioMonitoringDevice()
+    {
+        ThrowIfNotInitialized();
+
+        ObsCore.obs_get_audio_monitoring_device(out var namePtr, out var idPtr);
+        var name = System.Runtime.InteropServices.Marshal.PtrToStringUTF8(namePtr);
+        var id = System.Runtime.InteropServices.Marshal.PtrToStringUTF8(idPtr);
+
+        return name != null && id != null ? (name, id) : null;
+    }
+
+    /// <summary>
+    /// Enumerates all hotkeys registered with OBS (by sources, outputs, etc.).
+    /// </summary>
+    public static IReadOnlyList<ObsHotkeyInfo> EnumerateHotkeys()
+    {
+        ThrowIfNotInitialized();
+
+        var result = new List<ObsHotkeyInfo>();
+        ObsHotkey.EnumHotkeyCallback callback = (_, id, key) =>
+        {
+            result.Add(new ObsHotkeyInfo(
+                id,
+                ObsHotkey.obs_hotkey_get_name(key) ?? string.Empty,
+                ObsHotkey.obs_hotkey_get_description(key),
+                (ObsHotkeyRegistererType)ObsHotkey.obs_hotkey_get_registerer_type(key)));
+            return 1;
+        };
+        ObsHotkey.obs_enum_hotkeys(callback, nint.Zero);
+        GC.KeepAlive(callback);
+        return result;
+    }
+
+    /// <summary>
+    /// Triggers a hotkey's registered action by id (a press followed by a release).
+    /// </summary>
+    /// <param name="id">The hotkey id from <see cref="EnumerateHotkeys"/>.</param>
+    public static void TriggerHotkey(ulong id)
+    {
+        ThrowIfNotInitialized();
+
+        // Routed triggering only works while rerouting is enabled, but leaving
+        // rerouting on without a router function makes libobs silently drop all
+        // binding-driven hotkey callbacks — so enable it only around the trigger.
+        ObsHotkey.obs_hotkey_enable_callback_rerouting(1);
+        try
+        {
+            ObsHotkey.obs_hotkey_trigger_routed_callback((nuint)id, 1);
+            ObsHotkey.obs_hotkey_trigger_routed_callback((nuint)id, 0);
+        }
+        finally
+        {
+            ObsHotkey.obs_hotkey_enable_callback_rerouting(0);
+        }
+    }
+
+    /// <summary>
+    /// Triggers a hotkey's registered action by name, optionally scoped to the source
+    /// that registered it (several sources can register the same hotkey name).
+    /// </summary>
+    /// <param name="name">The internal hotkey name (e.g. "hotkey_start").</param>
+    /// <param name="owner">When set, only a hotkey registered by this source matches.</param>
+    /// <returns>True if a matching hotkey was found and triggered.</returns>
+    public static bool TriggerHotkey(string name, Source? owner = null)
+    {
+        ThrowIfNotInitialized();
+        ArgumentNullException.ThrowIfNull(name);
+
+        ulong? found = null;
+        ObsHotkey.EnumHotkeyCallback callback = (_, id, key) =>
+        {
+            if (ObsHotkey.obs_hotkey_get_name(key) != name)
+                return 1;
+
+            if (owner != null)
+            {
+                if ((ObsHotkeyRegistererType)ObsHotkey.obs_hotkey_get_registerer_type(key)
+                    != ObsHotkeyRegistererType.Source)
+                    return 1;
+
+                // Source hotkeys store a weak source reference as the registerer.
+                var strong = ObsHotkey.obs_weak_source_get_source(ObsHotkey.obs_hotkey_get_registerer(key));
+                var matches = !strong.IsNull && strong.Value == owner.Handle.Value;
+                if (!strong.IsNull)
+                    ObsSource.obs_source_release(strong);
+
+                if (!matches)
+                    return 1;
+            }
+
+            found = id;
+            return 0;
+        };
+        ObsHotkey.obs_enum_hotkeys(callback, nint.Zero);
+        GC.KeepAlive(callback);
+
+        if (found == null)
+            return false;
+
+        TriggerHotkey(found.Value);
+        return true;
+    }
+
+    /// <summary>
+    /// Gets information about all loaded plugin modules
+    /// (useful for diagnostics, e.g. confirming obs-browser or encoder plugins loaded).
+    /// </summary>
+    public static IReadOnlyList<ObsModuleInfo> GetLoadedModules()
+    {
+        ThrowIfNotInitialized();
+
+        var modules = new List<ObsModuleInfo>();
+        ObsCore.EnumModuleCallback callback = (_, module) =>
+        {
+            var fileName = ObsCore.obs_get_module_file_name(module);
+            if (fileName == null)
+                return;
+
+            modules.Add(new ObsModuleInfo(
+                fileName,
+                ObsCore.obs_get_module_name(module),
+                ObsCore.obs_get_module_author(module),
+                ObsCore.obs_get_module_description(module)));
+        };
+        ObsCore.obs_enum_modules(callback, nint.Zero);
+        GC.KeepAlive(callback);
+        return modules;
     }
 
     /// <summary>

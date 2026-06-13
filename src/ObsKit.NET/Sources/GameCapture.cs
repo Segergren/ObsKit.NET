@@ -40,6 +40,32 @@ public sealed class GameCapture : Source
     }
 
     /// <summary>
+    /// How often game capture attempts to hook newly started games.
+    /// </summary>
+    public enum HookRate
+    {
+        /// <summary>Check every 4 seconds (lowest overhead).</summary>
+        Slow = 0,
+        /// <summary>Check every 2 seconds (default).</summary>
+        Normal = 1,
+        /// <summary>Check every second.</summary>
+        Fast = 2,
+        /// <summary>Check every 0.2 seconds (hooks fastest, highest overhead).</summary>
+        Fastest = 3
+    }
+
+    /// <summary>
+    /// How 10-bit (RGB10A2) game output is interpreted.
+    /// </summary>
+    public enum Rgb10A2ColorSpace
+    {
+        /// <summary>Treat RGB10A2 frames as SDR sRGB (default).</summary>
+        Srgb,
+        /// <summary>Treat RGB10A2 frames as HDR Rec. 2100 PQ.</summary>
+        Pq2100
+    }
+
+    /// <summary>
     /// Gets whether the game capture has successfully hooked into a game.
     /// </summary>
     public bool IsHooked { get; private set; }
@@ -76,13 +102,18 @@ public sealed class GameCapture : Source
     /// <param name="mode">The capture mode.</param>
     /// <param name="captureCursor">Whether to capture the cursor.</param>
     public GameCapture(string name, CaptureMode mode = CaptureMode.AnyFullscreen, bool captureCursor = true)
-        : base(SourceTypeId, name)
+        : base(SourceTypeId, ValidatePlatform(name))
+    {
+        ApplySettings(mode, null, captureCursor);
+        SubscribeToHookSignals();
+    }
+
+    private static string ValidatePlatform(string name)
     {
         if (!OperatingSystem.IsWindows())
             throw new PlatformNotSupportedException("Game capture is only supported on Windows.");
 
-        ApplySettings(mode, null, captureCursor);
-        SubscribeToHookSignals();
+        return name;
     }
 
     private void SubscribeToHookSignals()
@@ -175,16 +206,6 @@ public sealed class GameCapture : Source
     }
 
     /// <summary>
-    /// Sets whether to force scaling.
-    /// </summary>
-    /// <param name="force">Whether to force scaling.</param>
-    public GameCapture SetForceScaling(bool force)
-    {
-        Update(s => s.Set("force_scaling", force));
-        return this;
-    }
-
-    /// <summary>
     /// Sets the capture mode.
     /// </summary>
     /// <param name="mode">The capture mode.</param>
@@ -229,6 +250,64 @@ public sealed class GameCapture : Source
         Update(s => s.Set("limit_framerate", limit));
         return this;
     }
+
+    /// <summary>
+    /// Sets whether to also capture the hooked game's audio (requires Windows 10 2004+).
+    /// OBS internally creates an application audio capture bound to the hooked process
+    /// and mixes it into this source's audio output — no separate
+    /// <see cref="ApplicationAudioCapture"/> source is needed.
+    /// </summary>
+    /// <param name="capture">Whether to capture the game's audio.</param>
+    public GameCapture SetCaptureAudio(bool capture = true)
+    {
+        Update(s => s.Set("capture_audio", capture));
+        return this;
+    }
+
+    /// <summary>
+    /// Sets whether to capture third-party overlays drawn on top of the game
+    /// (e.g. Steam or Discord overlays).
+    /// </summary>
+    /// <param name="capture">Whether to capture overlays.</param>
+    public GameCapture SetCaptureOverlays(bool capture = true)
+    {
+        Update(s => s.Set("capture_overlays", capture));
+        return this;
+    }
+
+    /// <summary>
+    /// Sets how often game capture attempts to hook newly started games.
+    /// </summary>
+    /// <param name="rate">The hook check rate.</param>
+    public GameCapture SetHookRate(HookRate rate)
+    {
+        Update(s => s.Set("hook_rate", (long)rate));
+        return this;
+    }
+
+    /// <summary>
+    /// Sets how 10-bit (RGB10A2) game output is interpreted. Use
+    /// <see cref="Rgb10A2ColorSpace.Pq2100"/> when capturing HDR games.
+    /// </summary>
+    /// <param name="colorSpace">The color space of RGB10A2 frames.</param>
+    public GameCapture SetRgb10A2ColorSpace(Rgb10A2ColorSpace colorSpace)
+    {
+        Update(s => s.Set("rgb10a2_space", colorSpace == Rgb10A2ColorSpace.Pq2100 ? "2100pq" : "srgb"));
+        return this;
+    }
+
+    /// <summary>
+    /// In <see cref="CaptureMode.HotkeyForeground"/> mode, starts capturing the current
+    /// foreground window (equivalent to pressing the OBS "Capture foreground window" hotkey).
+    /// </summary>
+    /// <returns>True if the hotkey was found and triggered.</returns>
+    public bool CaptureForegroundWindow() => Obs.TriggerHotkey("hotkey_start", this);
+
+    /// <summary>
+    /// In <see cref="CaptureMode.HotkeyForeground"/> mode, deactivates the current capture.
+    /// </summary>
+    /// <returns>True if the hotkey was found and triggered.</returns>
+    public bool DeactivateCapture() => Obs.TriggerHotkey("hotkey_stop", this);
 
     /// <summary>
     /// Disposes the game capture and disconnects signal handlers.

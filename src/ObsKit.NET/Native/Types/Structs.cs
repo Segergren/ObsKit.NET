@@ -282,6 +282,80 @@ public struct VideoScaleInfo
 }
 
 /// <summary>
+/// Native layout of OBS's <c>struct obs_mouse_event</c>.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct ObsMouseEventNative
+{
+    public uint Modifiers;
+    public int X;
+    public int Y;
+}
+
+/// <summary>
+/// Native layout of OBS's <c>struct obs_key_event</c>.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct ObsKeyEventNative
+{
+    public uint Modifiers;
+    public nint Text;
+    public uint NativeModifiers;
+    public uint NativeScancode;
+    public uint NativeVkey;
+}
+
+/// <summary>
+/// Native layout of OBS's <c>struct audio_convert_info</c>.
+/// Describes the format raw audio callbacks should be converted to.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct AudioConvertInfo
+{
+    /// <summary>Sample rate in Hz.</summary>
+    public uint SamplesPerSec;
+
+    /// <summary>Sample format.</summary>
+    public AudioFormat Format;
+
+    /// <summary>Speaker layout.</summary>
+    public SpeakerLayout Speakers;
+
+    private byte _allowClipping;
+
+    /// <summary>Whether converted samples may clip instead of being limited.</summary>
+    public bool AllowClipping
+    {
+        get => _allowClipping != 0;
+        set => _allowClipping = value ? (byte)1 : (byte)0;
+    }
+}
+
+/// <summary>
+/// Native layout of OBS's <c>struct audio_data</c>.
+/// Holds up to <see cref="MaxAvPlanes"/> plane pointers, the frame count, and a timestamp.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct AudioDataNative
+{
+    /// <summary>Maximum number of planes OBS exposes per audio packet.</summary>
+    public const int MaxAvPlanes = 8;
+
+    public nint Data0;
+    public nint Data1;
+    public nint Data2;
+    public nint Data3;
+    public nint Data4;
+    public nint Data5;
+    public nint Data6;
+    public nint Data7;
+
+    public uint Frames;
+
+    public ulong Timestamp;
+}
+
+/// <summary>
 /// Native layout of OBS's <c>struct video_data</c>.
 /// Holds up to <see cref="MaxAvPlanes"/> data plane pointers, their linesizes, and a timestamp.
 /// </summary>

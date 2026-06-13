@@ -129,6 +129,14 @@ internal static partial class ObsEncoder
     internal static partial ObsEncoderType obs_get_encoder_type(
         [MarshalUsing(typeof(Utf8StringMarshaler))] string id);
 
+    /// <summary>
+    /// Gets the capability flags (OBS_ENCODER_CAP_*) for an encoder ID.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_encoder_caps")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial uint obs_get_encoder_caps(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string encoderId);
+
     #endregion
 
     #region Settings
@@ -274,6 +282,46 @@ internal static partial class ObsEncoder
     [LibraryImport(Lib, EntryPoint = "obs_encoder_scaling_enabled")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     private static partial byte obs_encoder_scaling_enabled_native(ObsEncoderHandle encoder);
+
+    /// <summary>
+    /// Enables GPU-based scaling for the encoder (ObsScaleType.Disable turns it off).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_set_gpu_scale_type")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_encoder_set_gpu_scale_type(ObsEncoderHandle encoder, ObsScaleType scaleType);
+
+    /// <summary>
+    /// Gets the GPU scaling type of the encoder.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_get_scale_type")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsScaleType obs_encoder_get_scale_type(ObsEncoderHandle encoder);
+
+    /// <summary>
+    /// Checks if GPU-based scaling is enabled for the encoder.
+    /// </summary>
+    public static bool obs_encoder_gpu_scaling_enabled(ObsEncoderHandle encoder) => obs_encoder_gpu_scaling_enabled_native(encoder) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_gpu_scaling_enabled")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_encoder_gpu_scaling_enabled_native(ObsEncoderHandle encoder);
+
+    /// <summary>
+    /// Sets the frame rate divisor (encode at base FPS / divisor). Fails on active encoders.
+    /// </summary>
+    public static bool obs_encoder_set_frame_rate_divisor(ObsEncoderHandle encoder, uint divisor)
+        => obs_encoder_set_frame_rate_divisor_native(encoder, divisor) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_set_frame_rate_divisor")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_encoder_set_frame_rate_divisor_native(ObsEncoderHandle encoder, uint divisor);
+
+    /// <summary>
+    /// Gets the frame rate divisor (default 1).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_get_frame_rate_divisor")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial uint obs_encoder_get_frame_rate_divisor(ObsEncoderHandle encoder);
 
     #endregion
 

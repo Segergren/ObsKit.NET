@@ -28,10 +28,8 @@ public sealed class ObsContext : IDisposable
 
     private void Initialize()
     {
-        // Initialize library loader
         LibraryLoader.Initialize();
 
-        // Setup logging if configured
         if (_config.LogHandler != null)
         {
             SetupLogging(_config.LogHandler);
@@ -43,15 +41,13 @@ public sealed class ObsContext : IDisposable
             InitializeComForWindows();
         }
 
-        // Initialize OBS core
         if (!ObsCore.obs_startup(_config.Locale, _config.ModuleConfigPath, 0))
         {
             throw new ObsInitializationException("obs_startup failed");
         }
 
-        // Add data path if specified
-        // Note: OBS's check_path function concatenates path + filename directly,
-        // so the path must end with a trailing slash.
+        // OBS's check_path concatenates path + filename directly, so the path must end
+        // with a trailing slash.
         if (!string.IsNullOrEmpty(_config.DataPath))
         {
             var dataPath = _config.DataPath;
@@ -62,8 +58,7 @@ public sealed class ObsContext : IDisposable
             ObsCore.obs_add_data_path(dataPath);
         }
 
-        // Add module paths
-        // Note: Module paths may also need trailing slashes depending on usage
+        // Module paths may also need trailing slashes depending on usage.
         foreach (var (bin, data) in _config.ModulePaths)
         {
             var binPath = bin;

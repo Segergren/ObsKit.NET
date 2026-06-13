@@ -19,6 +19,9 @@ public class Service : ObsObject
 
         /// <summary>Custom RTMP server configuration.</summary>
         public const string RtmpCustom = "rtmp_custom";
+
+        /// <summary>WHIP (WebRTC) ingest configuration (obs-webrtc plugin).</summary>
+        public const string WhipCustom = "whip_custom";
     }
 
     /// <summary>
@@ -78,12 +81,39 @@ public class Service : ObsObject
         settings.Set("server", serverUrl);
         settings.Set("key", streamKey);
 
-        if (!string.IsNullOrEmpty(username))
-            settings.Set("username", username);
-        if (!string.IsNullOrEmpty(password))
-            settings.Set("password", password);
+        // rtmp_custom gates username/password behind use_auth: its get_username/get_password
+        // (and get_connect_info) return null unless use_auth is true, so credentials are
+        // silently dropped if it isn't set.
+        if (!string.IsNullOrEmpty(username) || !string.IsNullOrEmpty(password))
+        {
+            settings.Set("use_auth", true);
+            if (!string.IsNullOrEmpty(username))
+                settings.Set("username", username);
+            if (!string.IsNullOrEmpty(password))
+                settings.Set("password", password);
+        }
 
         return new Service(Types.RtmpCustom, name, settings);
+    }
+
+    /// <summary>
+    /// Creates a WHIP (WebRTC) ingest service for sub-second-latency streaming
+    /// (e.g. Cloudflare Stream, Broadcast Box, LiveKit). Requires the obs-webrtc plugin.
+    /// Use Opus audio and an H.264/HEVC/AV1 video encoder.
+    /// </summary>
+    /// <param name="url">The WHIP endpoint URL (e.g. "https://example.com/whip").</param>
+    /// <param name="bearerToken">Optional bearer token for authentication.</param>
+    /// <param name="name">Optional display name for the service.</param>
+    /// <returns>A configured WHIP service.</returns>
+    public static Service CreateWhip(string url, string? bearerToken = null, string name = "WHIP")
+    {
+        using var settings = new Settings();
+        settings.Set("server", url);
+
+        if (!string.IsNullOrEmpty(bearerToken))
+            settings.Set("bearer_token", bearerToken);
+
+        return new Service(Types.WhipCustom, name, settings);
     }
 
     /// <summary>
@@ -163,9 +193,9 @@ public class Service : ObsObject
     public string? Protocol => ObsService.obs_service_get_protocol(Handle);
 
     /// <summary>
-    /// Gets the output type required by this service.
+    /// Gets the output type the service prefers (e.g. "rtmp_output", "whip_output"), or null.
     /// </summary>
-    public string? OutputType => ObsService.obs_service_get_output_type(Handle);
+    public string? OutputType => ObsService.obs_service_get_preferred_output_type(Handle);
 
     /// <summary>
     /// Gets whether the service has sufficient information to attempt a connection.
@@ -175,26 +205,22 @@ public class Service : ObsObject
     /// <summary>
     /// Gets the server URL configured for this service.
     /// </summary>
-    public string? Url => ObsService.obs_service_get_connect_info(Handle, ServiceConnectInfo.ServerUrl)
-                          ?? ObsService.obs_service_get_url(Handle);
+    public string? Url => ObsService.obs_service_get_connect_info(Handle, ServiceConnectInfo.ServerUrl);
 
     /// <summary>
     /// Gets the stream key configured for this service.
     /// </summary>
-    public string? StreamKey => ObsService.obs_service_get_connect_info(Handle, ServiceConnectInfo.StreamKey)
-                                ?? ObsService.obs_service_get_key(Handle);
+    public string? StreamKey => ObsService.obs_service_get_connect_info(Handle, ServiceConnectInfo.StreamKey);
 
     /// <summary>
     /// Gets the username configured for this service (if any).
     /// </summary>
-    public string? Username => ObsService.obs_service_get_connect_info(Handle, ServiceConnectInfo.Username)
-                               ?? ObsService.obs_service_get_username(Handle);
+    public string? Username => ObsService.obs_service_get_connect_info(Handle, ServiceConnectInfo.Username);
 
     /// <summary>
     /// Gets the password configured for this service (if any).
     /// </summary>
-    public string? Password => ObsService.obs_service_get_connect_info(Handle, ServiceConnectInfo.Password)
-                               ?? ObsService.obs_service_get_password(Handle);
+    public string? Password => ObsService.obs_service_get_connect_info(Handle, ServiceConnectInfo.Password);
 
     /// <summary>
     /// Gets the maximum video bitrate supported by the service (in kbps).

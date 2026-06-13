@@ -32,6 +32,15 @@ internal static partial class ObsScene
         [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
 
     /// <summary>
+    /// Duplicates a scene.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_scene_duplicate")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsSceneHandle obs_scene_duplicate(ObsSceneHandle scene,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        ObsSceneDuplicateType type);
+
+    /// <summary>
     /// Releases a scene.
     /// </summary>
     [LibraryImport(Lib, EntryPoint = "obs_scene_release")]
@@ -39,11 +48,12 @@ internal static partial class ObsScene
     internal static partial void obs_scene_release(ObsSceneHandle scene);
 
     /// <summary>
-    /// Adds a reference to a scene.
+    /// Returns an owning reference to the scene (the same handle), or null if the scene is
+    /// being destroyed.
     /// </summary>
-    [LibraryImport(Lib, EntryPoint = "obs_scene_addref")]
+    [LibraryImport(Lib, EntryPoint = "obs_scene_get_ref")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    internal static partial void obs_scene_addref(ObsSceneHandle scene);
+    internal static partial ObsSceneHandle obs_scene_get_ref(ObsSceneHandle scene);
 
     /// <summary>
     /// Gets the scene as a source.
@@ -107,6 +117,28 @@ internal static partial class ObsScene
     [LibraryImport(Lib, EntryPoint = "obs_scene_enum_items")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial void obs_scene_enum_items(ObsSceneHandle scene, EnumSceneItemCallback callback, nint data);
+
+    /// <summary>
+    /// Sets the complete z-order of a scene's items. <paramref name="itemOrder"/> must
+    /// contain exactly the scene's current items (top to bottom); returns false if the set
+    /// does not match or the order is unchanged.
+    /// </summary>
+    public static bool obs_scene_reorder_items(ObsSceneHandle scene, nint[] itemOrder)
+    {
+        var gch = GCHandle.Alloc(itemOrder, GCHandleType.Pinned);
+        try
+        {
+            return obs_scene_reorder_items_native(scene, gch.AddrOfPinnedObject(), (nuint)itemOrder.Length) != 0;
+        }
+        finally
+        {
+            gch.Free();
+        }
+    }
+
+    [LibraryImport(Lib, EntryPoint = "obs_scene_reorder_items")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_scene_reorder_items_native(ObsSceneHandle scene, nint itemOrder, nuint count);
 
     #endregion
 
@@ -272,6 +304,26 @@ internal static partial class ObsScene
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial uint obs_sceneitem_get_alignment(ObsSceneItemHandle item);
 
+    /// <summary>Sets how the source is aligned within its bounding box.</summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_set_bounds_alignment")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_set_bounds_alignment(ObsSceneItemHandle item, uint alignment);
+
+    /// <summary>Gets how the source is aligned within its bounding box.</summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_get_bounds_alignment")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial uint obs_sceneitem_get_bounds_alignment(ObsSceneItemHandle item);
+
+    /// <summary>Reads the item's full transform into <paramref name="info"/>.</summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_get_info2")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_get_info2(ObsSceneItemHandle item, out ObsTransformInfo info);
+
+    /// <summary>Applies a full transform to the item.</summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_set_info2")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_set_info2(ObsSceneItemHandle item, ref ObsTransformInfo info);
+
     #endregion
 
     #region Bounds
@@ -346,6 +398,161 @@ internal static partial class ObsScene
     [LibraryImport(Lib, EntryPoint = "obs_sceneitem_get_order_position")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial int obs_sceneitem_get_order_position(ObsSceneItemHandle item);
+
+    #endregion
+
+    #region Blending and Scaling
+
+    /// <summary>
+    /// Sets the scale filter used when the item is scaled.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_set_scale_filter")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_set_scale_filter(ObsSceneItemHandle item, ObsScaleType filter);
+
+    /// <summary>
+    /// Gets the scale filter used when the item is scaled.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_get_scale_filter")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsScaleType obs_sceneitem_get_scale_filter(ObsSceneItemHandle item);
+
+    /// <summary>
+    /// Sets the blending method (sRGB handling) of the item.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_set_blending_method")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_set_blending_method(ObsSceneItemHandle item, ObsBlendingMethod method);
+
+    /// <summary>
+    /// Gets the blending method (sRGB handling) of the item.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_get_blending_method")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsBlendingMethod obs_sceneitem_get_blending_method(ObsSceneItemHandle item);
+
+    /// <summary>
+    /// Sets the blending mode of the item.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_set_blending_mode")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_set_blending_mode(ObsSceneItemHandle item, ObsBlendingType type);
+
+    /// <summary>
+    /// Gets the blending mode of the item.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_get_blending_mode")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsBlendingType obs_sceneitem_get_blending_mode(ObsSceneItemHandle item);
+
+    #endregion
+
+    #region Show/Hide Transitions
+
+    /// <summary>
+    /// Sets the show (true) or hide (false) transition of the item. The item takes its own
+    /// reference to the transition source; pass null to clear.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_set_transition")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_set_transition(ObsSceneItemHandle item, byte show, ObsSourceHandle transition);
+
+    /// <summary>
+    /// Gets the show (true) or hide (false) transition of the item (not an added reference).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_get_transition")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsSourceHandle obs_sceneitem_get_transition(ObsSceneItemHandle item, byte show);
+
+    /// <summary>
+    /// Sets the show/hide transition duration in milliseconds.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_set_transition_duration")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_set_transition_duration(ObsSceneItemHandle item, byte show, uint durationMs);
+
+    /// <summary>
+    /// Gets the show/hide transition duration in milliseconds.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_get_transition_duration")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial uint obs_sceneitem_get_transition_duration(ObsSceneItemHandle item, byte show);
+
+    #endregion
+
+    #region Groups
+
+    /// <summary>
+    /// Creates an empty group in the scene. The returned scene item is owned by the
+    /// scene (same ownership as obs_scene_add). Passes signal=true to emit item_add.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_scene_add_group2")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsSceneItemHandle obs_scene_add_group2(
+        ObsSceneHandle scene,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        [MarshalAs(UnmanagedType.U1)] bool signal);
+
+    /// <summary>
+    /// Gets a group scene item by name. Does NOT increment the reference count.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_scene_get_group")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsSceneItemHandle obs_scene_get_group(
+        ObsSceneHandle scene,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    /// <summary>
+    /// Gets the parent group of a sub-item, or null. Does NOT increment the reference count.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_get_group")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsSceneItemHandle obs_sceneitem_get_group(ObsSceneHandle scene, ObsSceneItemHandle item);
+
+    /// <summary>
+    /// Returns true if the scene item is a group.
+    /// </summary>
+    public static bool obs_sceneitem_is_group(ObsSceneItemHandle item) => obs_sceneitem_is_group_native(item) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_is_group")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_sceneitem_is_group_native(ObsSceneItemHandle item);
+
+    /// <summary>
+    /// Gets the inner scene backing a group, or null. Does NOT increment the reference count.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_group_get_scene")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsSceneHandle obs_sceneitem_group_get_scene(ObsSceneItemHandle group);
+
+    /// <summary>
+    /// Disbands a group, moving its items back into the parent scene.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_group_ungroup")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_group_ungroup(ObsSceneItemHandle group);
+
+    /// <summary>
+    /// Moves an existing scene item into a group.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_group_add_item")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_group_add_item(ObsSceneItemHandle group, ObsSceneItemHandle item);
+
+    /// <summary>
+    /// Removes a scene item from a group, moving it back into the parent scene.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_group_remove_item")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_group_remove_item(ObsSceneItemHandle group, ObsSceneItemHandle item);
+
+    /// <summary>
+    /// Enumerates the items within a group (delegates to obs_scene_enum_items, which
+    /// references each item for the duration of the callback).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_group_enum_items")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_group_enum_items(ObsSceneItemHandle group, EnumSceneItemCallback callback, nint data);
 
     #endregion
 }

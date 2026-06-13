@@ -63,6 +63,18 @@ internal static partial class ObsCore
     [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
     internal static partial string obs_get_version_string();
 
+    /// <summary>Gets the current locale used for localized strings.</summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_locale")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_get_locale();
+
+    /// <summary>Sets the locale used for localized strings (display names, property descriptions).</summary>
+    [LibraryImport(Lib, EntryPoint = "obs_set_locale")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_set_locale(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string locale);
+
     #endregion
 
     #region Video Configuration
@@ -77,11 +89,121 @@ internal static partial class ObsCore
     internal static partial int obs_reset_video(ref ObsVideoInfo ovi);
 
     /// <summary>
+    /// Gets the current video settings.
+    /// </summary>
+    /// <returns>True if video is initialized.</returns>
+    public static bool obs_get_video_info(ref ObsVideoInfo ovi) => obs_get_video_info_native(ref ovi) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_get_video_info")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_get_video_info_native(ref ObsVideoInfo ovi);
+
+    /// <summary>
     /// Gets the current video subsystem handle.
     /// </summary>
     [LibraryImport(Lib, EntryPoint = "obs_get_video")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial VideoHandle obs_get_video();
+
+    /// <summary>
+    /// Gets the current compositing frame rate.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_active_fps")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial double obs_get_active_fps();
+
+    /// <summary>
+    /// Gets the average time to render a frame, in nanoseconds.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_average_frame_time_ns")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ulong obs_get_average_frame_time_ns();
+
+    /// <summary>
+    /// Gets the total number of composited frames.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_total_frames")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial uint obs_get_total_frames();
+
+    /// <summary>
+    /// Gets the number of frames missed due to rendering lag.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_lagged_frames")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial uint obs_get_lagged_frames();
+
+    /// <summary>
+    /// Gets the total number of frames delivered by the video output.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "video_output_get_total_frames")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial uint video_output_get_total_frames(VideoHandle video);
+
+    /// <summary>
+    /// Gets the number of frames skipped due to encoding lag.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "video_output_get_skipped_frames")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial uint video_output_get_skipped_frames(VideoHandle video);
+
+    /// <summary>
+    /// Generates a filename from an OBS filename format template (e.g. "%CCYY-%MM-%DD").
+    /// </summary>
+    internal static string? os_generate_formatted_filename(string extension, bool spaces, string format)
+    {
+        var ptr = os_generate_formatted_filename_native(extension, spaces ? (byte)1 : (byte)0, format);
+        if (ptr == nint.Zero)
+            return null;
+
+        try
+        {
+            return Marshal.PtrToStringUTF8(ptr);
+        }
+        finally
+        {
+            ObsSignal.bfree(ptr);
+        }
+    }
+
+    [LibraryImport(Lib, EntryPoint = "os_generate_formatted_filename")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial nint os_generate_formatted_filename_native(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string extension,
+        byte spaces,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string format);
+
+    /// <summary>
+    /// Callback for enumerating audio monitoring devices. Return 0 to stop enumerating.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate byte EnumAudioDeviceCallback(nint data, nint name, nint id);
+
+    /// <summary>
+    /// Enumerates audio devices usable for monitoring.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_enum_audio_monitoring_devices")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_enum_audio_monitoring_devices(EnumAudioDeviceCallback callback, nint data);
+
+    /// <summary>
+    /// Sets the device used for audio monitoring.
+    /// </summary>
+    internal static bool obs_set_audio_monitoring_device(string name, string id)
+        => obs_set_audio_monitoring_device_native(name, id) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_set_audio_monitoring_device")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_set_audio_monitoring_device_native(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string id);
+
+    /// <summary>
+    /// Gets the device used for audio monitoring.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_audio_monitoring_device")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_get_audio_monitoring_device(out nint name, out nint id);
 
     /// <summary>
     /// Sets the SDR white level and HDR nominal peak level (nits). Call after a successful
@@ -148,6 +270,99 @@ internal static partial class ObsCore
 
     #endregion
 
+    #region Modules
+
+    /// <summary>
+    /// Callback for enumerating loaded modules.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void EnumModuleCallback(nint param, nint module);
+
+    /// <summary>
+    /// Enumerates all loaded modules.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_enum_modules")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_enum_modules(EnumModuleCallback callback, nint param);
+
+    /// <summary>
+    /// Gets the module's file name (e.g. "obs-browser.dll").
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_module_file_name")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_get_module_file_name(nint module);
+
+    /// <summary>
+    /// Gets the module's full name.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_module_name")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_get_module_name(nint module);
+
+    /// <summary>
+    /// Gets the module's author(s).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_module_author")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_get_module_author(nint module);
+
+    /// <summary>
+    /// Gets the module's description.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_module_description")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_get_module_description(nint module);
+
+    #endregion
+
+    #region Raw Audio Output
+
+    /// <summary>
+    /// Native callback signature for <c>audio_output_connect</c>.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void RawAudioCallbackNative(nint param, nuint mixIdx, nint audioData);
+
+    /// <summary>
+    /// Subscribes a callback to a mix of the audio output, converting to the requested format.
+    /// </summary>
+    public static bool audio_output_connect(AudioHandle audio, nuint mixIdx, ref AudioConvertInfo conversion,
+        RawAudioCallbackNative callback, nint param)
+        => audio_output_connect_native(audio, mixIdx, ref conversion, callback, param) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "audio_output_connect")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte audio_output_connect_native(AudioHandle audio, nuint mixIdx,
+        ref AudioConvertInfo conversion, RawAudioCallbackNative callback, nint param);
+
+    /// <summary>
+    /// Removes a previously connected raw audio callback.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "audio_output_disconnect")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void audio_output_disconnect(AudioHandle audio, nuint mixIdx,
+        RawAudioCallbackNative callback, nint param);
+
+    /// <summary>
+    /// Gets the sample rate of the audio output.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "audio_output_get_sample_rate")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial uint audio_output_get_sample_rate(AudioHandle audio);
+
+    /// <summary>
+    /// Gets the channel count of the audio output.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "audio_output_get_channels")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nuint audio_output_get_channels(AudioHandle audio);
+
+    #endregion
+
     #region Audio Configuration
 
     /// <summary>
@@ -180,23 +395,23 @@ internal static partial class ObsCore
     #region Module Loading
 
     /// <summary>
-    /// Adds a directory path to search for OBS data files.
-    /// Note: OBS stores the path pointer directly without copying, so we use a persistent marshaler.
+    /// Adds a directory path to search for OBS data files. libobs copies the string
+    /// (dstr_init_copy), so the marshaled buffer can be freed after the call.
     /// </summary>
     [LibraryImport(Lib, EntryPoint = "obs_add_data_path")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial void obs_add_data_path(
-        [MarshalUsing(typeof(Utf8StringMarshalerPersistent))] string path);
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string path);
 
     /// <summary>
-    /// Adds module search paths for plugins.
-    /// Note: OBS stores the path pointers directly without copying, so we use a persistent marshaler.
+    /// Adds module search paths for plugins. libobs copies the strings (bstrdup), so the
+    /// marshaled buffers can be freed after the call.
     /// </summary>
     [LibraryImport(Lib, EntryPoint = "obs_add_module_path")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial void obs_add_module_path(
-        [MarshalUsing(typeof(Utf8StringMarshalerPersistent))] string binPath,
-        [MarshalUsing(typeof(Utf8StringMarshalerPersistent))] string dataPath);
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string binPath,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string dataPath);
 
     /// <summary>
     /// Loads all available modules/plugins.

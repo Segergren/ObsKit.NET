@@ -136,6 +136,14 @@ internal static partial class ObsOutput
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     private static partial byte obs_output_reconnecting_native(ObsOutputHandle output);
 
+    /// <summary>
+    /// Sets auto-reconnect parameters on the output. retryCount == 0 disables reconnecting.
+    /// (Reconnect is NOT configurable via output settings data.)
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_output_set_reconnect_settings")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_output_set_reconnect_settings(ObsOutputHandle output, int retryCount, int retrySec);
+
     #endregion
 
     #region Settings
@@ -269,7 +277,7 @@ internal static partial class ObsOutput
     /// </summary>
     [LibraryImport(Lib, EntryPoint = "obs_output_get_total_frames")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    internal static partial uint obs_output_get_total_frames(ObsOutputHandle output);
+    internal static partial int obs_output_get_total_frames(ObsOutputHandle output); // C returns signed int
 
     /// <summary>
     /// Gets total bytes output.
@@ -302,6 +310,22 @@ internal static partial class ObsOutput
     #endregion
 
     #region Error Handling
+
+    /// <summary>
+    /// Gets the video codecs the output supports, semicolon-separated (e.g. "h264;hevc;av1").
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_output_get_supported_video_codecs")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_output_get_supported_video_codecs(ObsOutputHandle output);
+
+    /// <summary>
+    /// Gets the audio codecs the output supports, semicolon-separated (e.g. "aac;opus").
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_output_get_supported_audio_codecs")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_output_get_supported_audio_codecs(ObsOutputHandle output);
 
     /// <summary>
     /// Gets the last error for the output.

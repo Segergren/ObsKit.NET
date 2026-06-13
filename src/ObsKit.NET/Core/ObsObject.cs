@@ -61,6 +61,23 @@ public abstract class ObsObject : IDisposable
     protected abstract void ReleaseHandle(nint handle);
 
     /// <summary>
+    /// Replaces the native handle without releasing the previous one.
+    /// The caller is responsible for releasing the returned previous handle.
+    /// </summary>
+    /// <param name="newHandle">The new native handle.</param>
+    /// <returns>The previous native handle.</returns>
+    private protected nint ReplaceHandle(nint newHandle)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (newHandle == 0)
+            throw new ArgumentException("Handle cannot be null", nameof(newHandle));
+
+        var previous = _handle;
+        _handle = newHandle;
+        return previous;
+    }
+
+    /// <summary>
     /// Releases the unmanaged resources used by this object.
     /// </summary>
     /// <param name="disposing">True if called from Dispose(), false if from finalizer.</param>

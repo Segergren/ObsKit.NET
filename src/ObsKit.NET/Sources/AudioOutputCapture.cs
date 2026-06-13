@@ -72,6 +72,26 @@ public sealed class AudioOutputCapture : Source
     }
 
     /// <summary>
+    /// Enumerates the available audio output (speaker/headset) devices.
+    /// Includes a "Default" entry with id "default". Requires OBS to be initialized.
+    /// </summary>
+    public static IReadOnlyList<AudioDeviceInfo> ListDevices()
+    {
+        using var probe = CreatePrivate(TypeIdForPlatform, "__obskit_audio_output_probe__");
+        var items = probe.GetListPropertyItems("device_id");
+
+        var result = new List<AudioDeviceInfo>(items.Count);
+        foreach (var (itemName, itemValue) in items)
+        {
+            if (string.IsNullOrEmpty(itemValue))
+                continue;
+
+            result.Add(new AudioDeviceInfo(itemName, itemValue));
+        }
+        return result;
+    }
+
+    /// <summary>
     /// Sets the audio device.
     /// </summary>
     /// <param name="deviceId">The device ID.</param>

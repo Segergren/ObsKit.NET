@@ -57,6 +57,15 @@ internal static partial class ObsService
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial ObsServiceHandle obs_service_get_ref(ObsServiceHandle service);
 
+    /// <summary>
+    /// Gets the output type id the service prefers (e.g. "rtmp_output", "whip_output"),
+    /// or null if the service has no preference.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_service_get_preferred_output_type")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_service_get_preferred_output_type(ObsServiceHandle service);
+
     #endregion
 
     #region Properties
@@ -102,14 +111,6 @@ internal static partial class ObsService
     [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
     internal static partial string? obs_service_get_protocol(ObsServiceHandle service);
 
-    /// <summary>
-    /// Gets the output type required by the service.
-    /// </summary>
-    [LibraryImport(Lib, EntryPoint = "obs_service_get_output_type")]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
-    internal static partial string? obs_service_get_output_type(ObsServiceHandle service);
-
     #endregion
 
     #region Connection Info
@@ -121,38 +122,6 @@ internal static partial class ObsService
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
     internal static partial string? obs_service_get_connect_info(ObsServiceHandle service, uint type);
-
-    /// <summary>
-    /// Gets the URL from the service (legacy, prefer get_connect_info).
-    /// </summary>
-    [LibraryImport(Lib, EntryPoint = "obs_service_get_url")]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
-    internal static partial string? obs_service_get_url(ObsServiceHandle service);
-
-    /// <summary>
-    /// Gets the stream key from the service (legacy, prefer get_connect_info).
-    /// </summary>
-    [LibraryImport(Lib, EntryPoint = "obs_service_get_key")]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
-    internal static partial string? obs_service_get_key(ObsServiceHandle service);
-
-    /// <summary>
-    /// Gets the username from the service (legacy, prefer get_connect_info).
-    /// </summary>
-    [LibraryImport(Lib, EntryPoint = "obs_service_get_username")]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
-    internal static partial string? obs_service_get_username(ObsServiceHandle service);
-
-    /// <summary>
-    /// Gets the password from the service (legacy, prefer get_connect_info).
-    /// </summary>
-    [LibraryImport(Lib, EntryPoint = "obs_service_get_password")]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
-    internal static partial string? obs_service_get_password(ObsServiceHandle service);
 
     /// <summary>
     /// Checks if the service can attempt to connect.

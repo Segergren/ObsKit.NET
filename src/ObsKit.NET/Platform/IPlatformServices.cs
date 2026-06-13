@@ -147,9 +147,9 @@ public sealed class WindowInfo
 
     /// <summary>
     /// Gets the OBS-compatible window ID for capture.
-    /// Format: "WindowTitle:ClassName:ProcessName.exe"
+    /// Format: "WindowTitle:ClassName:ProcessName.exe" (parts encoded per OBS rules).
     /// </summary>
-    public string ObsId => $"{Title}:{ClassName}:{ProcessName}";
+    public string ObsId => WindowSpec.Build(Title, ClassName, ProcessName);
 
     public override string ToString() => $"{Title} ({ProcessName})";
 }

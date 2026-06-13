@@ -218,6 +218,151 @@ public enum ObsEncoderType
 }
 
 /// <summary>
+/// Canvas behavior flags (obs_canvas_flags, OBS 31+).
+/// </summary>
+[Flags]
+public enum ObsCanvasFlags : uint
+{
+    /// <summary>The main canvas created by libobs (cannot be created, renamed, or reset by users).</summary>
+    Main = 1 << 0,
+    /// <summary>Sources on this canvas become active when visible.</summary>
+    Activate = 1 << 1,
+    /// <summary>Audio from this canvas's channels is mixed into the audio output.</summary>
+    MixAudio = 1 << 2,
+    /// <summary>The canvas holds references for its scene sources.</summary>
+    SceneRef = 1 << 3,
+    /// <summary>The canvas is not saved.</summary>
+    Ephemeral = 1 << 4,
+
+    /// <summary>Preset for a recordable program canvas (Activate | MixAudio | SceneRef).</summary>
+    Program = Activate | MixAudio | SceneRef,
+    /// <summary>Preset for a preview-only canvas (Ephemeral).</summary>
+    Preview = Ephemeral,
+    /// <summary>Preset for a device canvas (Activate | Ephemeral).</summary>
+    Device = Activate | Ephemeral,
+}
+
+/// <summary>
+/// Modifier flags for interaction events (obs_interaction_flags).
+/// </summary>
+[Flags]
+public enum ObsInteractionFlags : uint
+{
+    None = 0,
+    CapsLock = 1 << 0,
+    Shift = 1 << 1,
+    Control = 1 << 2,
+    Alt = 1 << 3,
+    MouseLeft = 1 << 4,
+    MouseMiddle = 1 << 5,
+    MouseRight = 1 << 6,
+    Command = 1 << 7,
+    NumLock = 1 << 8,
+    IsKeyPad = 1 << 9,
+    IsLeft = 1 << 10,
+    IsRight = 1 << 11,
+}
+
+/// <summary>
+/// Mouse buttons for interaction events (obs_mouse_button_type).
+/// </summary>
+public enum ObsMouseButton
+{
+    Left = 0,
+    Middle,
+    Right,
+}
+
+/// <summary>
+/// How a scene is duplicated (obs_scene_duplicate_type).
+/// </summary>
+public enum ObsSceneDuplicateType
+{
+    /// <summary>The new scene references the same sources.</summary>
+    Refs = 0,
+    /// <summary>Sources are fully duplicated.</summary>
+    Copy,
+    /// <summary>The new scene references the same sources, created as private.</summary>
+    PrivateRefs,
+    /// <summary>Sources are fully duplicated, created as private.</summary>
+    PrivateCopy,
+}
+
+/// <summary>
+/// Deinterlacing modes (obs_deinterlace_mode).
+/// </summary>
+public enum ObsDeinterlaceMode
+{
+    /// <summary>No deinterlacing (default).</summary>
+    Disable = 0,
+    /// <summary>Discard one field.</summary>
+    Discard,
+    /// <summary>Retro (bob with field doubling).</summary>
+    Retro,
+    /// <summary>Blend fields.</summary>
+    Blend,
+    /// <summary>Blend fields, doubling frame rate.</summary>
+    Blend2X,
+    /// <summary>Linear interpolation.</summary>
+    Linear,
+    /// <summary>Linear interpolation, doubling frame rate.</summary>
+    Linear2X,
+    /// <summary>YADIF.</summary>
+    Yadif,
+    /// <summary>YADIF, doubling frame rate.</summary>
+    Yadif2X,
+}
+
+/// <summary>
+/// Deinterlacing field order (obs_deinterlace_field_order).
+/// </summary>
+public enum ObsDeinterlaceFieldOrder
+{
+    /// <summary>Top field first.</summary>
+    Top = 0,
+    /// <summary>Bottom field first.</summary>
+    Bottom,
+}
+
+/// <summary>
+/// Audio monitoring types (obs_monitoring_type).
+/// Determines whether a source's audio is played back through the
+/// monitoring device, included in the output mix, or both.
+/// </summary>
+public enum ObsMonitoringType
+{
+    /// <summary>Audio is only sent to the output mix (default).</summary>
+    None = 0,
+    /// <summary>Audio is only played through the monitoring device and excluded from the output mix.</summary>
+    MonitorOnly,
+    /// <summary>Audio is played through the monitoring device and included in the output mix.</summary>
+    MonitorAndOutput,
+}
+
+/// <summary>
+/// Media playback states (obs_media_state).
+/// </summary>
+public enum ObsMediaState
+{
+    /// <summary>No media loaded or the source does not support media controls.</summary>
+    None = 0,
+    /// <summary>Media is playing.</summary>
+    Playing,
+    /// <summary>Media is being opened.</summary>
+    Opening,
+    /// <summary>Media is buffering.</summary>
+    Buffering,
+    /// <summary>Media is paused.</summary>
+    Paused,
+    /// <summary>Media is stopped.</summary>
+    Stopped,
+    /// <summary>Media reached its end.</summary>
+    Ended,
+    /// <summary>An error occurred during playback.</summary>
+    Error,
+}
+
+/// <summary>
 /// Log levels for OBS logging.
 /// </summary>
 public enum ObsLogLevel
@@ -257,10 +402,12 @@ public enum ObsSourceFlags : uint
     DoNotDuplicate = 1 << 7,
     Deprecated = 1 << 8,
     DoNotSelfMonitor = 1 << 9,
-    Submix = 1 << 10,
-    Controllable = 1 << 11,
-    CapObsolete = 1 << 12,
-    SrgbTransform = 1 << 13,
+    CapObsolete = 1 << 10,        // OBS_SOURCE_CAP_DISABLED / CAP_OBSOLETE
+    MonitorByDefault = 1 << 11,   // OBS_SOURCE_MONITOR_BY_DEFAULT
+    Submix = 1 << 12,             // OBS_SOURCE_SUBMIX
+    ControllableMedia = 1 << 13,  // OBS_SOURCE_CONTROLLABLE_MEDIA
+    Cea708 = 1 << 14,             // OBS_SOURCE_CEA_708
+    SrgbTransform = 1 << 15,      // OBS_SOURCE_SRGB
 }
 
 /// <summary>
@@ -280,4 +427,120 @@ public enum ObsOutputFlags : uint
     // New in OBS 30+
     MultiTrackVideo = 1 << 6,
     MultiTrackAV = MultiTrack | MultiTrackVideo,
+}
+
+/// <summary>
+/// Mode used when starting a transition (obs_transition_mode).
+/// </summary>
+public enum ObsTransitionMode
+{
+    /// <summary>Automatically animate from the current source to the destination over the given duration.</summary>
+    Auto = 0,
+    /// <summary>Drive the transition manually via <see cref="ObsKit.NET.Sources.Transition.SetManualTime"/>.</summary>
+    Manual = 1,
+}
+
+/// <summary>
+/// Identifies one of the two sub-sources a transition blends between (obs_transition_target).
+/// </summary>
+public enum ObsTransitionTarget
+{
+    /// <summary>The source being transitioned away from.</summary>
+    SourceA = 0,
+    /// <summary>The source being transitioned to.</summary>
+    SourceB = 1,
+}
+
+/// <summary>
+/// Controls how sub-sources of differing sizes are scaled within a transition (obs_transition_scale_type).
+/// </summary>
+public enum ObsTransitionScaleType
+{
+    /// <summary>Scale up to the maximum size only.</summary>
+    MaxOnly = 0,
+    /// <summary>Scale preserving aspect ratio.</summary>
+    Aspect = 1,
+    /// <summary>Stretch to fill.</summary>
+    Stretch = 2,
+}
+
+/// <summary>
+/// The kind of a source/encoder property (obs_property_type), used when introspecting
+/// configurable properties for building dynamic UIs.
+/// </summary>
+public enum ObsPropertyType
+{
+    /// <summary>Not a valid property.</summary>
+    Invalid = 0,
+    /// <summary>Boolean checkbox.</summary>
+    Bool,
+    /// <summary>Integer value (see int min/max/step).</summary>
+    Int,
+    /// <summary>Floating-point value (see float min/max/step).</summary>
+    Float,
+    /// <summary>Free text.</summary>
+    Text,
+    /// <summary>File or directory path.</summary>
+    Path,
+    /// <summary>A list/combo of selectable items.</summary>
+    List,
+    /// <summary>Color (RGB).</summary>
+    Color,
+    /// <summary>A clickable button.</summary>
+    Button,
+    /// <summary>Font selection.</summary>
+    Font,
+    /// <summary>An editable list of strings.</summary>
+    EditableList,
+    /// <summary>A frame-rate picker.</summary>
+    FrameRate,
+    /// <summary>A group of nested properties.</summary>
+    Group,
+    /// <summary>Color with alpha (RGBA).</summary>
+    ColorAlpha,
+}
+
+/// <summary>
+/// Alignment flags (OBS_ALIGN_*), used for scene-item alignment and bounds alignment.
+/// Combine a horizontal flag (Left/Right) with a vertical flag (Top/Bottom); omit one for
+/// centering on that axis. <see cref="Center"/> (0) centers on both axes.
+/// </summary>
+[Flags]
+public enum ObsAlignment : uint
+{
+    /// <summary>Centered on both axes.</summary>
+    Center = 0,
+    /// <summary>Align to the left edge.</summary>
+    Left = 1 << 0,
+    /// <summary>Align to the right edge.</summary>
+    Right = 1 << 1,
+    /// <summary>Align to the top edge.</summary>
+    Top = 1 << 2,
+    /// <summary>Align to the bottom edge.</summary>
+    Bottom = 1 << 3,
+    /// <summary>Top-left corner.</summary>
+    TopLeft = Top | Left,
+    /// <summary>Top-right corner.</summary>
+    TopRight = Top | Right,
+    /// <summary>Bottom-left corner.</summary>
+    BottomLeft = Bottom | Left,
+    /// <summary>Bottom-right corner.</summary>
+    BottomRight = Bottom | Right,
+}
+
+/// <summary>
+/// The value format of a list/combo property's items (obs_combo_format).
+/// </summary>
+public enum ObsPropertyListFormat
+{
+    /// <summary>Not a valid format.</summary>
+    Invalid = 0,
+    /// <summary>Items carry integer values.</summary>
+    Int = 1,
+    /// <summary>Items carry floating-point values.</summary>
+    Float = 2,
+    /// <summary>Items carry string values.</summary>
+    String = 3,
+    /// <summary>Items carry boolean values.</summary>
+    Bool = 4,
 }

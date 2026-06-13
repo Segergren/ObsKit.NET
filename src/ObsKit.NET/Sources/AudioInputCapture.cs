@@ -71,6 +71,26 @@ public sealed class AudioInputCapture : Source
     }
 
     /// <summary>
+    /// Enumerates the available audio input (microphone) devices.
+    /// Includes a "Default" entry with id "default". Requires OBS to be initialized.
+    /// </summary>
+    public static IReadOnlyList<AudioDeviceInfo> ListDevices()
+    {
+        using var probe = CreatePrivate(TypeIdForPlatform, "__obskit_audio_input_probe__");
+        var items = probe.GetListPropertyItems("device_id");
+
+        var result = new List<AudioDeviceInfo>(items.Count);
+        foreach (var (itemName, itemValue) in items)
+        {
+            if (string.IsNullOrEmpty(itemValue))
+                continue;
+
+            result.Add(new AudioDeviceInfo(itemName, itemValue));
+        }
+        return result;
+    }
+
+    /// <summary>
     /// Sets the audio device.
     /// </summary>
     /// <param name="deviceId">The device ID.</param>

@@ -81,6 +81,9 @@ public class Source : ObsObject
     /// </summary>
     public string? TypeId { get; }
 
+    /// <summary>Gets the source category — input, filter, transition, or scene.</summary>
+    public ObsSourceType SourceType => ObsSource.obs_source_get_type(Handle);
+
     /// <summary>Gets or sets the source name.</summary>
     public string? Name
     {
@@ -94,6 +97,24 @@ public class Source : ObsObject
 
     /// <summary>Gets the display name for this source type.</summary>
     public string? DisplayName => TypeId != null ? ObsSource.obs_source_get_display_name(TypeId) : null;
+
+    /// <summary>
+    /// Gets the source UUID — a stable identifier for the source's lifetime,
+    /// usable with <see cref="GetByUuid"/>.
+    /// </summary>
+    public string? Uuid => ObsSource.obs_source_get_uuid(Handle);
+
+    /// <summary>
+    /// Finds a source by its UUID.
+    /// </summary>
+    /// <param name="uuid">The source UUID (see <see cref="Uuid"/>).</param>
+    /// <returns>The source, or null if no source with that UUID exists.</returns>
+    public static Source? GetByUuid(string uuid)
+    {
+        ThrowIfNotInitialized();
+        var handle = ObsSource.obs_get_source_by_uuid(uuid);
+        return handle.IsNull ? null : new Source(handle, ownsHandle: true);
+    }
 
     /// <summary>Gets the source width in pixels.</summary>
     public uint Width => ObsSource.obs_source_get_width(Handle);
@@ -113,6 +134,16 @@ public class Source : ObsObject
     public bool IsRemoved => ObsSource.obs_source_removed(Handle);
 
     /// <summary>
+    /// Gets or sets whether the source is enabled. Primarily used to bypass a
+    /// filter without removing it from its parent's filter chain.
+    /// </summary>
+    public bool IsEnabled
+    {
+        get => ObsSource.obs_source_enabled(Handle);
+        set => ObsSource.obs_source_set_enabled(Handle, value ? (byte)1 : (byte)0);
+    }
+
+    /// <summary>
     /// Gets the output channel this source is assigned to, or null if not assigned.
     /// </summary>
     public uint? AssignedChannel { get; internal set; }
@@ -124,6 +155,18 @@ public class Source : ObsObject
     {
         get => ObsSource.obs_source_get_volume(Handle);
         set => ObsSource.obs_source_set_volume(Handle, Math.Clamp(value, 0.0f, 1.0f));
+    }
+
+    /// <summary>
+    /// Gets or sets the source volume in decibels. 0 dB is unity gain; negative values
+    /// attenuate. Uses the same linear/dB mapping OBS uses internally. Unlike
+    /// <see cref="Volume"/>, this is not clamped to unity, so positive values apply gain.
+    /// Setting <see cref="float.NegativeInfinity"/> silences the source.
+    /// </summary>
+    public float VolumeDb
+    {
+        get => ObsAudioControls.obs_mul_to_db(ObsSource.obs_source_get_volume(Handle));
+        set => ObsSource.obs_source_set_volume(Handle, ObsAudioControls.obs_db_to_mul(value));
     }
 
     /// <summary>Gets or sets whether the source is muted.</summary>
@@ -140,6 +183,254 @@ public class Source : ObsObject
     {
         get => ObsSource.obs_source_get_audio_mixers(Handle);
         set => ObsSource.obs_source_set_audio_mixers(Handle, value);
+    }
+
+    /// <summary>
+    /// Sets the audio tracks this source outputs to using 1-based track numbers (1-6),
+    /// replacing any previous assignment.
+    /// </summary>
+    /// <param name="tracks">The track numbers (1-6).</param>
+    public Source SetAudioTracks(params int[] tracks)
+    {
+        AudioMixers = AudioTracks.ToMask(tracks);
+        return this;
+    }
+
+    /// <summary>
+    /// Enables or disables a single audio track for this source without affecting other tracks.
+    /// </summary>
+    /// <param name="track">The 1-based track number (1-6).</param>
+    /// <param name="enabled">Whether the source outputs to the track.</param>
+    public Source SetAudioTrackEnabled(int track, bool enabled = true)
+    {
+        AudioTracks.ValidateTrack(track);
+        var bit = 1u << (track - 1);
+        AudioMixers = enabled ? AudioMixers | bit : AudioMixers & ~bit;
+        return this;
+    }
+
+    /// <summary>
+    /// Gets whether this source outputs to the given audio track.
+    /// </summary>
+    /// <param name="track">The 1-based track number (1-6).</param>
+    public bool IsAudioTrackEnabled(int track)
+    {
+        AudioTracks.ValidateTrack(track);
+        return (AudioMixers & (1u << (track - 1))) != 0;
+    }
+
+    /// <summary>
+    /// Gets or sets the audio sync offset. Positive values delay the source's audio;
+    /// use it to align microphones or other devices with the video.
+    /// </summary>
+    public TimeSpan AudioSyncOffset
+    {
+        get => TimeSpan.FromTicks(ObsSource.obs_source_get_sync_offset(Handle) / 100);
+        set => ObsSource.obs_source_set_sync_offset(Handle, value.Ticks * 100);
+    }
+
+    /// <summary>
+    /// Gets or sets the stereo balance (0.0 = left, 0.5 = center, 1.0 = right).
+    /// </summary>
+    public float AudioBalance
+    {
+        get => ObsSource.obs_source_get_balance_value(Handle);
+        set => ObsSource.obs_source_set_balance_value(Handle, Math.Clamp(value, 0f, 1f));
+    }
+
+    /// <summary>
+    /// Gets or sets how this source's audio is monitored.
+    /// Monitoring plays the source's audio through the device configured with
+    /// <see cref="Obs.SetAudioMonitoringDevice"/> (e.g. to let the user hear their microphone).
+    /// </summary>
+    public ObsMonitoringType MonitoringType
+    {
+        get => ObsSource.obs_source_get_monitoring_type(Handle);
+        set => ObsSource.obs_source_set_monitoring_type(Handle, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether push-to-talk is enabled for this audio source. When enabled,
+    /// the source is muted unless its push-to-talk hotkey is held (subject to the release
+    /// <see cref="PushToTalkDelay"/>).
+    /// </summary>
+    public bool PushToTalkEnabled
+    {
+        get => ObsSource.obs_source_push_to_talk_enabled(Handle);
+        set => ObsSource.obs_source_enable_push_to_talk(Handle, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the push-to-talk release delay — how long the source stays unmuted
+    /// after the hotkey is released.
+    /// </summary>
+    public TimeSpan PushToTalkDelay
+    {
+        get => TimeSpan.FromMilliseconds(ObsSource.obs_source_get_push_to_talk_delay(Handle));
+        set => ObsSource.obs_source_set_push_to_talk_delay(Handle, (ulong)value.TotalMilliseconds);
+    }
+
+    /// <summary>
+    /// Gets or sets whether push-to-mute is enabled for this audio source. When enabled,
+    /// the source is muted while its push-to-mute hotkey is held (subject to the release
+    /// <see cref="PushToMuteDelay"/>).
+    /// </summary>
+    public bool PushToMuteEnabled
+    {
+        get => ObsSource.obs_source_push_to_mute_enabled(Handle);
+        set => ObsSource.obs_source_enable_push_to_mute(Handle, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the push-to-mute release delay — how long the source stays muted after
+    /// the hotkey is released.
+    /// </summary>
+    public TimeSpan PushToMuteDelay
+    {
+        get => TimeSpan.FromMilliseconds(ObsSource.obs_source_get_push_to_mute_delay(Handle));
+        set => ObsSource.obs_source_set_push_to_mute_delay(Handle, (ulong)value.TotalMilliseconds);
+    }
+
+    /// <summary>
+    /// Gets or sets whether this async source (webcam, capture card, media) renders frames
+    /// unbuffered — lowering latency at the cost of smoothness. Has no effect on
+    /// non-async sources.
+    /// </summary>
+    public bool AsyncUnbuffered
+    {
+        get => ObsSource.obs_source_async_unbuffered(Handle);
+        set => ObsSource.obs_source_set_async_unbuffered(Handle, value);
+    }
+
+    /// <summary>
+    /// Gets or sets whether this async source's audio/video timestamps are decoupled from
+    /// the OBS clock — useful for devices that produce inconsistent timestamps.
+    /// </summary>
+    public bool AsyncDecoupled
+    {
+        get => ObsSource.obs_source_async_decoupled(Handle);
+        set => ObsSource.obs_source_set_async_decoupled(Handle, value);
+    }
+
+    /// <summary>
+    /// Subscribes to this source's audio before mixing (planar 32-bit float at the
+    /// OBS output sample rate). The callback runs on OBS's audio thread — do not block.
+    /// Dispose the returned subscription to stop receiving audio.
+    /// </summary>
+    /// <param name="callback">Invoked for each audio block with the source's mute state.</param>
+    public Audio.SourceAudioSubscription SubscribeAudio(Audio.SourceAudioCallback callback)
+    {
+        ArgumentNullException.ThrowIfNull(callback);
+        return new Audio.SourceAudioSubscription(this, callback);
+    }
+
+    #region Interaction
+
+    /// <summary>
+    /// Sends a mouse click to an interactive source (e.g. a browser source).
+    /// Coordinates are in source pixels.
+    /// </summary>
+    /// <param name="x">The x position within the source.</param>
+    /// <param name="y">The y position within the source.</param>
+    /// <param name="button">The mouse button.</param>
+    /// <param name="buttonUp">False for press, true for release. Send both for a full click.</param>
+    /// <param name="clickCount">Click count (2 for double-click).</param>
+    /// <param name="modifiers">Modifier keys held during the event.</param>
+    public void SendMouseClick(int x, int y, ObsMouseButton button = ObsMouseButton.Left,
+        bool buttonUp = false, uint clickCount = 1, ObsInteractionFlags modifiers = ObsInteractionFlags.None)
+    {
+        var mouseEvent = new ObsMouseEventNative { Modifiers = (uint)modifiers, X = x, Y = y };
+        ObsSource.obs_source_send_mouse_click(Handle, ref mouseEvent, (int)button,
+            buttonUp ? (byte)1 : (byte)0, clickCount);
+    }
+
+    /// <summary>
+    /// Sends a mouse move to an interactive source. Coordinates are in source pixels.
+    /// </summary>
+    /// <param name="x">The x position within the source.</param>
+    /// <param name="y">The y position within the source.</param>
+    /// <param name="mouseLeave">True if the mouse left the source.</param>
+    /// <param name="modifiers">Modifier keys held during the event.</param>
+    public void SendMouseMove(int x, int y, bool mouseLeave = false,
+        ObsInteractionFlags modifiers = ObsInteractionFlags.None)
+    {
+        var mouseEvent = new ObsMouseEventNative { Modifiers = (uint)modifiers, X = x, Y = y };
+        ObsSource.obs_source_send_mouse_move(Handle, ref mouseEvent, mouseLeave ? (byte)1 : (byte)0);
+    }
+
+    /// <summary>
+    /// Sends a mouse wheel event to an interactive source.
+    /// </summary>
+    /// <param name="x">The x position within the source.</param>
+    /// <param name="y">The y position within the source.</param>
+    /// <param name="wheelDeltaY">Vertical scroll amount (positive scrolls up; 120 per notch).</param>
+    /// <param name="wheelDeltaX">Horizontal scroll amount.</param>
+    /// <param name="modifiers">Modifier keys held during the event.</param>
+    public void SendMouseWheel(int x, int y, int wheelDeltaY, int wheelDeltaX = 0,
+        ObsInteractionFlags modifiers = ObsInteractionFlags.None)
+    {
+        var mouseEvent = new ObsMouseEventNative { Modifiers = (uint)modifiers, X = x, Y = y };
+        ObsSource.obs_source_send_mouse_wheel(Handle, ref mouseEvent, wheelDeltaX, wheelDeltaY);
+    }
+
+    /// <summary>
+    /// Sends a got-focus or lost-focus event to an interactive source.
+    /// </summary>
+    /// <param name="focused">Whether the source gained focus.</param>
+    public void SendFocus(bool focused)
+    {
+        ObsSource.obs_source_send_focus(Handle, focused ? (byte)1 : (byte)0);
+    }
+
+    /// <summary>
+    /// Sends a key event to an interactive source.
+    /// </summary>
+    /// <param name="text">The text the key produces (e.g. "a"), or null for non-text keys.</param>
+    /// <param name="nativeVkey">The platform virtual key code.</param>
+    /// <param name="keyUp">False for press, true for release. Send both for a full keystroke.</param>
+    /// <param name="nativeScancode">The platform scancode.</param>
+    /// <param name="modifiers">Modifier keys held during the event.</param>
+    public void SendKeyClick(string? text, uint nativeVkey, bool keyUp,
+        uint nativeScancode = 0, ObsInteractionFlags modifiers = ObsInteractionFlags.None)
+    {
+        var textPtr = text != null ? System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(text) : 0;
+        try
+        {
+            var keyEvent = new ObsKeyEventNative
+            {
+                Modifiers = (uint)modifiers,
+                Text = textPtr,
+                NativeModifiers = 0,
+                NativeScancode = nativeScancode,
+                NativeVkey = nativeVkey
+            };
+            ObsSource.obs_source_send_key_click(Handle, ref keyEvent, keyUp ? (byte)1 : (byte)0);
+        }
+        finally
+        {
+            if (textPtr != 0)
+                System.Runtime.InteropServices.Marshal.FreeCoTaskMem(textPtr);
+        }
+    }
+
+    #endregion
+
+    /// <summary>
+    /// Gets or sets the deinterlacing mode (for interlaced sources such as capture cards).
+    /// </summary>
+    public ObsDeinterlaceMode DeinterlaceMode
+    {
+        get => ObsSource.obs_source_get_deinterlace_mode(Handle);
+        set => ObsSource.obs_source_set_deinterlace_mode(Handle, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the deinterlacing field order.
+    /// </summary>
+    public ObsDeinterlaceFieldOrder DeinterlaceFieldOrder
+    {
+        get => ObsSource.obs_source_get_deinterlace_field_order(Handle);
+        set => ObsSource.obs_source_set_deinterlace_field_order(Handle, value);
     }
 
     /// <summary>Gets or sets the source flags.</summary>
@@ -184,7 +475,9 @@ public class Source : ObsObject
     /// <summary>Adds a reference to this source.</summary>
     public void AddRef()
     {
-        ObsSource.obs_source_addref(Handle);
+        // Increments the source's strong reference count; the returned handle is the same
+        // source and is intentionally discarded.
+        ObsSource.obs_source_get_ref(Handle);
     }
 
     /// <summary>Removes this source from its parent.</summary>
@@ -207,6 +500,27 @@ public class Source : ObsObject
         ObsSource.obs_source_filter_remove(Handle, filter.Handle);
     }
 
+    /// <summary>
+    /// Copies the entire filter chain from another source onto this one. Useful for
+    /// applying the same processing (e.g. a mic's noise gate + compressor) to multiple sources.
+    /// </summary>
+    /// <param name="source">The source whose filters should be copied.</param>
+    public void CopyFiltersFrom(Source source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ObsSource.obs_source_copy_filters(Handle, source.Handle);
+    }
+
+    /// <summary>
+    /// Copies a single existing filter onto this source.
+    /// </summary>
+    /// <param name="filter">The filter to copy.</param>
+    public void CopyFilter(Source filter)
+    {
+        ArgumentNullException.ThrowIfNull(filter);
+        ObsSource.obs_source_copy_single_filter(Handle, filter.Handle);
+    }
+
     /// <summary>Gets a filter by name.</summary>
     public Source? GetFilter(string name)
     {
@@ -216,6 +530,126 @@ public class Source : ObsObject
 
     /// <summary>Gets the number of filters on this source.</summary>
     public int FilterCount => (int)ObsSource.obs_source_filter_count(Handle);
+
+    /// <summary>
+    /// Gets all filters attached to this source, in filter-chain order.
+    /// The returned sources hold their own references; dispose them when done.
+    /// </summary>
+    public IReadOnlyList<Source> GetFilters()
+    {
+        var filters = new List<Source>();
+        ObsSource.EnumFilterCallback callback = (_, child, _) =>
+        {
+            var handle = ObsSource.obs_source_get_ref(child);
+            if (!handle.IsNull)
+                filters.Add(new Source(handle, ownsHandle: true));
+        };
+
+        ObsSource.obs_source_enum_filters(Handle, callback, nint.Zero);
+        GC.KeepAlive(callback);
+        return filters;
+    }
+
+    /// <summary>
+    /// When this source is a filter, gets the source it is directly attached to (its parent
+    /// in the filter chain), or null if it is not an attached filter.
+    /// </summary>
+    public Source? GetFilterParent()
+    {
+        var parent = ObsSource.obs_filter_get_parent(Handle);
+        if (parent.IsNull)
+            return null;
+        var handle = ObsSource.obs_source_get_ref(parent);
+        return handle.IsNull ? null : new Source(handle, ownsHandle: true);
+    }
+
+    /// <summary>
+    /// When this source is a filter, gets the next target it renders into down the filter
+    /// chain (another filter, or the parent source at the end), or null if not applicable.
+    /// </summary>
+    public Source? GetFilterTarget()
+    {
+        var target = ObsSource.obs_filter_get_target(Handle);
+        if (target.IsNull)
+            return null;
+        var handle = ObsSource.obs_source_get_ref(target);
+        return handle.IsNull ? null : new Source(handle, ownsHandle: true);
+    }
+
+    /// <summary>
+    /// Moves a filter within this source's filter chain.
+    /// </summary>
+    /// <param name="filter">The filter to move.</param>
+    /// <param name="movement">The direction to move the filter.</param>
+    public void SetFilterOrder(Source filter, ObsOrderMovement movement)
+    {
+        ObsSource.obs_source_filter_set_order(Handle, filter.Handle, movement);
+    }
+
+    /// <summary>
+    /// Gets the zero-based position of a filter in this source's filter chain, or -1 if the
+    /// filter is not attached to this source.
+    /// </summary>
+    /// <param name="filter">The filter to locate.</param>
+    public int GetFilterIndex(Source filter)
+    {
+        ArgumentNullException.ThrowIfNull(filter);
+        return ObsSource.obs_source_filter_get_index(Handle, filter.Handle);
+    }
+
+    /// <summary>
+    /// Moves a filter to an absolute zero-based position in this source's filter chain.
+    /// </summary>
+    /// <param name="filter">The filter to move.</param>
+    /// <param name="index">The target position (0 = first/top of the chain).</param>
+    public void SetFilterIndex(Source filter, int index)
+    {
+        ArgumentNullException.ThrowIfNull(filter);
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+        ObsSource.obs_source_filter_set_index(Handle, filter.Handle, (nuint)index);
+    }
+
+    #endregion
+
+    #region Media Controls
+
+    /// <summary>
+    /// Gets the media playback state. Returns <see cref="ObsMediaState.None"/> for
+    /// sources without media controls.
+    /// </summary>
+    public ObsMediaState MediaState => ObsSource.obs_source_media_get_state(Handle);
+
+    /// <summary>
+    /// Gets the media duration, or <see cref="TimeSpan.Zero"/> if unknown.
+    /// </summary>
+    public TimeSpan MediaDuration => TimeSpan.FromMilliseconds(ObsSource.obs_source_media_get_duration(Handle));
+
+    /// <summary>
+    /// Gets or sets the current media playback position.
+    /// </summary>
+    public TimeSpan MediaTime
+    {
+        get => TimeSpan.FromMilliseconds(ObsSource.obs_source_media_get_time(Handle));
+        set => ObsSource.obs_source_media_set_time(Handle, (long)value.TotalMilliseconds);
+    }
+
+    /// <summary>Resumes media playback.</summary>
+    public void PlayMedia() => ObsSource.obs_source_media_play_pause(Handle, false);
+
+    /// <summary>Pauses media playback.</summary>
+    public void PauseMedia() => ObsSource.obs_source_media_play_pause(Handle, true);
+
+    /// <summary>Restarts media playback from the beginning.</summary>
+    public void RestartMedia() => ObsSource.obs_source_media_restart(Handle);
+
+    /// <summary>Stops media playback.</summary>
+    public void StopMedia() => ObsSource.obs_source_media_stop(Handle);
+
+    /// <summary>Skips to the next media item (playlist sources).</summary>
+    public void NextMedia() => ObsSource.obs_source_media_next(Handle);
+
+    /// <summary>Skips to the previous media item (playlist sources).</summary>
+    public void PreviousMedia() => ObsSource.obs_source_media_previous(Handle);
 
     #endregion
 
@@ -283,6 +717,14 @@ public class Source : ObsObject
 
         return result;
     }
+
+    /// <summary>
+    /// Introspects every configurable property exposed by this source's plugin, in display
+    /// order, with each property's name, label, type, state, numeric range, and (for list
+    /// properties) its selectable items. Useful for building dynamic configuration UIs.
+    /// </summary>
+    public IReadOnlyList<ObsPropertyInfo> GetProperties()
+        => ObsPropertyReader.ReadAllAndDestroy(ObsProperties.obs_source_properties(Handle));
 
     #endregion
 

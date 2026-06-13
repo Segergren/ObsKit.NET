@@ -2,6 +2,7 @@ using ObsKit.NET.Core;
 using ObsKit.NET.Encoders;
 using ObsKit.NET.Native.Interop;
 using ObsKit.NET.Native.Types;
+using ObsKit.NET.Signals;
 
 namespace ObsKit.NET.Outputs;
 
@@ -16,6 +17,9 @@ public sealed class ReplayBuffer : Output
     private VideoEncoder? _videoEncoder;
     private AudioEncoder? _audioEncoder;
     private bool _encodersOwned;
+    private readonly object _savedLock = new();
+    private SignalConnection? _savedConnection;
+    private EventHandler<ReplaySavedEventArgs>? _saved;
 
     /// <summary>
     /// Creates a new replay buffer.
@@ -108,6 +112,24 @@ public sealed class ReplayBuffer : Output
     }
 
     /// <summary>
+    /// Sets the video encoder for the replay buffer, taking video from a specific
+    /// canvas instead of the main one (e.g. a vertical canvas).
+    /// </summary>
+    /// <param name="encoder">The video encoder.</param>
+    /// <param name="canvas">The canvas whose video mix is buffered.</param>
+    /// <param name="takeOwnership">If true, disposes the encoder when output is disposed.</param>
+    public ReplayBuffer WithVideoEncoder(VideoEncoder encoder, Scenes.Canvas canvas, bool takeOwnership = false)
+    {
+        _videoEncoder = encoder;
+        _encodersOwned = takeOwnership;
+
+        encoder.SetVideo(canvas.Video);
+
+        SetVideoEncoder(encoder);
+        return this;
+    }
+
+    /// <summary>
     /// Sets the audio encoder for the replay buffer.
     /// </summary>
     /// <param name="encoder">The audio encoder.</param>
@@ -142,6 +164,24 @@ public sealed class ReplayBuffer : Output
     }
 
     /// <summary>
+    /// Configures with the best available hardware encoder (NVENC → AMF → QuickSync),
+    /// falling back to x264 if no hardware encoder is present, plus an AAC audio encoder.
+    /// </summary>
+    /// <param name="videoBitrate">Video bitrate in kbps.</param>
+    /// <param name="audioBitrate">Audio bitrate in kbps.</param>
+    /// <param name="preferHevc">Try the vendor's HEVC encoder before H.264.</param>
+    public ReplayBuffer WithBestEncoders(int videoBitrate = 6000, int audioBitrate = 192, bool preferHevc = false)
+    {
+        var videoEncoder = VideoEncoder.CreateBest("Replay Video", videoBitrate, preferHevc);
+        var audioEncoder = AudioEncoder.CreateAac("Replay Audio", audioBitrate);
+
+        WithVideoEncoder(videoEncoder, takeOwnership: true);
+        WithAudioEncoder(audioEncoder, takeOwnership: true);
+
+        return this;
+    }
+
+    /// <summary>
     /// Saves the current buffer to a file. Must be called while buffer is running.
     /// </summary>
     public void Save()
@@ -154,6 +194,99 @@ public sealed class ReplayBuffer : Output
             throw new InvalidOperationException("Failed to get proc handler for replay buffer.");
 
         ObsSignal.proc_handler_call(procHandler, "save");
+    }
+
+    /// <summary>
+    /// Event raised when a replay has finished saving to disk after <see cref="Save"/>.
+    /// The saved file path is provided in the event args.
+    /// Raised on an OBS internal thread — do not block in the handler.
+    /// </summary>
+    public event EventHandler<ReplaySavedEventArgs>? Saved
+    {
+        add
+        {
+            lock (_savedLock)
+            {
+                _savedConnection ??= ConnectSignal(OutputSignal.Saved, OnSavedSignal);
+                _saved += value;
+            }
+        }
+        remove
+        {
+            lock (_savedLock)
+            {
+                _saved -= value;
+            }
+        }
+    }
+
+    private void OnSavedSignal(nint calldata)
+    {
+        _saved?.Invoke(this, new ReplaySavedEventArgs(GetLastReplayPath()));
+    }
+
+    /// <summary>
+    /// Saves the current buffer and asynchronously waits for the file to finish writing.
+    /// </summary>
+    /// <param name="timeout">Maximum time to wait for the save to complete. Defaults to 30 seconds.</param>
+    /// <param name="cancellationToken">Cancels the wait (the save itself is not aborted).</param>
+    /// <returns>The saved file path, or null if OBS did not report one.</returns>
+    /// <exception cref="TimeoutException">The save did not complete within the timeout.</exception>
+    public async Task<string?> SaveAsync(TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+    {
+        var tcs = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var connection = ConnectSignal(OutputSignal.Saved, _ => tcs.TrySetResult(GetLastReplayPath()));
+
+        Save();
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(timeout ?? TimeSpan.FromSeconds(30));
+        using var registration = timeoutCts.Token.Register(() =>
+        {
+            if (cancellationToken.IsCancellationRequested)
+                tcs.TrySetCanceled(cancellationToken);
+            else
+                tcs.TrySetException(new TimeoutException("Timed out waiting for the replay buffer to finish saving."));
+        });
+
+        return await tcs.Task.ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Clears the buffered footage by restarting the buffer, so the next save only
+    /// contains footage recorded after this call. Saving does not clear OBS's
+    /// in-memory buffer, so without a reset two saves close together contain
+    /// overlapping footage. Call after <see cref="SaveAsync"/> completes.
+    /// </summary>
+    /// <remarks>
+    /// libobs has no native flush, so this stops and restarts the output —
+    /// footage is not buffered during the brief restart window. Unlike
+    /// <see cref="Output.Stop"/>, this never auto-disposes the output,
+    /// regardless of <c>Obs.AutoDispose</c>.
+    /// </remarks>
+    /// <param name="stopTimeout">Maximum time to wait for a clean stop before forcing it (default 30 seconds).</param>
+    /// <param name="cancellationToken">Cancels the wait.</param>
+    /// <returns>True if the buffer restarted successfully.</returns>
+    public async Task<bool> ResetAsync(TimeSpan? stopTimeout = null, CancellationToken cancellationToken = default)
+    {
+        if (IsActive)
+        {
+            // Stop natively rather than via Output.Stop, which would dispose this
+            // output when Obs.AutoDispose is enabled.
+            ObsOutput.obs_output_stop(Handle);
+
+            var deadline = Environment.TickCount64 + (long)(stopTimeout ?? TimeSpan.FromSeconds(30)).TotalMilliseconds;
+            while (IsActive && Environment.TickCount64 < deadline)
+                await Task.Delay(50, cancellationToken).ConfigureAwait(false);
+
+            if (IsActive)
+            {
+                ForceStop();
+                await Task.Delay(500, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        return Start();
     }
 
     /// <summary>
@@ -203,12 +336,32 @@ public sealed class ReplayBuffer : Output
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
-        if (disposing && _encodersOwned)
+        if (disposing)
         {
-            _videoEncoder?.Dispose();
-            _audioEncoder?.Dispose();
+            lock (_savedLock)
+            {
+                _savedConnection?.Dispose();
+                _savedConnection = null;
+            }
+
+            if (_encodersOwned)
+            {
+                _videoEncoder?.Dispose();
+                _audioEncoder?.Dispose();
+            }
         }
 
         base.Dispose(disposing);
     }
+}
+
+/// <summary>
+/// Event arguments for <see cref="ReplayBuffer.Saved"/>.
+/// </summary>
+public sealed class ReplaySavedEventArgs : EventArgs
+{
+    /// <summary>The path of the saved replay file, or null if OBS did not report one.</summary>
+    public string? Path { get; }
+
+    internal ReplaySavedEventArgs(string? path) => Path = path;
 }

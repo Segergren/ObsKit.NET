@@ -63,9 +63,11 @@ public sealed class SceneCollection : IEnumerable<Scene>
                 var sceneHandle = ObsScene.obs_scene_from_source(handle);
                 if (!sceneHandle.IsNull)
                 {
-                    // obs_scene_from_source doesn't add a reference, add one
-                    ObsScene.obs_scene_addref(sceneHandle);
-                    scenes.Add(new Scene(sceneHandle, ownsHandle: true));
+                    // obs_scene_from_source returns a borrowed pointer; take an owning ref
+                    // via the exported obs_scene_get_ref (null if being destroyed).
+                    var refd = ObsScene.obs_scene_get_ref(sceneHandle);
+                    if (!refd.IsNull)
+                        scenes.Add(new Scene(refd, ownsHandle: true));
                 }
             }
             return 1; // Continue enumeration
@@ -122,13 +124,17 @@ public sealed class SceneCollection : IEnumerable<Scene>
     /// <returns>The scene, or null if not found.</returns>
     public Scene? Find(string name)
     {
+        // Keep the first match and dispose every other scene wrapper, so none are left
+        // undisposed (mirrors the indexer's dispose-all-but-one pattern).
+        Scene? match = null;
         foreach (var scene in this)
         {
-            if (scene.Name == name)
-                return scene;
-            scene.Dispose();
+            if (match == null && scene.Name == name)
+                match = scene;
+            else
+                scene.Dispose();
         }
-        return null;
+        return match;
     }
 
     /// <summary>

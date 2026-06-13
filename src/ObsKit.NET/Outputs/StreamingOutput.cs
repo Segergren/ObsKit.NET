@@ -31,6 +31,8 @@ public sealed class StreamingOutput : Output
 
     /// <summary>
     /// Gets or sets the streaming service associated with this output.
+    /// If the service prefers a different output implementation (e.g. WHIP), the
+    /// underlying output is recreated as that type, preserving settings and encoders.
     /// </summary>
     public Service? Service
     {
@@ -40,12 +42,24 @@ public sealed class StreamingOutput : Output
             if (IsActive)
                 throw new InvalidOperationException("Cannot change service while streaming is active.");
 
-            _service = value;
             if (value != null)
-            {
-                ObsOutput.obs_output_set_service(Handle, value.Handle);
-            }
+                ApplyService(value);
+
+            _service = value;
         }
+    }
+
+    private void ApplyService(Service service)
+    {
+        // Some services require a different output implementation
+        // (e.g. "whip_custom" -> "whip_output").
+        var preferredType = ObsService.obs_service_get_preferred_output_type(service.Handle);
+        if (!string.IsNullOrEmpty(preferredType) && preferredType != TypeId)
+        {
+            RecreateAs(preferredType);
+        }
+
+        ObsOutput.obs_output_set_service(Handle, service.Handle);
     }
 
     /// <summary>
@@ -92,10 +106,24 @@ public sealed class StreamingOutput : Output
         if (IsActive)
             throw new InvalidOperationException("Cannot change service while streaming is active.");
 
+        ApplyService(service);
         _service = service;
         _serviceOwned = takeOwnership;
-        ObsOutput.obs_output_set_service(Handle, service.Handle);
         return this;
+    }
+
+    /// <summary>
+    /// Configures streaming to a WHIP (WebRTC) endpoint for sub-second latency
+    /// (requires the obs-webrtc plugin). Use Opus audio with WHIP.
+    /// </summary>
+    /// <param name="url">The WHIP endpoint URL (e.g. "https://example.com/whip").</param>
+    /// <param name="bearerToken">Optional bearer token for authentication.</param>
+    /// <returns>This output for method chaining.</returns>
+    /// <exception cref="NotSupportedException">The obs-webrtc plugin is not loaded.</exception>
+    public StreamingOutput ToWhipEndpoint(string url, string? bearerToken = null)
+    {
+        var service = Services.Service.CreateWhip(url, bearerToken);
+        return WithService(service, takeOwnership: true);
     }
 
     /// <summary>
@@ -237,20 +265,30 @@ public sealed class StreamingOutput : Output
     }
 
     /// <summary>
-    /// Configures reconnection settings via the output settings.
+    /// Configures auto-reconnection for this output. Apply before <c>Start</c>.
     /// </summary>
-    /// <param name="enabled">Whether to enable auto-reconnect.</param>
-    /// <param name="retryDelaySec">Delay between reconnect attempts in seconds.</param>
-    /// <param name="maxRetries">Maximum number of reconnect attempts (0 for unlimited).</param>
+    /// <param name="enabled">Whether to enable auto-reconnect. When false, reconnect is disabled.</param>
+    /// <param name="retryDelaySec">Initial delay between reconnect attempts, in seconds.</param>
+    /// <param name="maxRetries">Maximum number of reconnect attempts (ignored when <paramref name="enabled"/> is false).</param>
     /// <returns>This output for method chaining.</returns>
     public StreamingOutput WithReconnect(bool enabled = true, int retryDelaySec = 10, int maxRetries = 20)
     {
-        Update(s =>
-        {
-            s.Set("reconnect", enabled);
-            s.Set("retry_delay", retryDelaySec);
-            s.Set("max_retries", maxRetries);
-        });
+        // retry_count == 0 disables reconnecting entirely (per obs.h).
+        int retryCount = enabled ? maxRetries : 0;
+        ObsOutput.obs_output_set_reconnect_settings(Handle, retryCount, retryDelaySec);
+        return this;
+    }
+
+    /// <summary>
+    /// Enables dynamic bitrate: on network congestion the encoder bitrate is lowered
+    /// temporarily instead of dropping frames (requires an encoder that supports
+    /// dynamic bitrate, e.g. NVENC/x264).
+    /// </summary>
+    /// <param name="enabled">Whether to adjust bitrate dynamically.</param>
+    /// <returns>This output for method chaining.</returns>
+    public StreamingOutput WithDynamicBitrate(bool enabled = true)
+    {
+        Update(s => s.Set("dyn_bitrate", enabled));
         return this;
     }
 

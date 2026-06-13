@@ -143,6 +143,41 @@ internal static partial class ObsGraphics
     internal static partial void gs_ortho(float left, float right, float top, float bottom, float znear, float zfar);
 
     /// <summary>
+    /// Saves the current viewport onto a stack.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "gs_viewport_push")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void gs_viewport_push();
+
+    /// <summary>
+    /// Restores the previous viewport from the stack.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "gs_viewport_pop")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void gs_viewport_pop();
+
+    /// <summary>
+    /// Sets the current viewport in pixels.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "gs_set_viewport")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void gs_set_viewport(int x, int y, int width, int height);
+
+    /// <summary>
+    /// Saves the current projection matrix onto a stack.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "gs_projection_push")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void gs_projection_push();
+
+    /// <summary>
+    /// Restores the previous projection matrix from the stack.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "gs_projection_pop")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void gs_projection_pop();
+
+    /// <summary>
     /// Saves the current blend state onto a stack.
     /// </summary>
     [LibraryImport(Lib, EntryPoint = "gs_blend_state_push")]

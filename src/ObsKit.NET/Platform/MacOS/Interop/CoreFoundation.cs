@@ -39,7 +39,7 @@ internal static partial class CoreFoundation
     /// Gets a value from a CFDictionary if it exists.
     /// </summary>
     [LibraryImport(CoreFoundationLib, EntryPoint = "CFDictionaryGetValueIfPresent")]
-    [return: MarshalAs(UnmanagedType.Bool)]
+    [return: MarshalAs(UnmanagedType.U1)] // Apple Boolean/_Bool is 1 byte, not the 4-byte Win32 BOOL
     internal static partial bool CFDictionaryGetValueIfPresent(nint theDict, nint key, out nint value);
 
     #endregion
@@ -68,7 +68,7 @@ internal static partial class CoreFoundation
     /// Gets the C string from a CFString into a buffer.
     /// </summary>
     [LibraryImport(CoreFoundationLib, EntryPoint = "CFStringGetCString")]
-    [return: MarshalAs(UnmanagedType.Bool)]
+    [return: MarshalAs(UnmanagedType.U1)] // Apple Boolean/_Bool is 1 byte, not the 4-byte Win32 BOOL
     internal static partial bool CFStringGetCString(nint theString, nint buffer, nint bufferSize, uint encoding);
 
     /// <summary>
@@ -115,21 +115,21 @@ internal static partial class CoreFoundation
     /// Gets a value from a CFNumber.
     /// </summary>
     [LibraryImport(CoreFoundationLib, EntryPoint = "CFNumberGetValue")]
-    [return: MarshalAs(UnmanagedType.Bool)]
+    [return: MarshalAs(UnmanagedType.U1)] // Apple Boolean/_Bool is 1 byte, not the 4-byte Win32 BOOL
     internal static partial bool CFNumberGetValue(nint number, int theType, out int valuePtr);
 
     /// <summary>
     /// Gets a value from a CFNumber.
     /// </summary>
     [LibraryImport(CoreFoundationLib, EntryPoint = "CFNumberGetValue")]
-    [return: MarshalAs(UnmanagedType.Bool)]
+    [return: MarshalAs(UnmanagedType.U1)] // Apple Boolean/_Bool is 1 byte, not the 4-byte Win32 BOOL
     internal static partial bool CFNumberGetValue(nint number, int theType, out long valuePtr);
 
     /// <summary>
     /// Gets a value from a CFNumber.
     /// </summary>
     [LibraryImport(CoreFoundationLib, EntryPoint = "CFNumberGetValue")]
-    [return: MarshalAs(UnmanagedType.Bool)]
+    [return: MarshalAs(UnmanagedType.U1)] // Apple Boolean/_Bool is 1 byte, not the 4-byte Win32 BOOL
     internal static partial bool CFNumberGetValue(nint number, int theType, out double valuePtr);
 
     internal static int? GetInt(nint cfNumber)
@@ -167,7 +167,7 @@ internal static partial class CoreFoundation
     /// Gets the value of a CFBoolean.
     /// </summary>
     [LibraryImport(CoreFoundationLib, EntryPoint = "CFBooleanGetValue")]
-    [return: MarshalAs(UnmanagedType.Bool)]
+    [return: MarshalAs(UnmanagedType.U1)] // Apple Boolean/_Bool is 1 byte, not the 4-byte Win32 BOOL
     internal static partial bool CFBooleanGetValue(nint boolean);
 
     #endregion
@@ -194,7 +194,7 @@ internal static partial class CoreFoundation
     /// Creates a CGRect from a dictionary.
     /// </summary>
     [LibraryImport(CoreFoundationLib, EntryPoint = "CGRectMakeWithDictionaryRepresentation")]
-    [return: MarshalAs(UnmanagedType.Bool)]
+    [return: MarshalAs(UnmanagedType.U1)] // Apple Boolean/_Bool is 1 byte, not the 4-byte Win32 BOOL
     internal static partial bool CGRectMakeWithDictionaryRepresentation(nint dict, out CoreGraphics.CGRect rect);
 
     #endregion

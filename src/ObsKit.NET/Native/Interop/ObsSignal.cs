@@ -151,6 +151,35 @@ internal static partial class ObsSignal
         [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
         nint strPtrPtr);
 
+    /// <summary>
+    /// Sets raw data on calldata. This is the core exported setter that other helpers use.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "calldata_set_data")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial void calldata_set_data_native(
+        nint calldata,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        nint inPtr,
+        nuint size);
+
+    /// <summary>
+    /// Sets a string on calldata (stored with its NUL terminator, matching calldata_set_string).
+    /// </summary>
+    internal static void calldata_set_string(nint calldata, string name, string value)
+    {
+        var byteCount = System.Text.Encoding.UTF8.GetByteCount(value);
+        Span<byte> bytes = byteCount < 256 ? stackalloc byte[byteCount + 1] : new byte[byteCount + 1];
+        System.Text.Encoding.UTF8.GetBytes(value, bytes);
+        bytes[byteCount] = 0;
+        unsafe
+        {
+            fixed (byte* ptr = bytes)
+            {
+                calldata_set_data_native(calldata, name, (nint)ptr, (nuint)bytes.Length);
+            }
+        }
+    }
+
     #endregion
 
     #region Global Signal Handler

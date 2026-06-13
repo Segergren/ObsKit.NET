@@ -47,8 +47,24 @@ public sealed class Scene : ObsObject, IEnumerable<SceneItem>
         var handle = ObsScene.obs_scene_from_source(source.Handle);
         if (handle.IsNull)
             return null;
-        // Note: obs_scene_from_source does not add a reference
-        ObsScene.obs_scene_addref(handle);
+        // obs_scene_from_source returns a borrowed pointer; take an owning ref via the
+        // exported obs_scene_get_ref (returns null if the scene is being destroyed).
+        var refd = ObsScene.obs_scene_get_ref(handle);
+        if (refd.IsNull)
+            return null;
+        return new Scene(refd, ownsHandle: true);
+    }
+
+    /// <summary>
+    /// Duplicates this scene, including item transforms, crops, and visibility.
+    /// </summary>
+    /// <param name="name">The name for the new scene.</param>
+    /// <param name="type">Whether items reference the same sources (default) or are fully copied.</param>
+    public Scene Duplicate(string name, ObsSceneDuplicateType type = ObsSceneDuplicateType.Refs)
+    {
+        var handle = ObsScene.obs_scene_duplicate(Handle, name, type);
+        if (handle.IsNull)
+            throw new InvalidOperationException($"Failed to duplicate scene as '{name}'");
         return new Scene(handle, ownsHandle: true);
     }
 
@@ -75,16 +91,19 @@ public sealed class Scene : ObsObject, IEnumerable<SceneItem>
     internal new ObsSceneHandle Handle => (ObsSceneHandle)base.Handle;
 
     /// <summary>
-    /// Gets this scene as a source.
+    /// Gets this scene as a <see cref="Source"/>. In OBS a scene is itself backed by a source,
+    /// so APIs that take a <see cref="Source"/> — output channels, transitions, filters —
+    /// operate on this view rather than the <see cref="Scene"/> directly. Returns a new owning
+    /// reference; dispose it when done.
     /// </summary>
     public Source AsSource
     {
         get
         {
             var sourceHandle = ObsScene.obs_scene_get_source(Handle);
-            // obs_scene_get_source does not add a reference, but we need one
-            ObsSource.obs_source_addref(sourceHandle);
-            return new Source(sourceHandle, "scene", ownsHandle: true);
+            // obs_scene_get_source does not add a reference; take one via the exported get_ref.
+            var refHandle = ObsSource.obs_source_get_ref(sourceHandle);
+            return new Source(refHandle, "scene", ownsHandle: true);
         }
     }
 
@@ -121,6 +140,9 @@ public sealed class Scene : ObsObject, IEnumerable<SceneItem>
         if (itemHandle.IsNull)
             throw new InvalidOperationException("Failed to add source to scene");
 
+        // obs_scene_add returns the scene's own reference (borrowed); take our own so the
+        // wrapper can release it on dispose without removing the item from the scene.
+        ObsScene.obs_sceneitem_addref(itemHandle);
         var sceneItem = new SceneItem(itemHandle, this, ownsHandle: true);
         _ownedSceneItems.Add(sceneItem);
         return sceneItem;
@@ -140,6 +162,41 @@ public sealed class Scene : ObsObject, IEnumerable<SceneItem>
     }
 
     /// <summary>
+    /// Creates an empty group in this scene. Existing scene items can be moved into it
+    /// with <see cref="SceneItem.AddItem"/>, and the group can be transformed as a unit.
+    /// </summary>
+    /// <param name="name">The group name (must be unique within the scene).</param>
+    /// <returns>The created group scene item.</returns>
+    public SceneItem AddGroup(string name)
+    {
+        var itemHandle = ObsScene.obs_scene_add_group2(Handle, name, true);
+        if (itemHandle.IsNull)
+            throw new InvalidOperationException($"Failed to add group '{name}' to scene");
+
+        // obs_scene_add_group2 returns the scene's own reference (borrowed); take our own so
+        // the wrapper can release it on dispose without removing the group from the scene.
+        ObsScene.obs_sceneitem_addref(itemHandle);
+        var sceneItem = new SceneItem(itemHandle, this, ownsHandle: true);
+        _ownedSceneItems.Add(sceneItem);
+        return sceneItem;
+    }
+
+    /// <summary>
+    /// Gets a group in this scene by name.
+    /// </summary>
+    /// <param name="name">The group name.</param>
+    /// <returns>The group scene item, or null if no group with that name exists.</returns>
+    public SceneItem? GetGroup(string name)
+    {
+        var itemHandle = ObsScene.obs_scene_get_group(Handle, name);
+        if (itemHandle.IsNull)
+            return null;
+        // obs_scene_get_group does not add a reference.
+        ObsScene.obs_sceneitem_addref(itemHandle);
+        return new SceneItem(itemHandle, this, ownsHandle: true);
+    }
+
+    /// <summary>
     /// Finds a scene item by source name.
     /// </summary>
     /// <param name="name">The source name to find.</param>
@@ -149,7 +206,8 @@ public sealed class Scene : ObsObject, IEnumerable<SceneItem>
         var itemHandle = ObsScene.obs_scene_find_source(Handle, name);
         if (itemHandle.IsNull)
             return null;
-        // obs_scene_find_source adds a reference
+        // obs_scene_find_source does NOT add a reference; take one for the wrapper.
+        ObsScene.obs_sceneitem_addref(itemHandle);
         return new SceneItem(itemHandle, this, ownsHandle: true);
     }
 
@@ -163,7 +221,8 @@ public sealed class Scene : ObsObject, IEnumerable<SceneItem>
         var itemHandle = ObsScene.obs_scene_find_source_recursive(Handle, name);
         if (itemHandle.IsNull)
             return null;
-        // obs_scene_find_source_recursive adds a reference
+        // obs_scene_find_source_recursive does NOT add a reference; take one for the wrapper.
+        ObsScene.obs_sceneitem_addref(itemHandle);
         return new SceneItem(itemHandle, this, ownsHandle: true);
     }
 
@@ -219,6 +278,29 @@ public sealed class Scene : ObsObject, IEnumerable<SceneItem>
             list.Add(item);
         }
         return list;
+    }
+
+    /// <summary>
+    /// Sets the complete top-to-bottom z-order of this scene's items in one call (e.g. after
+    /// a drag-to-reorder in a UI). The supplied items must be exactly the scene's current
+    /// items — pass a reordering of <see cref="GetItems"/>.
+    /// </summary>
+    /// <param name="orderedItems">All of the scene's items, in the desired order (index 0 = top).</param>
+    /// <returns>
+    /// True if the order was changed; false if <paramref name="orderedItems"/> does not match
+    /// the scene's current item set or the order was already identical.
+    /// </returns>
+    public bool ReorderItems(IReadOnlyList<SceneItem> orderedItems)
+    {
+        ArgumentNullException.ThrowIfNull(orderedItems);
+        if (orderedItems.Count == 0)
+            return false;
+
+        var handles = new nint[orderedItems.Count];
+        for (int i = 0; i < orderedItems.Count; i++)
+            handles[i] = orderedItems[i].Handle.Value;
+
+        return ObsScene.obs_scene_reorder_items(Handle, handles);
     }
 
     /// <summary>

@@ -47,7 +47,7 @@ public sealed class VideoEncoder : ObsObject
         /// <summary>Intel QuickSync H.264 encoder.</summary>
         public const string QsvH264 = "obs_qsv11_v2";
         /// <summary>Intel QuickSync HEVC encoder.</summary>
-        public const string QsvHevc = "obs_qsv11_he_v2";
+        public const string QsvHevc = "obs_qsv11_hevc";
         /// <summary>Intel QuickSync AV1 encoder.</summary>
         public const string QsvAv1 = "obs_qsv11_av1";
         /// <summary>Apple VideoToolbox H.264 encoder.</summary>
@@ -101,7 +101,8 @@ public sealed class VideoEncoder : ObsObject
     public static VideoEncoder CreateX264(string name = "Video Encoder", int bitrate = 6000, string preset = "veryfast", RateControl rateControl = RateControl.CBR, int cqLevel = 20)
     {
         using var settings = new Settings();
-        settings.Set("rate_control", rateControl.ToString());
+        // x264's constant-quality mode is CRF, so map CQP to CRF.
+        settings.Set("rate_control", rateControl == RateControl.CQP ? "CRF" : rateControl.ToString());
         settings.Set("preset", preset);
 
         switch (rateControl)
@@ -128,11 +129,14 @@ public sealed class VideoEncoder : ObsObject
     /// <param name="rateControl">Rate control mode.</param>
     /// <param name="cqLevel">CQ level (for CQP mode, 0-51).</param>
     /// <param name="maxBitrate">Maximum bitrate in kbps (for VBR mode, defaults to 1.5x bitrate).</param>
-    public static VideoEncoder CreateNvencH264(string name = "NVENC H.264", int bitrate = 6000, string preset = "hq", RateControl rateControl = RateControl.CBR, int cqLevel = 20, int? maxBitrate = null)
+    public static VideoEncoder CreateNvencH264(string name = "NVENC H.264", int bitrate = 6000, string preset = "p5", RateControl rateControl = RateControl.CBR, int cqLevel = 20, int? maxBitrate = null)
     {
         using var settings = new Settings();
-        settings.Set("rate_control", rateControl.ToString());
+        // NVENC's constant-quality mode is CQP, so map CRF to CQP.
+        settings.Set("rate_control", rateControl == RateControl.CRF ? "CQP" : rateControl.ToString());
+        // NVENC reads the preset from "preset2"; "preset" is set as well for compatibility.
         settings.Set("preset", preset);
+        settings.Set("preset2", preset);
 
         switch (rateControl)
         {
@@ -163,11 +167,14 @@ public sealed class VideoEncoder : ObsObject
     /// <param name="rateControl">Rate control mode.</param>
     /// <param name="cqLevel">CQ level (for CQP mode, 0-51).</param>
     /// <param name="maxBitrate">Maximum bitrate in kbps (for VBR mode, defaults to 1.5x bitrate).</param>
-    public static VideoEncoder CreateNvencHevc(string name = "NVENC HEVC", int bitrate = 6000, string preset = "hq", RateControl rateControl = RateControl.CBR, int cqLevel = 20, int? maxBitrate = null)
+    public static VideoEncoder CreateNvencHevc(string name = "NVENC HEVC", int bitrate = 6000, string preset = "p5", RateControl rateControl = RateControl.CBR, int cqLevel = 20, int? maxBitrate = null)
     {
         using var settings = new Settings();
-        settings.Set("rate_control", rateControl.ToString());
+        // NVENC's constant-quality mode is CQP, so map CRF to CQP.
+        settings.Set("rate_control", rateControl == RateControl.CRF ? "CQP" : rateControl.ToString());
+        // NVENC reads the preset from "preset2"; "preset" is set as well for compatibility.
         settings.Set("preset", preset);
+        settings.Set("preset2", preset);
 
         switch (rateControl)
         {
@@ -188,6 +195,190 @@ public sealed class VideoEncoder : ObsObject
 
         return new VideoEncoder(Types.NvencHevc, name, settings);
     }
+
+    /// <summary>
+    /// Creates an NVIDIA NVENC AV1 encoder (RTX 40-series and later).
+    /// </summary>
+    /// <param name="name">The encoder name.</param>
+    /// <param name="bitrate">Bitrate in kbps (for CBR/VBR).</param>
+    /// <param name="preset">NVENC preset.</param>
+    /// <param name="rateControl">Rate control mode.</param>
+    /// <param name="cqLevel">CQ level (for CQP mode, 0-51).</param>
+    /// <param name="maxBitrate">Maximum bitrate in kbps (for VBR mode, defaults to 1.5x bitrate).</param>
+    public static VideoEncoder CreateNvencAv1(string name = "NVENC AV1", int bitrate = 6000, string preset = "p5", RateControl rateControl = RateControl.CBR, int cqLevel = 20, int? maxBitrate = null)
+    {
+        using var settings = new Settings();
+        // NVENC's constant-quality mode is CQP, so map CRF to CQP.
+        settings.Set("rate_control", rateControl == RateControl.CRF ? "CQP" : rateControl.ToString());
+        // NVENC reads the preset from "preset2"; "preset" is set as well for compatibility.
+        settings.Set("preset", preset);
+        settings.Set("preset2", preset);
+
+        switch (rateControl)
+        {
+            case RateControl.CBR:
+                settings.Set("bitrate", bitrate);
+                break;
+            case RateControl.VBR:
+                settings.Set("bitrate", bitrate);
+                settings.Set("max_bitrate", maxBitrate ?? (int)(bitrate * 1.5));
+                break;
+            case RateControl.CQP:
+            case RateControl.CRF:
+                settings.Set("cqp", cqLevel); // NVENC uses cqp for quality-based encoding
+                break;
+        }
+
+        return new VideoEncoder(Types.NvencAv1, name, settings);
+    }
+
+    /// <summary>
+    /// Creates the best available hardware encoder (NVENC → AMF → QuickSync),
+    /// falling back to x264 if no hardware encoder is present.
+    /// </summary>
+    /// <param name="name">The encoder name.</param>
+    /// <param name="bitrate">Bitrate in kbps.</param>
+    /// <param name="preferHevc">Try the vendor's HEVC encoder before H.264 (better quality per bit, slightly less player compatibility).</param>
+    /// <param name="rateControl">Rate control mode.</param>
+    public static VideoEncoder CreateBest(string name = "Video Encoder", int bitrate = 6000, bool preferHevc = false, RateControl rateControl = RateControl.CBR)
+    {
+        if (preferHevc)
+        {
+            if (EncoderInfo.IsAvailable(Types.NvencHevc))
+                return CreateNvencHevc(name, bitrate, rateControl: rateControl);
+            if (EncoderInfo.IsAvailable(Types.AmfHevc))
+                return CreateAmfHevc(name, bitrate, rateControl: rateControl);
+            if (EncoderInfo.IsAvailable(Types.QsvHevc))
+                return CreateQsvHevc(name, bitrate, rateControl: rateControl);
+        }
+
+        if (EncoderInfo.IsAvailable(Types.NvencH264))
+            return CreateNvencH264(name, bitrate, rateControl: rateControl);
+        if (EncoderInfo.IsAvailable(Types.AmfH264))
+            return CreateAmfH264(name, bitrate, rateControl: rateControl);
+        if (EncoderInfo.IsAvailable(Types.QsvH264))
+            return CreateQsvH264(name, bitrate, rateControl: rateControl);
+
+        return CreateX264(name, bitrate, rateControl: rateControl);
+    }
+
+    private static VideoEncoder CreateAmf(string typeId, string name, int bitrate, string preset, RateControl rateControl, int cqLevel)
+    {
+        using var settings = new Settings();
+        // AMF rate controls: CBR, VBR, CQP (plus QVBR/HQVBR/HQCBR via raw settings)
+        settings.Set("rate_control", rateControl == RateControl.CRF ? "CQP" : rateControl.ToString());
+        settings.Set("preset", preset);
+
+        switch (rateControl)
+        {
+            case RateControl.CBR:
+            case RateControl.VBR:
+                settings.Set("bitrate", bitrate);
+                break;
+            case RateControl.CQP:
+            case RateControl.CRF:
+                settings.Set("cqp", cqLevel);
+                break;
+        }
+
+        return new VideoEncoder(typeId, name, settings);
+    }
+
+    /// <summary>
+    /// Creates an AMD AMF H.264 encoder.
+    /// </summary>
+    /// <param name="name">The encoder name.</param>
+    /// <param name="bitrate">Bitrate in kbps (for CBR/VBR).</param>
+    /// <param name="preset">AMF preset: "highQuality", "quality", "balanced", or "speed".</param>
+    /// <param name="rateControl">Rate control mode (CRF maps to CQP).</param>
+    /// <param name="cqLevel">QP level (for CQP mode, 0-51).</param>
+    public static VideoEncoder CreateAmfH264(string name = "AMF H.264", int bitrate = 6000, string preset = "quality", RateControl rateControl = RateControl.CBR, int cqLevel = 20)
+        => CreateAmf(Types.AmfH264, name, bitrate, preset, rateControl, cqLevel);
+
+    /// <summary>
+    /// Creates an AMD AMF HEVC encoder.
+    /// </summary>
+    /// <param name="name">The encoder name.</param>
+    /// <param name="bitrate">Bitrate in kbps (for CBR/VBR).</param>
+    /// <param name="preset">AMF preset: "highQuality", "quality", "balanced", or "speed".</param>
+    /// <param name="rateControl">Rate control mode (CRF maps to CQP).</param>
+    /// <param name="cqLevel">QP level (for CQP mode, 0-51).</param>
+    public static VideoEncoder CreateAmfHevc(string name = "AMF HEVC", int bitrate = 6000, string preset = "quality", RateControl rateControl = RateControl.CBR, int cqLevel = 20)
+        => CreateAmf(Types.AmfHevc, name, bitrate, preset, rateControl, cqLevel);
+
+    /// <summary>
+    /// Creates an AMD AMF AV1 encoder (RX 7000-series and later).
+    /// </summary>
+    /// <param name="name">The encoder name.</param>
+    /// <param name="bitrate">Bitrate in kbps (for CBR/VBR).</param>
+    /// <param name="preset">AMF preset: "highQuality", "quality", "balanced", or "speed".</param>
+    /// <param name="rateControl">Rate control mode (CRF maps to CQP).</param>
+    /// <param name="cqLevel">QP level (for CQP mode, 0-63).</param>
+    public static VideoEncoder CreateAmfAv1(string name = "AMF AV1", int bitrate = 6000, string preset = "quality", RateControl rateControl = RateControl.CBR, int cqLevel = 20)
+        => CreateAmf(Types.AmfAv1, name, bitrate, preset, rateControl, cqLevel);
+
+    private static VideoEncoder CreateQsv(string typeId, string name, int bitrate, string targetUsage, RateControl rateControl, int cqLevel, int? maxBitrate)
+    {
+        using var settings = new Settings();
+        // QSV rate controls: CBR, VBR, CQP, ICQ (CRF maps to ICQ, QSV's quality mode)
+        settings.Set("rate_control", rateControl == RateControl.CRF ? "ICQ" : rateControl.ToString());
+        settings.Set("target_usage", targetUsage);
+
+        switch (rateControl)
+        {
+            case RateControl.CBR:
+                settings.Set("bitrate", bitrate);
+                break;
+            case RateControl.VBR:
+                settings.Set("bitrate", bitrate);
+                settings.Set("max_bitrate", maxBitrate ?? (int)(bitrate * 1.5));
+                break;
+            case RateControl.CQP:
+                settings.Set("cqp", cqLevel);
+                break;
+            case RateControl.CRF:
+                settings.Set("icq_quality", cqLevel);
+                break;
+        }
+
+        return new VideoEncoder(typeId, name, settings);
+    }
+
+    /// <summary>
+    /// Creates an Intel QuickSync H.264 encoder.
+    /// </summary>
+    /// <param name="name">The encoder name.</param>
+    /// <param name="bitrate">Bitrate in kbps (for CBR/VBR).</param>
+    /// <param name="targetUsage">Quality/speed trade-off: "TU1" (best quality) to "TU7" (fastest).</param>
+    /// <param name="rateControl">Rate control mode (CRF maps to ICQ).</param>
+    /// <param name="cqLevel">QP/ICQ level (1-51, lower is better quality).</param>
+    /// <param name="maxBitrate">Maximum bitrate in kbps (for VBR mode, defaults to 1.5x bitrate).</param>
+    public static VideoEncoder CreateQsvH264(string name = "QSV H.264", int bitrate = 6000, string targetUsage = "TU4", RateControl rateControl = RateControl.CBR, int cqLevel = 23, int? maxBitrate = null)
+        => CreateQsv(Types.QsvH264, name, bitrate, targetUsage, rateControl, cqLevel, maxBitrate);
+
+    /// <summary>
+    /// Creates an Intel QuickSync HEVC encoder.
+    /// </summary>
+    /// <param name="name">The encoder name.</param>
+    /// <param name="bitrate">Bitrate in kbps (for CBR/VBR).</param>
+    /// <param name="targetUsage">Quality/speed trade-off: "TU1" (best quality) to "TU7" (fastest).</param>
+    /// <param name="rateControl">Rate control mode (CRF maps to ICQ).</param>
+    /// <param name="cqLevel">QP/ICQ level (1-51, lower is better quality).</param>
+    /// <param name="maxBitrate">Maximum bitrate in kbps (for VBR mode, defaults to 1.5x bitrate).</param>
+    public static VideoEncoder CreateQsvHevc(string name = "QSV HEVC", int bitrate = 6000, string targetUsage = "TU4", RateControl rateControl = RateControl.CBR, int cqLevel = 23, int? maxBitrate = null)
+        => CreateQsv(Types.QsvHevc, name, bitrate, targetUsage, rateControl, cqLevel, maxBitrate);
+
+    /// <summary>
+    /// Creates an Intel QuickSync AV1 encoder (Arc GPUs and later).
+    /// </summary>
+    /// <param name="name">The encoder name.</param>
+    /// <param name="bitrate">Bitrate in kbps (for CBR/VBR).</param>
+    /// <param name="targetUsage">Quality/speed trade-off: "TU1" (best quality) to "TU7" (fastest).</param>
+    /// <param name="rateControl">Rate control mode (CRF maps to ICQ).</param>
+    /// <param name="cqLevel">QP level (1-63 for CQP, 1-51 for ICQ; lower is better quality).</param>
+    /// <param name="maxBitrate">Maximum bitrate in kbps (for VBR mode, defaults to 1.5x bitrate).</param>
+    public static VideoEncoder CreateQsvAv1(string name = "QSV AV1", int bitrate = 6000, string targetUsage = "TU4", RateControl rateControl = RateControl.CBR, int cqLevel = 23, int? maxBitrate = null)
+        => CreateQsv(Types.QsvAv1, name, bitrate, targetUsage, rateControl, cqLevel, maxBitrate);
 
     internal new ObsEncoderHandle Handle => (ObsEncoderHandle)base.Handle;
 
@@ -254,6 +445,53 @@ public sealed class VideoEncoder : ObsObject
     public VideoEncoder SetScaledSize(uint width, uint height)
     {
         ObsEncoder.obs_encoder_set_scaled_size(Handle, width, height);
+        return this;
+    }
+
+    /// <summary>
+    /// Scales on the GPU instead of the CPU when a scaled size is set
+    /// (e.g. record a 1440p canvas at 1080p without the CPU cost).
+    /// Must be configured before the encoder becomes active.
+    /// </summary>
+    /// <param name="scaleType">The scaling filter, or <see cref="ObsScaleType.Disable"/> to scale on the CPU.</param>
+    public VideoEncoder SetGpuScaleType(ObsScaleType scaleType)
+    {
+        ObsEncoder.obs_encoder_set_gpu_scale_type(Handle, scaleType);
+        return this;
+    }
+
+    /// <summary>
+    /// Gets whether GPU-based scaling is enabled for this encoder.
+    /// </summary>
+    public bool IsGpuScalingEnabled => ObsEncoder.obs_encoder_gpu_scaling_enabled(Handle);
+
+    /// <summary>
+    /// Gets or sets the frame rate divisor: the encoder runs at the base frame rate
+    /// divided by this value (e.g. 2 records a 60 FPS canvas at 30 FPS).
+    /// Can only be changed while the encoder is stopped.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The divisor was rejected (encoder active or divisor 0).</exception>
+    public uint FrameRateDivisor
+    {
+        get => ObsEncoder.obs_encoder_get_frame_rate_divisor(Handle);
+        set
+        {
+            if (!ObsEncoder.obs_encoder_set_frame_rate_divisor(Handle, value))
+                throw new InvalidOperationException(
+                    "Failed to set the frame rate divisor. It must be non-zero and the encoder must not be active.");
+        }
+    }
+
+    /// <summary>
+    /// Sets the scaled output size and enables GPU scaling in one call.
+    /// </summary>
+    /// <param name="width">The output width.</param>
+    /// <param name="height">The output height.</param>
+    /// <param name="scaleType">The GPU scaling filter (default bicubic, matching OBS Studio).</param>
+    public VideoEncoder SetGpuScaledSize(uint width, uint height, ObsScaleType scaleType = ObsScaleType.Bicubic)
+    {
+        ObsEncoder.obs_encoder_set_scaled_size(Handle, width, height);
+        ObsEncoder.obs_encoder_set_gpu_scale_type(Handle, scaleType);
         return this;
     }
 

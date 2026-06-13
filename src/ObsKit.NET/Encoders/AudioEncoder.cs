@@ -81,6 +81,22 @@ public sealed class AudioEncoder : ObsObject
     }
 
     /// <summary>
+    /// Creates the best available AAC encoder: Core Audio AAC when present
+    /// (better quality; macOS, or Windows with Apple components), otherwise FFmpeg AAC.
+    /// </summary>
+    /// <param name="name">The encoder name.</param>
+    /// <param name="bitrate">Bitrate in kbps.</param>
+    /// <param name="mixerIdx">The audio mixer index (0-5).</param>
+    public static AudioEncoder CreateBestAac(string name = "Audio Encoder", int bitrate = 192, int mixerIdx = 0)
+    {
+        using var settings = new Settings();
+        settings.Set("bitrate", bitrate);
+
+        var typeId = EncoderInfo.IsAvailable(Types.CoreAudioAac) ? Types.CoreAudioAac : Types.FfmpegAac;
+        return new AudioEncoder(typeId, name, mixerIdx, settings);
+    }
+
+    /// <summary>
     /// Creates an Opus audio encoder.
     /// </summary>
     /// <param name="name">The encoder name.</param>
@@ -91,6 +107,28 @@ public sealed class AudioEncoder : ObsObject
         using var settings = new Settings();
         settings.Set("bitrate", bitrate);
         return new AudioEncoder(Types.Opus, name, mixerIdx, settings);
+    }
+
+    /// <summary>
+    /// Creates a FLAC lossless audio encoder (no bitrate setting; larger files).
+    /// Use with MKV — FLAC in MP4 has limited player support.
+    /// </summary>
+    /// <param name="name">The encoder name.</param>
+    /// <param name="mixerIdx">The audio mixer index (0-5).</param>
+    public static AudioEncoder CreateFlac(string name = "FLAC Encoder", int mixerIdx = 0)
+    {
+        return new AudioEncoder(Types.Flac, name, mixerIdx);
+    }
+
+    /// <summary>
+    /// Creates an uncompressed 16-bit PCM audio encoder (largest files, zero encoding cost).
+    /// Use with MKV/MOV containers.
+    /// </summary>
+    /// <param name="name">The encoder name.</param>
+    /// <param name="mixerIdx">The audio mixer index (0-5).</param>
+    public static AudioEncoder CreatePcm(string name = "PCM Encoder", int mixerIdx = 0)
+    {
+        return new AudioEncoder(Types.Pcm, name, mixerIdx);
     }
 
     internal new ObsEncoderHandle Handle => (ObsEncoderHandle)base.Handle;

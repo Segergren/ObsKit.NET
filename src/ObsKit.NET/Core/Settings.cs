@@ -82,6 +82,44 @@ public sealed class Settings : ObsObject
         return this;
     }
 
+    /// <summary>
+    /// Sets a string-array value using OBS's editable-list convention, where each entry is
+    /// stored as an object with a <c>"value"</c> key. This matches properties such as
+    /// slideshow file lists and other <c>OBS_EDITABLE_LIST</c> properties.
+    /// </summary>
+    /// <param name="name">The setting key.</param>
+    /// <param name="values">The string values to store.</param>
+    public Settings SetStringArray(string name, IEnumerable<string> values)
+    {
+        ArgumentNullException.ThrowIfNull(values);
+
+        var array = ObsData.obs_data_array_create();
+        try
+        {
+            foreach (var value in values)
+            {
+                var item = ObsData.obs_data_create();
+                try
+                {
+                    ObsData.obs_data_set_string(item, "value", value);
+                    ObsData.obs_data_array_push_back(array, item);
+                }
+                finally
+                {
+                    ObsData.obs_data_release(item);
+                }
+            }
+
+            ObsData.obs_data_set_array(Handle, name, array);
+        }
+        finally
+        {
+            ObsData.obs_data_array_release(array);
+        }
+
+        return this;
+    }
+
     #endregion
 
     #region Getters
@@ -103,6 +141,48 @@ public sealed class Settings : ObsObject
     {
         var handle = ObsData.obs_data_get_obj(Handle, name);
         return handle.IsNull ? null : new Settings(handle);
+    }
+
+    /// <summary>
+    /// Reads a string-array value stored using OBS's editable-list convention (each entry
+    /// is an object with a <c>"value"</c> key). Returns an empty list if the key is absent
+    /// or not an array.
+    /// </summary>
+    /// <param name="name">The setting key.</param>
+    public IReadOnlyList<string> GetStringArray(string name)
+    {
+        var result = new List<string>();
+
+        var array = ObsData.obs_data_get_array(Handle, name);
+        if (array.IsNull)
+            return result;
+
+        try
+        {
+            var count = ObsData.obs_data_array_count(array);
+            for (nuint i = 0; i < count; i++)
+            {
+                var item = ObsData.obs_data_array_item(array, i);
+                if (item.IsNull)
+                    continue;
+                try
+                {
+                    var value = ObsData.obs_data_get_string(item, "value");
+                    if (!string.IsNullOrEmpty(value))
+                        result.Add(value);
+                }
+                finally
+                {
+                    ObsData.obs_data_release(item);
+                }
+            }
+        }
+        finally
+        {
+            ObsData.obs_data_array_release(array);
+        }
+
+        return result;
     }
 
     #endregion

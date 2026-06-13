@@ -375,10 +375,22 @@ public sealed class WebcamCapture : Source
             s.Set("res_type", (long)WebcamResolutionMode.Custom);
             s.Set("resolution", $"{width}x{height}");
             s.Set("frame_interval", frameInterval);
-            s.Set("video_format", videoFormat);
+            // video_format is an int enum; map the format name to its numeric value.
+            s.Set("video_format", MapDshowVideoFormat(videoFormat));
         });
         return this;
     }
+
+    // Maps a dshow video format name to its libdshowcapture VideoFormat enum value.
+    private static long MapDshowVideoFormat(string? name) => (name ?? "Any").Trim().ToUpperInvariant() switch
+    {
+        "ANY" => 0,
+        "ARGB" => 100, "XRGB" => 101, "RGB24" => 102,
+        "I420" => 200, "NV12" => 201, "YV12" => 202, "Y800" => 203, "P010" => 204,
+        "YVYU" => 300, "YUY2" => 301, "UYVY" => 302, "HDYC" => 303,
+        "MJPEG" => 400, "H264" => 401, "HEVC" => 402,
+        _ => 0, // unknown -> Any (matches any device format)
+    };
 
     /// <summary>Reverts to the device's preferred (default) resolution and frame rate.</summary>
     public WebcamCapture UsePreferredResolution()

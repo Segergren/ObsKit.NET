@@ -323,6 +323,52 @@ public readonly struct GsStageSurfaceHandle : IEquatable<GsStageSurfaceHandle>
 }
 
 /// <summary>
+/// Strongly-typed handle for obs_canvas_t.
+/// </summary>
+public readonly struct ObsCanvasHandle : IEquatable<ObsCanvasHandle>
+{
+    public readonly nint Value;
+
+    public ObsCanvasHandle(nint value) => Value = value;
+
+    public bool IsNull => Value == 0;
+    public static ObsCanvasHandle Null => default;
+
+    public static implicit operator nint(ObsCanvasHandle handle) => handle.Value;
+    public static explicit operator ObsCanvasHandle(nint ptr) => new(ptr);
+
+    public bool Equals(ObsCanvasHandle other) => Value == other.Value;
+    public override bool Equals(object? obj) => obj is ObsCanvasHandle h && Equals(h);
+    public override int GetHashCode() => Value.GetHashCode();
+    public static bool operator ==(ObsCanvasHandle left, ObsCanvasHandle right) => left.Equals(right);
+    public static bool operator !=(ObsCanvasHandle left, ObsCanvasHandle right) => !left.Equals(right);
+    public override string ToString() => $"ObsCanvas(0x{Value:X})";
+}
+
+/// <summary>
+/// Strongly-typed handle for obs_display_t.
+/// </summary>
+public readonly struct ObsDisplayHandle : IEquatable<ObsDisplayHandle>
+{
+    public readonly nint Value;
+
+    public ObsDisplayHandle(nint value) => Value = value;
+
+    public bool IsNull => Value == 0;
+    public static ObsDisplayHandle Null => default;
+
+    public static implicit operator nint(ObsDisplayHandle handle) => handle.Value;
+    public static explicit operator ObsDisplayHandle(nint ptr) => new(ptr);
+
+    public bool Equals(ObsDisplayHandle other) => Value == other.Value;
+    public override bool Equals(object? obj) => obj is ObsDisplayHandle h && Equals(h);
+    public override int GetHashCode() => Value.GetHashCode();
+    public static bool operator ==(ObsDisplayHandle left, ObsDisplayHandle right) => left.Equals(right);
+    public static bool operator !=(ObsDisplayHandle left, ObsDisplayHandle right) => !left.Equals(right);
+    public override string ToString() => $"ObsDisplay(0x{Value:X})";
+}
+
+/// <summary>
 /// Strongly-typed handle for gs_texture_t.
 /// </summary>
 public readonly struct GsTextureHandle : IEquatable<GsTextureHandle>

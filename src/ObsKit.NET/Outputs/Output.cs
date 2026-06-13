@@ -14,6 +14,9 @@ public class Output : ObsObject
 {
     private VideoEncoder? _videoEncoder;
     private readonly Dictionary<int, AudioEncoder> _audioEncoders = new();
+    private readonly object _stoppedLock = new();
+    private SignalConnection? _stoppedConnection;
+    private EventHandler<OutputStoppedEventArgs>? _stopped;
     /// <summary>
     /// Creates a new output with the specified type ID and name.
     /// </summary>
@@ -59,7 +62,7 @@ public class Output : ObsObject
     /// <summary>
     /// Gets the output type identifier.
     /// </summary>
-    public string? TypeId { get; }
+    public string? TypeId { get; private protected set; }
 
     /// <summary>
     /// Gets the output name.
@@ -285,6 +288,17 @@ public class Output : ObsObject
         return (uint)ObsOutput.obs_output_get_mixers(Handle);
     }
 
+    /// <summary>
+    /// Sets the audio tracks for the output using 1-based track numbers (1-6).
+    /// Only applies to raw (non-encoded) outputs; encoded outputs take their tracks
+    /// from the mixer index of each attached audio encoder.
+    /// </summary>
+    /// <param name="tracks">The track numbers (1-6).</param>
+    public void SetAudioTracks(params int[] tracks)
+    {
+        SetMixers(AudioTracks.ToMask(tracks));
+    }
+
     #endregion
 
     #region Statistics
@@ -292,7 +306,7 @@ public class Output : ObsObject
     /// <summary>
     /// Gets the total number of frames output.
     /// </summary>
-    public uint TotalFrames => ObsOutput.obs_output_get_total_frames(Handle);
+    public int TotalFrames => ObsOutput.obs_output_get_total_frames(Handle);
 
     /// <summary>
     /// Gets the total bytes output.
@@ -318,6 +332,9 @@ public class Output : ObsObject
 
     #region Delay
 
+    private uint _delaySec;
+    private uint _delayFlags;
+
     /// <summary>
     /// Sets the output delay.
     /// </summary>
@@ -325,8 +342,28 @@ public class Output : ObsObject
     /// <param name="flags">Delay flags.</param>
     public void SetDelay(uint delaySec, uint flags = 0)
     {
+        // Remembered so RecreateAs can re-apply it (libobs has no flags getter).
+        _delaySec = delaySec;
+        _delayFlags = flags;
         ObsOutput.obs_output_set_delay(Handle, delaySec, flags);
     }
+
+    /// <summary>
+    /// Gets the video codecs this output supports (e.g. "h264", "hevc", "av1"),
+    /// or an empty list if the output reports none. Useful for validating an
+    /// encoder/container combination before starting.
+    /// </summary>
+    public IReadOnlyList<string> SupportedVideoCodecs =>
+        ObsOutput.obs_output_get_supported_video_codecs(Handle)?
+            .Split(';', StringSplitOptions.RemoveEmptyEntries) ?? [];
+
+    /// <summary>
+    /// Gets the audio codecs this output supports (e.g. "aac", "opus"),
+    /// or an empty list if the output reports none.
+    /// </summary>
+    public IReadOnlyList<string> SupportedAudioCodecs =>
+        ObsOutput.obs_output_get_supported_audio_codecs(Handle)?
+            .Split(';', StringSplitOptions.RemoveEmptyEntries) ?? [];
 
     /// <summary>
     /// Gets the configured output delay in seconds.
@@ -367,7 +404,107 @@ public class Output : ObsObject
         return new SignalConnection(signalHandler, signal, callback);
     }
 
+    /// <summary>
+    /// Event raised when the output stops, with the typed stop code and last error.
+    /// Raised on an OBS internal thread — do not block in the handler.
+    /// </summary>
+    public event EventHandler<OutputStoppedEventArgs>? Stopped
+    {
+        add
+        {
+            lock (_stoppedLock)
+            {
+                _stoppedConnection ??= ConnectSignal(OutputSignal.Stop, OnStopSignal);
+                _stopped += value;
+            }
+        }
+        remove
+        {
+            lock (_stoppedLock)
+            {
+                _stopped -= value;
+            }
+        }
+    }
+
+    private void OnStopSignal(nint calldata)
+    {
+        var code = (ObsOutputStopCode)Calldata.GetInt(calldata, "code");
+        var lastError = Calldata.GetString(calldata, "last_error");
+        _stopped?.Invoke(this, new OutputStoppedEventArgs(code, lastError));
+    }
+
     #endregion
+
+    /// <summary>
+    /// Recreates the underlying native output as a different output type, preserving
+    /// settings, mixers, attached encoders, and the Stopped subscription.
+    /// Used when a configuration change (e.g. container format) requires a different
+    /// output implementation. Signal connections made via ConnectSignal before this
+    /// call become inert; connect signals after changing the output type.
+    /// </summary>
+    /// <param name="typeId">The new output type identifier.</param>
+    /// <exception cref="NotSupportedException">The output type is not registered with this OBS version.</exception>
+    private protected void RecreateAs(string typeId)
+    {
+        if (TypeId == typeId)
+            return;
+
+        if (IsActive)
+            throw new InvalidOperationException("Cannot change the output type while the output is active.");
+
+        // obs_output_create never returns null — unknown ids produce a non-functional
+        // placeholder — so validate the type id up front (null display name = unregistered).
+        if (ObsOutput.obs_output_get_display_name(typeId) == null)
+            throw new NotSupportedException($"Output type '{typeId}' is not available in this OBS version.");
+
+        using var settings = GetSettings();
+        var mixers = GetMixers();
+        var newHandle = ObsOutput.obs_output_create(typeId, Name ?? "Output", settings.Handle, default);
+
+        if (newHandle.IsNull)
+            throw new InvalidOperationException($"Failed to create output of type '{typeId}'");
+
+        // Transfer encoder attachments to the new native output. Wrapper-level
+        // ref counting (_videoEncoder/_audioEncoders) carries over unchanged.
+        if (_videoEncoder != null)
+            ObsOutput.obs_output_set_video_encoder(newHandle, _videoEncoder.Handle);
+
+        foreach (var (track, encoder) in _audioEncoders)
+            ObsOutput.obs_output_set_audio_encoder(newHandle, encoder.Handle, (nuint)track);
+
+        ObsOutput.obs_output_set_mixers(newHandle, mixers);
+
+        if (_delaySec != 0)
+            ObsOutput.obs_output_set_delay(newHandle, _delaySec, _delayFlags);
+
+        lock (_stoppedLock)
+        {
+            // The signal handler belongs to the old output; reconnect on the new one below.
+            _stoppedConnection?.Dispose();
+            _stoppedConnection = null;
+
+            var oldHandle = ReplaceHandle(newHandle);
+            ObsOutput.obs_output_release((ObsOutputHandle)oldHandle);
+            TypeId = typeId;
+
+            if (_stopped != null)
+                _stoppedConnection = ConnectSignal(OutputSignal.Stop, OnStopSignal);
+        }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            lock (_stoppedLock)
+            {
+                _stoppedConnection?.Dispose();
+                _stoppedConnection = null;
+            }
+        }
+        base.Dispose(disposing);
+    }
 
     protected override void ReleaseHandle(nint handle)
     {

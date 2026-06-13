@@ -92,9 +92,11 @@ public sealed class SourceCollection : IEnumerable<Source>
         {
             if (!handle.IsNull)
             {
-                // Add a reference since we're keeping it
-                ObsSource.obs_source_addref(handle);
-                sources.Add(new Source(handle, ownsHandle: true));
+                // The enum hands us a borrowed pointer that libobs releases right after this
+                // callback returns; take our own owning ref via the exported get_ref.
+                var refHandle = ObsSource.obs_source_get_ref(handle);
+                if (!refHandle.IsNull)
+                    sources.Add(new Source(refHandle, ownsHandle: true));
             }
             return 1; // Continue enumeration
         };

@@ -147,4 +147,20 @@ public sealed class WindowCapture : Source
         }
         return this;
     }
+
+    /// <summary>
+    /// Sets whether to also capture the window's audio (Windows 10 2004+).
+    /// OBS internally creates an application audio capture bound to the window's process
+    /// and mixes it into this source's audio output — no separate
+    /// <see cref="ApplicationAudioCapture"/> source is needed.
+    /// </summary>
+    /// <param name="capture">Whether to capture the window's audio.</param>
+    public WindowCapture SetCaptureAudio(bool capture = true)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Update(s => s.Set("capture_audio", capture));
+        }
+        return this;
+    }
 }

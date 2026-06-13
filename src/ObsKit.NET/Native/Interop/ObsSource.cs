@@ -44,14 +44,8 @@ internal static partial class ObsSource
     internal static partial void obs_source_release(ObsSourceHandle source);
 
     /// <summary>
-    /// Adds a reference to a source.
-    /// </summary>
-    [LibraryImport(Lib, EntryPoint = "obs_source_addref")]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    internal static partial void obs_source_addref(ObsSourceHandle source);
-
-    /// <summary>
-    /// Gets an additional reference to a source.
+    /// Returns an owning reference to the source (the same handle), or null if the source is
+    /// being destroyed.
     /// </summary>
     [LibraryImport(Lib, EntryPoint = "obs_source_get_ref")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
@@ -75,6 +69,22 @@ internal static partial class ObsSource
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
     internal static partial string? obs_source_get_name(ObsSourceHandle source);
+
+    /// <summary>
+    /// Gets the source UUID (stable for the lifetime of the source).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_uuid")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_source_get_uuid(ObsSourceHandle source);
+
+    /// <summary>
+    /// Finds a source by UUID (incremented reference).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_source_by_uuid")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsSourceHandle obs_get_source_by_uuid(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string uuid);
 
     /// <summary>
     /// Sets the source name.
@@ -175,6 +185,34 @@ internal static partial class ObsSource
     internal static partial void obs_source_set_audio_mixers(ObsSourceHandle source, uint mixers);
 
     /// <summary>
+    /// Gets the audio sync offset in nanoseconds.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_sync_offset")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial long obs_source_get_sync_offset(ObsSourceHandle source);
+
+    /// <summary>
+    /// Sets the audio sync offset in nanoseconds.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_set_sync_offset")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_set_sync_offset(ObsSourceHandle source, long offset);
+
+    /// <summary>
+    /// Gets the stereo balance value (0.0 = left, 0.5 = center, 1.0 = right).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_balance_value")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial float obs_source_get_balance_value(ObsSourceHandle source);
+
+    /// <summary>
+    /// Sets the stereo balance value (0.0 = left, 0.5 = center, 1.0 = right).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_set_balance_value")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_set_balance_value(ObsSourceHandle source, float balance);
+
+    /// <summary>
     /// Checks if audio is muted.
     /// </summary>
     public static bool obs_source_muted(ObsSourceHandle source) => obs_source_muted_native(source) != 0;
@@ -189,6 +227,208 @@ internal static partial class ObsSource
     [LibraryImport(Lib, EntryPoint = "obs_source_set_muted")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial void obs_source_set_muted(ObsSourceHandle source, byte muted);
+
+    // ---- Push-to-talk / push-to-mute ----
+
+    public static bool obs_source_push_to_mute_enabled(ObsSourceHandle source) => obs_source_push_to_mute_enabled_native(source) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_push_to_mute_enabled")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_source_push_to_mute_enabled_native(ObsSourceHandle source);
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_enable_push_to_mute")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_enable_push_to_mute(ObsSourceHandle source, [MarshalAs(UnmanagedType.U1)] bool enabled);
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_push_to_mute_delay")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ulong obs_source_get_push_to_mute_delay(ObsSourceHandle source);
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_set_push_to_mute_delay")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_set_push_to_mute_delay(ObsSourceHandle source, ulong delayMs);
+
+    public static bool obs_source_push_to_talk_enabled(ObsSourceHandle source) => obs_source_push_to_talk_enabled_native(source) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_push_to_talk_enabled")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_source_push_to_talk_enabled_native(ObsSourceHandle source);
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_enable_push_to_talk")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_enable_push_to_talk(ObsSourceHandle source, [MarshalAs(UnmanagedType.U1)] bool enabled);
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_push_to_talk_delay")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ulong obs_source_get_push_to_talk_delay(ObsSourceHandle source);
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_set_push_to_talk_delay")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_set_push_to_talk_delay(ObsSourceHandle source, ulong delayMs);
+
+    /// <summary>Gets the source category (input, filter, transition, or scene).</summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_type")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsSourceType obs_source_get_type(ObsSourceHandle source);
+
+    // ---- Async source latency tuning ----
+
+    public static bool obs_source_async_unbuffered(ObsSourceHandle source) => obs_source_async_unbuffered_native(source) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_async_unbuffered")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_source_async_unbuffered_native(ObsSourceHandle source);
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_set_async_unbuffered")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_set_async_unbuffered(ObsSourceHandle source, [MarshalAs(UnmanagedType.U1)] bool unbuffered);
+
+    public static bool obs_source_async_decoupled(ObsSourceHandle source) => obs_source_async_decoupled_native(source) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_async_decoupled")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_source_async_decoupled_native(ObsSourceHandle source);
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_set_async_decoupled")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_set_async_decoupled(ObsSourceHandle source, [MarshalAs(UnmanagedType.U1)] bool decouple);
+
+    /// <summary>For a filter source, gets the source it is directly attached to (borrowed pointer, not referenced).</summary>
+    [LibraryImport(Lib, EntryPoint = "obs_filter_get_parent")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsSourceHandle obs_filter_get_parent(ObsSourceHandle filter);
+
+    /// <summary>For a filter source, gets the next target down the filter chain (borrowed pointer, not referenced).</summary>
+    [LibraryImport(Lib, EntryPoint = "obs_filter_get_target")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsSourceHandle obs_filter_get_target(ObsSourceHandle filter);
+
+    /// <summary>
+    /// Sends a mouse button event to an interactive source.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_send_mouse_click")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_send_mouse_click(ObsSourceHandle source,
+        ref ObsMouseEventNative mouseEvent, int type, byte mouseUp, uint clickCount);
+
+    /// <summary>
+    /// Sends a mouse move event to an interactive source.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_send_mouse_move")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_send_mouse_move(ObsSourceHandle source,
+        ref ObsMouseEventNative mouseEvent, byte mouseLeave);
+
+    /// <summary>
+    /// Sends a mouse wheel event to an interactive source.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_send_mouse_wheel")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_send_mouse_wheel(ObsSourceHandle source,
+        ref ObsMouseEventNative mouseEvent, int xDelta, int yDelta);
+
+    /// <summary>
+    /// Sends a focus or unfocus event to an interactive source.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_send_focus")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_send_focus(ObsSourceHandle source, byte focus);
+
+    /// <summary>
+    /// Sends a key event to an interactive source.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_send_key_click")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_send_key_click(ObsSourceHandle source,
+        ref ObsKeyEventNative keyEvent, byte keyUp);
+
+    /// <summary>
+    /// Native callback for per-source audio capture
+    /// (<c>obs_source_audio_capture_t</c>: param, source, audio_data, muted).
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void SourceAudioCaptureCallback(nint param, ObsSourceHandle source, nint audioData, byte muted);
+
+    /// <summary>
+    /// Adds a callback receiving the source's audio before mixing.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_add_audio_capture_callback")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_add_audio_capture_callback(ObsSourceHandle source,
+        SourceAudioCaptureCallback callback, nint param);
+
+    /// <summary>
+    /// Removes a previously added audio capture callback.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_remove_audio_capture_callback")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_remove_audio_capture_callback(ObsSourceHandle source,
+        SourceAudioCaptureCallback callback, nint param);
+
+    /// <summary>
+    /// Checks if the source is enabled (mainly used to bypass filters).
+    /// </summary>
+    public static bool obs_source_enabled(ObsSourceHandle source) => obs_source_enabled_native(source) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_enabled")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_source_enabled_native(ObsSourceHandle source);
+
+    /// <summary>
+    /// Enables or disables the source (mainly used to bypass filters).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_set_enabled")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_set_enabled(ObsSourceHandle source, byte enabled);
+
+    /// <summary>
+    /// Gets the source's procedure handler.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_proc_handler")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ProcHandlerHandle obs_source_get_proc_handler(ObsSourceHandle source);
+
+    /// <summary>
+    /// Sets the deinterlacing mode.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_set_deinterlace_mode")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_set_deinterlace_mode(ObsSourceHandle source, ObsDeinterlaceMode mode);
+
+    /// <summary>
+    /// Gets the deinterlacing mode.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_deinterlace_mode")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsDeinterlaceMode obs_source_get_deinterlace_mode(ObsSourceHandle source);
+
+    /// <summary>
+    /// Sets the deinterlacing field order.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_set_deinterlace_field_order")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_set_deinterlace_field_order(ObsSourceHandle source, ObsDeinterlaceFieldOrder fieldOrder);
+
+    /// <summary>
+    /// Gets the deinterlacing field order.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_deinterlace_field_order")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsDeinterlaceFieldOrder obs_source_get_deinterlace_field_order(ObsSourceHandle source);
+
+    /// <summary>
+    /// Gets the audio monitoring type.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_monitoring_type")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsMonitoringType obs_source_get_monitoring_type(ObsSourceHandle source);
+
+    /// <summary>
+    /// Sets the audio monitoring type.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_set_monitoring_type")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_set_monitoring_type(ObsSourceHandle source, ObsMonitoringType type);
 
     #endregion
 
@@ -233,6 +473,30 @@ internal static partial class ObsSource
     [LibraryImport(Lib, EntryPoint = "obs_source_filter_remove")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial void obs_source_filter_remove(ObsSourceHandle source, ObsSourceHandle filter);
+
+    /// <summary>
+    /// Copies all filters from <paramref name="src"/> onto <paramref name="dst"/>.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_copy_filters")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_copy_filters(ObsSourceHandle dst, ObsSourceHandle src);
+
+    /// <summary>
+    /// Copies a single existing filter onto <paramref name="dst"/>.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_copy_single_filter")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_copy_single_filter(ObsSourceHandle dst, ObsSourceHandle filter);
+
+    /// <summary>Gets the zero-based index of a filter in the source's filter chain (-1 if not found).</summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_filter_get_index")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial int obs_source_filter_get_index(ObsSourceHandle source, ObsSourceHandle filter);
+
+    /// <summary>Moves a filter to an absolute zero-based index in the source's filter chain.</summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_filter_set_index")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_filter_set_index(ObsSourceHandle source, ObsSourceHandle filter, nuint index);
 
     /// <summary>
     /// Gets a filter by name.
@@ -301,6 +565,89 @@ internal static partial class ObsSource
     /// </summary>
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     internal delegate byte EnumSourceCallback(nint data, ObsSourceHandle source);
+
+    /// <summary>
+    /// Callback for enumerating a source's filters (obs_source_enum_proc_t).
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void EnumFilterCallback(ObsSourceHandle parent, ObsSourceHandle child, nint param);
+
+    /// <summary>
+    /// Enumerates the filters attached to a source.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_enum_filters")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_enum_filters(ObsSourceHandle source, EnumFilterCallback callback, nint param);
+
+    /// <summary>
+    /// Changes a filter's position in the source's filter chain.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_filter_set_order")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_filter_set_order(ObsSourceHandle source, ObsSourceHandle filter, ObsOrderMovement movement);
+
+    /// <summary>
+    /// Plays or pauses media playback.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_media_play_pause")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_media_play_pause(ObsSourceHandle source, [MarshalAs(UnmanagedType.U1)] bool pause);
+
+    /// <summary>
+    /// Restarts media playback from the beginning.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_media_restart")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_media_restart(ObsSourceHandle source);
+
+    /// <summary>
+    /// Stops media playback.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_media_stop")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_media_stop(ObsSourceHandle source);
+
+    /// <summary>
+    /// Skips to the next media item (playlist sources).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_media_next")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_media_next(ObsSourceHandle source);
+
+    /// <summary>
+    /// Skips to the previous media item (playlist sources).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_media_previous")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_media_previous(ObsSourceHandle source);
+
+    /// <summary>
+    /// Gets the media duration in milliseconds.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_media_get_duration")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial long obs_source_media_get_duration(ObsSourceHandle source);
+
+    /// <summary>
+    /// Gets the current media playback time in milliseconds.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_media_get_time")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial long obs_source_media_get_time(ObsSourceHandle source);
+
+    /// <summary>
+    /// Sets the current media playback time in milliseconds.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_media_set_time")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_media_set_time(ObsSourceHandle source, long ms);
+
+    /// <summary>
+    /// Gets the media playback state.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_media_get_state")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsMediaState obs_source_media_get_state(ObsSourceHandle source);
 
     /// <summary>
     /// Enumerates all sources.

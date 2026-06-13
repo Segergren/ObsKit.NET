@@ -321,7 +321,9 @@ internal sealed class LinuxPlatform : IPlatformServices
             {
                 if (format == 32 && nItems > 0)
                 {
-                    return Marshal.ReadInt32(prop);
+                    // Xlib stores format-32 properties as an array of C `long` (8 bytes on
+                    // LP64), not int32. Read a full native-word element, then narrow to the PID.
+                    return (int)Marshal.ReadIntPtr(prop);
                 }
             }
             finally

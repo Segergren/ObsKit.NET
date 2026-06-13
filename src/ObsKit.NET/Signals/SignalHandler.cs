@@ -107,7 +107,9 @@ public sealed class SignalConnection : IDisposable
             }
         };
 
-        ObsSignal.signal_handler_connect(_signalHandler, _signal, _nativeCallback, nint.Zero);
+        // connect_ref keeps the signal handler alive until we disconnect, so disposing
+        // this connection after the owning object was released cannot touch freed memory.
+        ObsSignal.signal_handler_connect_ref(_signalHandler, _signal, _nativeCallback, nint.Zero);
     }
 
     /// <summary>
