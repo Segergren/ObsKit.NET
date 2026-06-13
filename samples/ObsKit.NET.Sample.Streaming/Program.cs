@@ -50,7 +50,7 @@ using var scene = Obs.Scenes.Create("Streaming Scene");
 scene.AddSource(monitorSource);
 scene.AddSource(audioInput);
 scene.AddSource(audioOutput);
-scene.SetAsProgram();
+Obs.SetOutputSource(scene);
 
 Console.WriteLine($"Scene created with {scene.ItemCount} source(s)\n");
 

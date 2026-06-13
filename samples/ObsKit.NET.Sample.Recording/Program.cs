@@ -61,7 +61,7 @@ Console.WriteLine($"OBS {Obs.Version} initialized\n");
 // Create a scene with monitor capture
 using var scene = Obs.Scenes.Create("Recording Scene");
 scene.AddSource(monitorSource);
-scene.SetAsProgram(); // Set as the output source for recording
+Obs.SetOutputSource(scene); // program output
 
 Console.WriteLine($"Scene created with {scene.ItemCount} source(s)");
 

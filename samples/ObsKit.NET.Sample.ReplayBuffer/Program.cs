@@ -47,7 +47,7 @@ Console.WriteLine($"OBS {Obs.Version} initialized\n");
 using var scene = Obs.Scenes.Create("Replay Scene");
 using var monitor = MonitorCapture.FromPrimary();
 scene.AddSource(monitor);
-scene.SetAsProgram(); // Set as the output source
+Obs.SetOutputSource(scene); // program output
 
 Console.WriteLine($"Scene created with {scene.ItemCount} source(s)");
 

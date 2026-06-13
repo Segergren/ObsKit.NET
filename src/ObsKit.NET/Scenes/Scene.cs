@@ -347,15 +347,13 @@ public sealed class Scene : ObsObject, IEnumerable<SceneItem>
     #endregion
 
     /// <summary>
-    /// Sets this scene as the program output (what gets recorded/streamed).
+    /// Assigns this scene's source to an output channel and records the channel so it is
+    /// cleared on disposal. Invoked by <see cref="Obs.SetOutputSource(uint, Scene?)"/>.
     /// </summary>
-    /// <param name="channel">Output channel (0 = main, 1-5 = aux).</param>
-    public void SetAsProgram(uint channel = 0)
+    internal void AssignToChannel(uint channel)
     {
         var sourceHandle = ObsScene.obs_scene_get_source(Handle);
         ObsCore.obs_set_output_source(channel, sourceHandle);
-
-        // Track the channel so we can clear it on disposal
         _assignedChannel = channel;
     }
 

@@ -67,7 +67,7 @@ Obs.SetVideo(v => v.Resolution(canvasW, canvasH).Fps(30));
 // Build a scene with the webcam.
 using var scene = Obs.Scenes.Create("Webcam Scene");
 scene.AddSource(webcam);
-scene.SetAsProgram();
+Obs.SetOutputSource(scene);
 
 Console.WriteLine($"Scene has {scene.ItemCount} source(s); canvas {canvasW}x{canvasH}\n");
 

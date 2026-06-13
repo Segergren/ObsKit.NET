@@ -252,6 +252,39 @@ public static class Obs
     }
 
     /// <summary>
+    /// Sets a scene as an output channel's source. Channel 0 is the program output (what
+    /// gets recorded/streamed). Pass null to clear the channel.
+    /// </summary>
+    /// <param name="channel">The output channel (0-63).</param>
+    /// <param name="scene">The scene to assign, or null to clear the channel.</param>
+    public static void SetOutputSource(uint channel, Scene? scene)
+    {
+        ThrowIfNotInitialized();
+
+        lock (_lock)
+        {
+            // Drop any plain-source tracking for this channel; scene cleanup is tracked on the scene.
+            _channelSources.Remove(channel);
+        }
+
+        if (scene != null)
+            scene.AssignToChannel(channel);
+        else
+            ObsCore.obs_set_output_source(channel, ObsSourceHandle.Null);
+    }
+
+    /// <summary>
+    /// Sets a scene as the program output (channel 0) — what gets recorded and streamed.
+    /// Shorthand for <see cref="SetOutputSource(uint, Scene?)"/> with channel 0.
+    /// </summary>
+    /// <param name="scene">The scene to make the program output.</param>
+    public static void SetOutputSource(Scene scene)
+    {
+        ArgumentNullException.ThrowIfNull(scene);
+        SetOutputSource(0, scene);
+    }
+
+    /// <summary>
     /// Clears a source from an output channel.
     /// </summary>
     /// <param name="channel">The output channel to clear (0-63).</param>

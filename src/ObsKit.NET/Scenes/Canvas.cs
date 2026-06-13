@@ -156,7 +156,7 @@ public sealed class Canvas : ObsObject
 
     /// <summary>
     /// Sets the scene rendered on this canvas (channel 0), like
-    /// <c>Scene.SetAsProgram</c> does for the main canvas.
+    /// <c>Obs.SetOutputSource</c> does for the main canvas.
     /// </summary>
     /// <param name="scene">The scene to render.</param>
     /// <param name="channel">The canvas channel (0-63).</param>

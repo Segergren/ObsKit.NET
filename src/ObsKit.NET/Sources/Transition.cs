@@ -10,7 +10,7 @@ namespace ObsKit.NET.Sources;
 ///
 /// <para>A transition blends between two sub-sources. To use one as the program
 /// transition, assign it to an output channel with
-/// <see cref="ObsKit.NET.Obs.SetOutputSource"/>, seed the starting scene with
+/// <see cref="ObsKit.NET.Obs.SetOutputSource(uint, Source?)"/>, seed the starting scene with
 /// <see cref="Set(Scenes.Scene?)"/>, then animate to a new scene with
 /// <see cref="Start(Scenes.Scene, System.TimeSpan, Native.Types.ObsTransitionMode)"/>.</para>
 /// </summary>

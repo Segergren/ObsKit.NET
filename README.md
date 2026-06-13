@@ -27,7 +27,8 @@ Console.WriteLine($"OBS {Obs.Version} initialized");
 using var scene = Obs.Scenes.Create("My Scene");
 using var monitor = MonitorCapture.FromPrimary();
 scene.AddSource(monitor);
-scene.SetAsProgram();
+Obs.SetOutputSource(scene);
+// Obs.SetOutputSource(1, scene);   // ...or assign to a specific channel (0 = program output; 1-63 hold additional global sources)
 
 // Set up and start recording
 using var recording = new RecordingOutput("My Recording")
