@@ -2,30 +2,6 @@
 
 A modern .NET 10 wrapper for OBS Studio, providing a fluent C# API for video recording, streaming, and replay buffer functionality.
 
-## Features
-
-- **Cross-Platform** - Windows, Linux, and macOS support
-- **Fluent API** - Clean, chainable configuration
-- **Streaming** - Stream to Twitch, YouTube, Facebook, custom RTMP servers, or WHIP/WebRTC for sub-second latency
-- **Raw Data Taps** - Zero-copy callbacks for video frames and audio samples (previews, waveforms, voice detection, custom processing)
-- **Recording** - Record video to Hybrid MP4 (crash-resilient), MP4, MKV, FLV, and more, with chapter markers and file splitting
-- **Replay Buffer** - Keep a rolling buffer of the last N seconds, with awaitable saves
-- **Preview Display** - Render the live canvas (or one source) directly into your app's window
-- **Multiple Canvases** - Record a second view simultaneously, e.g. a vertical 9:16 mix (OBS 31+)
-- **Sources** - Monitor capture, window capture, game capture (with game audio), webcam, application audio, microphone/desktop audio, images, media files, text, solid color, browser overlays
-- **Filters** - Noise gate, noise suppression, gain, compressor, limiter, expander, crop, color correction, chroma key, sharpness, scaling, render delay
-- **Scene Transitions** - Animate the program output between scenes (fade, cut, slide, swipe, wipe, stinger), with auto or manual scrubbing
-- **Encoders** - x264, NVENC, AMF, QuickSync, VideoToolbox (H.264/HEVC/AV1), AAC/Opus/FLAC audio, with runtime capability discovery
-- **Virtual Camera** - Expose the canvas as a system camera device
-- **Audio Tooling** - Per-track routing, live level meters, dB volume and curve-aware faders, sync offset, balance, monitoring device selection
-- **Property Introspection** - Enumerate any source's configurable properties (types, ranges, option lists) to build dynamic config UIs or discover devices/resolutions
-- **Headless Operation** - Run without GUI dependencies
-
-## Requirements
-
-- .NET 10.0 or later
-- OBS Studio runtime (see [OBS Runtime Setup](#obs-runtime-setup))
-
 ## Quick Start
 
 ```csharp
@@ -66,53 +42,6 @@ Console.ReadKey();
 Console.WriteLine($"Recorded {recording.TotalFrames} frames");
 recording.Stop();   // with Obs.AutoDispose (default), Stop also disposes the output
 ```
-
-## OBS Runtime Setup
-
-ObsKit.NET requires OBS Studio binaries. Use the setup script to download them:
-
-```bash
-./tools/setup-obs-runtime.sh
-```
-
-The script will prompt you for version and platform. For manual setup, download OBS from [GitHub Releases](https://github.com/obsproject/obs-studio/releases).
-
-### Windows Structure
-
-```
-YourApp/
-├── YourApp.exe
-├── obs.dll, obs-ffmpeg-mux.exe, *.dll  # From OBS bin/64bit/
-├── data/
-│   ├── libobs/                          # Shader files
-│   └── obs-plugins/                     # Plugin data
-└── obs-plugins/64bit/                   # Plugin DLLs
-```
-
-### Linux Structure
-
-```
-YourApp/
-├── YourApp
-├── lib/libobs.so.0                      # OBS libraries
-├── obs-plugins/                         # Plugin .so files
-└── data/libobs/, obs-plugins/           # Data files
-```
-
-Run with: `LD_LIBRARY_PATH="$PWD/lib" ./YourApp`
-
-### macOS Structure
-
-```
-YourApp/
-├── YourApp
-└── OBS.app/Contents/
-    ├── Frameworks/                      # OBS libraries
-    ├── PlugIns/                         # Plugin .so files
-    └── Resources/data/                  # Data files
-```
-
-Run with: `DYLD_LIBRARY_PATH="$PWD/OBS.app/Contents/Frameworks" ./YourApp`
 
 ## Source Types
 
@@ -615,31 +544,42 @@ Console.WriteLine($"Congestion: {streaming.Congestion:P0}");
 streaming.Stop();
 ```
 
+## Features
+
+- **Cross-Platform** - Windows, Linux, and macOS support
+- **Fluent API** - Clean, chainable configuration
+- **Streaming** - Stream to Twitch, YouTube, Facebook, custom RTMP servers, or WHIP/WebRTC for sub-second latency
+- **Raw Data Taps** - Zero-copy callbacks for video frames and audio samples (previews, waveforms, voice detection, custom processing)
+- **Recording** - Record video to Hybrid MP4 (crash-resilient), MP4, MKV, FLV, and more, with chapter markers and file splitting
+- **Replay Buffer** - Keep a rolling buffer of the last N seconds, with awaitable saves
+- **Preview Display** - Render the live canvas (or one source) directly into your app's window
+- **Multiple Canvases** - Record a second view simultaneously, e.g. a vertical 9:16 mix (OBS 31+)
+- **Sources** - Monitor capture, window capture, game capture (with game audio), webcam, application audio, microphone/desktop audio, images, media files, text, solid color, browser overlays
+- **Filters** - Noise gate, noise suppression, gain, compressor, limiter, expander, crop, color correction, chroma key, sharpness, scaling, render delay
+- **Scene Transitions** - Animate the program output between scenes (fade, cut, slide, swipe, wipe, stinger), with auto or manual scrubbing
+- **Encoders** - x264, NVENC, AMF, QuickSync, VideoToolbox (H.264/HEVC/AV1), AAC/Opus/FLAC audio, with runtime capability discovery
+- **Virtual Camera** - Expose the canvas as a system camera device
+- **Audio Tooling** - Per-track routing, live level meters, dB volume and curve-aware faders, sync offset, balance, monitoring device selection
+- **Property Introspection** - Enumerate any source's configurable properties (types, ranges, option lists) to build dynamic config UIs or discover devices/resolutions
+- **Headless Operation** - Run without GUI dependencies
+
+## Requirements
+
+- .NET 10.0 or later
+- OBS Studio runtime (see [OBS Runtime Setup](#obs-runtime-setup))
+
 ## Threading Model
 
-Everything OBS tells you about happens on **OBS's internal threads**, not yours:
-
-- Events (`Stopped`, `Saved`, `Hooked`/`Unhooked`, `LevelsUpdated`) and signal callbacks fire on OBS signal/graphics threads.
-- Raw video callbacks run on the video thread; raw audio callbacks run on the audio thread (every ~21 ms at 48 kHz).
-
-Three rules keep you safe:
-
-1. **Never block in a callback.** A slow handler stalls rendering, encoding, or audio for the whole pipeline. Hand work off to a queue/`Channel` and return.
-2. **Never touch UI directly.** Marshal to your UI thread first (`Dispatcher.Invoke`, `SynchronizationContext.Post`, `Control.BeginInvoke`).
-3. **Copy frame/sample data out if you need it later.** The pointers inside `RawVideoFrame`/`RawAudioFrame` are only valid for the duration of the callback.
-
-Also: don't dispose an object from inside its own callback (e.g. disposing a `SignalConnection` from the handler it invokes) — disconnect waits for in-flight callbacks to finish, so it deadlocks.
-
-Calling ObsKit APIs from any of *your* threads is fine; libobs synchronizes internally.
+OBS events, signal callbacks, and raw video/audio callbacks fire on OBS's own threads. In a callback: never block, don't touch the UI directly (marshal to your UI thread), and copy out any `RawVideoFrame`/`RawAudioFrame` data you need afterwards (the pointers are only valid during the call). Don't dispose an object from inside its own callback — it deadlocks. Calling ObsKit APIs from your own threads is fine.
 
 ## Object Lifetime & Ownership
 
-Every wrapper owns a native OBS object and is `IDisposable`. The rules:
+Every wrapper owns a native OBS object and is `IDisposable`.
 
-- **Dispose in reverse order of creation**: outputs → encoders → sources/scenes → `Obs` context last. `using var obs = Obs.Initialize(...)` at the top of your app handles shutdown correctly.
-- **`Obs.AutoDispose` (default `true`)**: outputs are *one-shot* — `output.Stop()` detaches its encoders and disposes the output, so don't reuse the instance afterwards. Set `Obs.AutoDispose = false` if you want to start/stop the same output repeatedly and manage disposal yourself. (`ReplayBuffer.ResetAsync()` is safe under either setting.)
-- **`takeOwnership` parameters** (`WithVideoEncoder(encoder, takeOwnership: true)`, `WithService(...)`): when `true`, the output disposes the encoder/service for you; when `false` (default), you keep that responsibility — useful when sharing one encoder between a recording and a replay buffer.
-- **Keep subscriptions referenced.** `RawVideoSubscription`, `RawAudioSubscription`, `SourceAudioSubscription`, `SignalConnection`, `AudioMeter`, and `PreviewDisplay` hold native callbacks — store them in a field and dispose them when done; don't let them become unreachable while active.
+- Dispose in reverse order of creation; `using var obs = Obs.Initialize(...)` handles shutdown.
+- With `Obs.AutoDispose` on (default), `output.Stop()` disposes the output — don't reuse it; set it `false` to start/stop an output repeatedly.
+- `takeOwnership: true` lets the output dispose the encoder/service for you; otherwise that stays your responsibility.
+- Keep subscriptions referenced (`RawVideoSubscription`, `SourceAudioSubscription`, `SignalConnection`, `AudioMeter`, `PreviewDisplay`, …) — store them in a field and dispose when done.
 
 ## Diagnostics
 
@@ -701,16 +641,52 @@ And reference it in your `.csproj`:
 
 Alternatively, use `MonitorCaptureMethod.WindowsGraphicsCapture` which doesn't require DPI awareness.
 
-## Troubleshooting
+## OBS Runtime Setup
 
-| Problem | Solution |
-|---------|----------|
-| "OBS runtime not found" | Ensure `obs.dll` / `libobs.so.0` / `libobs.0.dylib` is in the correct location |
-| "Failed to find 'default.effect'" | The `data/libobs/` folder is missing |
-| "Source ID 'xxx' not found" | Required plugin not loaded |
-| Recording fails | Ensure `obs-ffmpeg-mux.exe` exists (Windows) and output path is writable |
-| Module loading hangs | Use `.ForHeadlessOperation()` to exclude GUI modules |
-| DXGI DuplicateOutput1 DPI error | See [DPI Awareness](#dpi-awareness-windows) section above |
+ObsKit.NET requires OBS Studio binaries. Use the setup script to download them:
+
+```bash
+./tools/setup-obs-runtime.sh
+```
+
+The script will prompt you for version and platform. For manual setup, download OBS from [GitHub Releases](https://github.com/obsproject/obs-studio/releases).
+
+### Windows Structure
+
+```
+YourApp/
+├── YourApp.exe
+├── obs.dll, obs-ffmpeg-mux.exe, *.dll  # From OBS bin/64bit/
+├── data/
+│   ├── libobs/                          # Shader files
+│   └── obs-plugins/                     # Plugin data
+└── obs-plugins/64bit/                   # Plugin DLLs
+```
+
+### Linux Structure
+
+```
+YourApp/
+├── YourApp
+├── lib/libobs.so.0                      # OBS libraries
+├── obs-plugins/                         # Plugin .so files
+└── data/libobs/, obs-plugins/           # Data files
+```
+
+Run with: `LD_LIBRARY_PATH="$PWD/lib" ./YourApp`
+
+### macOS Structure
+
+```
+YourApp/
+├── YourApp
+└── OBS.app/Contents/
+    ├── Frameworks/                      # OBS libraries
+    ├── PlugIns/                         # Plugin .so files
+    └── Resources/data/                  # Data files
+```
+
+Run with: `DYLD_LIBRARY_PATH="$PWD/OBS.app/Contents/Frameworks" ./YourApp`
 
 ## License
 
