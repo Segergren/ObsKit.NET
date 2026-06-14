@@ -1,6 +1,8 @@
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using ObsKit.NET.Core;
+using ObsKit.NET.Native.Interop;
+using ObsKit.NET.Native.Types;
 
 namespace ObsKit.NET.Sources;
 
@@ -66,8 +68,20 @@ public sealed class WebcamCapture : Source
     /// <param name="name">The source name.</param>
     /// <param name="deviceId">The device id (from <see cref="ListDevices"/>) or null.</param>
     public WebcamCapture(string name, string? deviceId = null)
-        : base(TypeIdForPlatform, name, BuildInitialSettings(deviceId))
+        : base(Create(name, deviceId), TypeIdForPlatform, ownsHandle: true)
     {
+    }
+
+    private static ObsSourceHandle Create(string name, string? deviceId)
+    {
+        ThrowIfNotInitialized();
+        // obs_source_create takes its own reference to the settings (obs_data_addref), so we must
+        // dispose our create-time reference; otherwise it leaks until finalization.
+        using var settings = BuildInitialSettings(deviceId);
+        var handle = ObsSource.obs_source_create(TypeIdForPlatform, name, settings.Handle, default);
+        if (handle.IsNull)
+            throw new InvalidOperationException($"Failed to create source of type '{TypeIdForPlatform}'");
+        return handle;
     }
 
     /// <summary>

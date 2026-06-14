@@ -1,4 +1,6 @@
 using ObsKit.NET.Core;
+using ObsKit.NET.Native.Interop;
+using ObsKit.NET.Native.Types;
 using ObsKit.NET.Platform;
 using ObsKit.NET.Platform.Windows.Interop;
 
@@ -60,8 +62,20 @@ public sealed class MonitorCapture : Source
     /// <param name="monitorIndex">The monitor index (0 = primary).</param>
     /// <param name="captureCursor">Whether to capture the cursor.</param>
     public MonitorCapture(string name, int monitorIndex = 0, bool captureCursor = true)
-        : base(TypeIdForPlatform, name, BuildInitialSettings(monitorIndex, captureCursor))
+        : base(Create(name, monitorIndex, captureCursor), TypeIdForPlatform, ownsHandle: true)
     {
+    }
+
+    private static ObsSourceHandle Create(string name, int monitorIndex, bool captureCursor)
+    {
+        ThrowIfNotInitialized();
+        // obs_source_create takes its own reference to the settings (obs_data_addref), so we must
+        // dispose our create-time reference; otherwise it leaks until finalization.
+        using var settings = BuildInitialSettings(monitorIndex, captureCursor);
+        var handle = ObsSource.obs_source_create(TypeIdForPlatform, name, settings.Handle, default);
+        if (handle.IsNull)
+            throw new InvalidOperationException($"Failed to create source of type '{TypeIdForPlatform}'");
+        return handle;
     }
 
     /// <summary>

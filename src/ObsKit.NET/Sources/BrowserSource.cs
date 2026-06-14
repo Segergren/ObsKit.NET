@@ -1,5 +1,6 @@
 using ObsKit.NET.Core;
 using ObsKit.NET.Native.Interop;
+using ObsKit.NET.Native.Types;
 
 namespace ObsKit.NET.Sources;
 
@@ -33,8 +34,20 @@ public sealed class BrowserSource : Source
     /// <param name="height">The page height in pixels.</param>
     /// <exception cref="NotSupportedException">The obs-browser plugin is not loaded.</exception>
     public BrowserSource(string name, string url, int width = 800, int height = 600)
-        : base(SourceTypeId, ValidatePlugin(name), BuildInitialSettings(url, width, height))
+        : base(Create(ValidatePlugin(name), url, width, height), SourceTypeId, ownsHandle: true)
     {
+    }
+
+    private static ObsSourceHandle Create(string name, string url, int width, int height)
+    {
+        ThrowIfNotInitialized();
+        // obs_source_create takes its own reference to the settings (obs_data_addref), so we must
+        // dispose our create-time reference; otherwise it leaks until finalization.
+        using var settings = BuildInitialSettings(url, width, height);
+        var handle = ObsSource.obs_source_create(SourceTypeId, name, settings.Handle, default);
+        if (handle.IsNull)
+            throw new InvalidOperationException($"Failed to create source of type '{SourceTypeId}'");
+        return handle;
     }
 
     private static string ValidatePlugin(string name)

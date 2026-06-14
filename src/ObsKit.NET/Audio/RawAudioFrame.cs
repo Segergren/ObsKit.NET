@@ -60,10 +60,19 @@ public unsafe readonly ref struct RawAudioFrame
         _ => 0
     };
 
-    /// <summary>Raw pointer to the start of the given plane, or <see cref="nint.Zero"/> if unused.</summary>
+    /// <summary>
+    /// Raw pointer to the start of the given plane (valid indices are 0 to <see cref="PlaneCount"/> - 1).
+    /// </summary>
+    /// <remarks>
+    /// Only the first <see cref="PlaneCount"/> planes are meaningful. libobs does not zero the
+    /// remaining slots of its native plane array, so indices &gt;= <see cref="PlaneCount"/> would
+    /// alias uninitialized (garbage) pointers; they are rejected rather than returned.
+    /// </remarks>
+    /// <param name="planeIndex">The plane index (0 to <see cref="PlaneCount"/> - 1).</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="planeIndex"/> is outside [0, <see cref="PlaneCount"/>).</exception>
     public nint GetPlanePointer(int planeIndex)
     {
-        if ((uint)planeIndex >= AudioDataNative.MaxAvPlanes)
+        if ((uint)planeIndex >= (uint)PlaneCount)
             throw new ArgumentOutOfRangeException(nameof(planeIndex));
         return _data[planeIndex];
     }
@@ -75,7 +84,7 @@ public unsafe readonly ref struct RawAudioFrame
     /// <param name="planeIndex">The plane index (0 to <see cref="PlaneCount"/> - 1).</param>
     public ReadOnlySpan<byte> GetPlane(int planeIndex)
     {
-        if ((uint)planeIndex >= AudioDataNative.MaxAvPlanes)
+        if ((uint)planeIndex >= (uint)PlaneCount)
             throw new ArgumentOutOfRangeException(nameof(planeIndex));
         var ptr = _data[planeIndex];
         if (ptr == nint.Zero)
@@ -95,7 +104,7 @@ public unsafe readonly ref struct RawAudioFrame
         if (Format != AudioFormat.Float && Format != AudioFormat.FloatPlanar)
             throw new InvalidOperationException($"Samples are {Format}, not float.");
 
-        if ((uint)planeIndex >= AudioDataNative.MaxAvPlanes)
+        if ((uint)planeIndex >= (uint)PlaneCount)
             throw new ArgumentOutOfRangeException(nameof(planeIndex));
         var ptr = _data[planeIndex];
         if (ptr == nint.Zero)

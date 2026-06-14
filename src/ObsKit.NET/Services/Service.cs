@@ -153,15 +153,21 @@ public class Service : ObsObject
     /// <summary>
     /// Creates a Facebook Live streaming service.
     /// </summary>
+    /// <remarks>
+    /// For the built-in "Facebook Live" service, libobs (rtmp_common) constrains the server to one
+    /// of the URLs in its bundled services.json: any Facebook server not in that list is silently
+    /// replaced with the current default on create/update. To stream to a genuinely custom Facebook
+    /// ingest, use <see cref="CreateCustom"/> (rtmp_custom) instead, where the server is honoured verbatim.
+    /// </remarks>
     /// <param name="streamKey">Your Facebook stream key.</param>
-    /// <param name="server">Server URL or use default Facebook ingest.</param>
+    /// <param name="server">Server URL, or null for the default Facebook ingest (see remarks).</param>
     /// <param name="name">Optional display name for the service.</param>
     /// <returns>A configured Facebook Live service.</returns>
     public static Service CreateFacebook(string streamKey, string? server = null, string name = "Facebook Live")
     {
         using var settings = new Settings();
         settings.Set("service", "Facebook Live");
-        settings.Set("server", server ?? "rtmps://live-api-s.facebook.com:443/rtmp/");
+        settings.Set("server", server ?? "rtmps://rtmp-api.facebook.com:443/rtmp/");
         settings.Set("key", streamKey);
 
         return new Service(Types.RtmpCommon, name, settings);
