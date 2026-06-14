@@ -14,6 +14,7 @@ namespace ObsKit.NET.Scenes;
 public sealed class Scene : ObsObject, IEnumerable<SceneItem>
 {
     private uint? _assignedChannel;
+    private bool _removed;
     private readonly List<SceneItem> _ownedSceneItems = new();
 
     /// <summary>
@@ -370,6 +371,25 @@ public sealed class Scene : ObsObject, IEnumerable<SceneItem>
         }
     }
 
+    /// <summary>
+    /// Removes this scene from OBS — unlinks it from the canvas so it stops rendering and
+    /// is destroyed once all references are released. This is distinct from disposing the
+    /// wrapper: disposing only releases this wrapper's reference and leaves the scene in the
+    /// session, whereas <see cref="Remove"/> deletes it. Disposing a wrapper that merely
+    /// references an existing scene (e.g. one obtained via <see cref="FromSource"/> or
+    /// <c>SceneCollection</c> enumeration) must therefore never delete that scene.
+    /// </summary>
+    public void Remove()
+    {
+        if (_removed)
+            return;
+        _removed = true;
+
+        var sourceHandle = ObsScene.obs_scene_get_source(Handle);
+        if (!sourceHandle.IsNull)
+            ObsSource.obs_source_remove(sourceHandle);
+    }
+
     protected override void ReleaseHandle(nint handle)
     {
         var sceneHandle = (ObsSceneHandle)handle;
@@ -390,15 +410,10 @@ public sealed class Scene : ObsObject, IEnumerable<SceneItem>
         }
         _ownedSceneItems.Clear();
 
-        // Remove scene source from canvas (must be done before release)
-        var sourceHandle = ObsScene.obs_scene_get_source(sceneHandle);
-        if (!sourceHandle.IsNull)
-        {
-            try { ObsSource.obs_source_remove(sourceHandle); }
-            catch { /* Ignore */ }
-        }
-
-        // Release the scene
+        // Release the single reference this wrapper owns. Removing the scene from OBS is the
+        // explicit job of Remove(), not of disposal/finalization: a created public scene is
+        // also held by the main canvas, so releasing our reference does not destroy it, and a
+        // wrapper that merely references an existing scene must not delete it on dispose.
         ObsScene.obs_scene_release(sceneHandle);
     }
 

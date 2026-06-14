@@ -90,7 +90,7 @@ public sealed class ReplayBuffer : Output
     /// <param name="format">Filename format (e.g., "Replay %CCYY-%MM-%DD %hh-%mm-%ss").</param>
     public ReplayBuffer SetFilenameFormat(string format)
     {
-        Update(s => s.Set("filename_formatting", format));
+        Update(s => s.Set("format", format));
         return this;
     }
 

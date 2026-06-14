@@ -46,13 +46,6 @@ internal static partial class ObsEncoder
     internal static partial void obs_encoder_release(ObsEncoderHandle encoder);
 
     /// <summary>
-    /// Adds a reference to an encoder.
-    /// </summary>
-    [LibraryImport(Lib, EntryPoint = "obs_encoder_addref")]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    internal static partial void obs_encoder_addref(ObsEncoderHandle encoder);
-
-    /// <summary>
     /// Gets an additional reference to an encoder.
     /// </summary>
     [LibraryImport(Lib, EntryPoint = "obs_encoder_get_ref")]
@@ -328,14 +321,11 @@ internal static partial class ObsEncoder
     #region GPU Encoding
 
     /// <summary>
-    /// Checks if the encoder supports GPU encoding.
+    /// Gets the capability flags of an encoder instance (OBS_ENCODER_CAP_*).
     /// </summary>
-    public static bool obs_encoder_gpu_encode_available(ObsEncoderHandle encoder)
-        => obs_encoder_gpu_encode_available_native(encoder) != 0;
-
-    [LibraryImport(Lib, EntryPoint = "obs_encoder_gpu_encode_available")]
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_get_caps")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    private static partial byte obs_encoder_gpu_encode_available_native(ObsEncoderHandle encoder);
+    internal static partial uint obs_encoder_get_caps(ObsEncoderHandle encoder);
 
     #endregion
 

@@ -113,13 +113,31 @@ public sealed class SignalConnection : IDisposable
     }
 
     /// <summary>
-    /// Disconnects the signal handler.
+    /// Disconnects the signal handler. The returned connection MUST be kept alive for as long
+    /// as you want the callback to fire; if it is dropped without being disposed, the finalizer
+    /// disconnects it (the callback then stops firing) rather than leaving a dangling native
+    /// function pointer that would crash on the next signal.
     /// </summary>
     public void Dispose()
     {
-        if (_disposed) return;
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
 
-        ObsSignal.signal_handler_disconnect(_signalHandler, _signal, _nativeCallback, nint.Zero);
+    ~SignalConnection()
+    {
+        Dispose(disposing: false);
+    }
+
+    private void Dispose(bool disposing)
+    {
+        if (_disposed) return;
         _disposed = true;
+
+        // signal_handler_connect_ref holds a reference on the signal handler, so the handler is
+        // still alive here even when this runs from the finalizer — disconnecting is safe and
+        // prevents libobs from later invoking a collected (freed) callback thunk.
+        ObsSignal.signal_handler_disconnect(_signalHandler, _signal, _nativeCallback, nint.Zero);
+        GC.KeepAlive(_nativeCallback);
     }
 }

@@ -34,13 +34,6 @@ internal static partial class ObsOutput
     internal static partial void obs_output_release(ObsOutputHandle output);
 
     /// <summary>
-    /// Adds a reference to an output.
-    /// </summary>
-    [LibraryImport(Lib, EntryPoint = "obs_output_addref")]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    internal static partial void obs_output_addref(ObsOutputHandle output);
-
-    /// <summary>
     /// Gets an additional reference to an output.
     /// </summary>
     [LibraryImport(Lib, EntryPoint = "obs_output_get_ref")]
@@ -209,18 +202,13 @@ internal static partial class ObsOutput
     internal static partial ObsEncoderHandle obs_output_get_audio_encoder(ObsOutputHandle output, nuint idx);
 
     /// <summary>
-    /// Sets the video for the output.
+    /// Sets the raw media (video and audio) for a non-encoded output. Encoded outputs use
+    /// the encoder setters instead; raw outputs auto-bind global media at creation, so this
+    /// is only needed to override them.
     /// </summary>
-    [LibraryImport(Lib, EntryPoint = "obs_output_set_video")]
+    [LibraryImport(Lib, EntryPoint = "obs_output_set_media")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    internal static partial void obs_output_set_video(ObsOutputHandle output, VideoHandle video);
-
-    /// <summary>
-    /// Sets the audio for the output.
-    /// </summary>
-    [LibraryImport(Lib, EntryPoint = "obs_output_set_audio")]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    internal static partial void obs_output_set_audio(ObsOutputHandle output, AudioHandle audio);
+    internal static partial void obs_output_set_media(ObsOutputHandle output, VideoHandle video, AudioHandle audio);
 
     /// <summary>
     /// Gets the video for the output.

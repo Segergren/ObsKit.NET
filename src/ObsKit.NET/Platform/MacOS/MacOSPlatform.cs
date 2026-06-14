@@ -212,7 +212,7 @@ internal sealed partial class MacOSPlatform : IPlatformServices
         int width = 0, height = 0;
         if (CoreFoundation.CFDictionaryGetValueIfPresent(windowDict, WindowBoundsKey.Value, out var boundsValue))
         {
-            if (CoreFoundation.CGRectMakeWithDictionaryRepresentation(boundsValue, out var rect))
+            if (CoreGraphics.CGRectMakeWithDictionaryRepresentation(boundsValue, out var rect))
             {
                 width = (int)rect.Size.Width;
                 height = (int)rect.Size.Height;

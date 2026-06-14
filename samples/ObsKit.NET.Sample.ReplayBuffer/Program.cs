@@ -63,7 +63,7 @@ Console.WriteLine($"Replay buffer: {replayBuffer.MaxSeconds} seconds");
 Console.WriteLine($"Output directory: {outputDir}\n");
 
 // Connect to replay buffer signals using strongly-typed enums
-// Available signals: Start, Stop, Saved, WritingError, etc.
+// Available signals: Start, Stop, Saved, FileChanged, etc.
 using var savedSignal = replayBuffer.ConnectSignal(OutputSignal.Saved, _ =>
 {
     Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] [Signal] Replay buffer saved successfully!");

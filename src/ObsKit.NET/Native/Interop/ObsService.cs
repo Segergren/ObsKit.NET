@@ -44,13 +44,6 @@ internal static partial class ObsService
     internal static partial void obs_service_release(ObsServiceHandle service);
 
     /// <summary>
-    /// Adds a reference to a service.
-    /// </summary>
-    [LibraryImport(Lib, EntryPoint = "obs_service_addref")]
-    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    internal static partial void obs_service_addref(ObsServiceHandle service);
-
-    /// <summary>
     /// Gets an additional reference to a service.
     /// </summary>
     [LibraryImport(Lib, EntryPoint = "obs_service_get_ref")]

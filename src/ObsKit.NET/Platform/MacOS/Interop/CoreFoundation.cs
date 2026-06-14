@@ -188,17 +188,6 @@ internal static partial class CoreFoundation
 
     #endregion
 
-    #region CGRect from Dictionary
-
-    /// <summary>
-    /// Creates a CGRect from a dictionary.
-    /// </summary>
-    [LibraryImport(CoreFoundationLib, EntryPoint = "CGRectMakeWithDictionaryRepresentation")]
-    [return: MarshalAs(UnmanagedType.U1)] // Apple Boolean/_Bool is 1 byte, not the 4-byte Win32 BOOL
-    internal static partial bool CGRectMakeWithDictionaryRepresentation(nint dict, out CoreGraphics.CGRect rect);
-
-    #endregion
-
     #region Constants
 
     // CFString encoding

@@ -153,7 +153,7 @@ public sealed class GameCapture : Source
     /// <summary>
     /// Creates a game capture source for a specific window.
     /// </summary>
-    /// <param name="windowId">The window identifier (format: WindowClass:ProcessName.exe:WindowTitle).</param>
+    /// <param name="windowId">The window identifier (format: WindowTitle:WindowClass:ProcessName.exe, each part encoded). Build it with <see cref="ObsKit.NET.Platform.WindowSpec"/> rather than concatenating by hand.</param>
     /// <param name="name">Optional source name.</param>
     /// <returns>A game capture source.</returns>
     public static GameCapture CaptureWindow(string windowId, string? name = null)
@@ -224,7 +224,7 @@ public sealed class GameCapture : Source
     /// <summary>
     /// Sets the window to capture.
     /// </summary>
-    /// <param name="windowId">The window identifier (format: WindowClass:ProcessName.exe:WindowTitle).</param>
+    /// <param name="windowId">The window identifier (format: WindowTitle:WindowClass:ProcessName.exe, each part encoded). Build it with <see cref="ObsKit.NET.Platform.WindowSpec"/> rather than concatenating by hand.</param>
     public GameCapture SetWindow(string windowId)
     {
         Update(s => s.Set("window", windowId));

@@ -14,7 +14,7 @@ public sealed class SlideshowSource : Source
     /// <summary>
     /// The source type ID for slideshows.
     /// </summary>
-    public const string SourceTypeId = "slideshow";
+    public const string SourceTypeId = "slideshow_v2";
 
     /// <summary>
     /// Transition styles between slides.
@@ -70,7 +70,7 @@ public sealed class SlideshowSource : Source
     /// <summary>
     /// Sets how long each slide is shown.
     /// </summary>
-    /// <param name="duration">The time per slide (OBS default 8 seconds, minimum 50 ms).</param>
+    /// <param name="duration">The time per slide (OBS default 2 seconds, minimum 50 ms).</param>
     public SlideshowSource SetSlideTime(TimeSpan duration)
     {
         Update(s => s.Set("slide_time", (long)duration.TotalMilliseconds));

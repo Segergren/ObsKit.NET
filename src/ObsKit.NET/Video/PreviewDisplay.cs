@@ -77,12 +77,20 @@ public sealed class PreviewDisplay : IDisposable
             Adapter = 0
         };
 
-        var display = ObsDisplay.obs_display_create(ref init, backgroundColor);
+        var display = ObsDisplay.obs_display_create(ref init, ToObsColor(backgroundColor));
         if (display.IsNull)
             throw new InvalidOperationException("Failed to create display. Ensure OBS video is initialized.");
 
         return display;
     }
+
+    /// <summary>
+    /// Converts a 0xRRGGBB color (the public contract) to the byte order libobs decodes
+    /// (vec4_from_rgba reads the low byte as red on little-endian, i.e. 0x00BBGGRR), so a
+    /// caller passing 0xFF0000 actually gets red. The letterbox clear forces alpha = 1.
+    /// </summary>
+    private static uint ToObsColor(uint rgb)
+        => ((rgb & 0x0000FFu) << 16) | (rgb & 0x00FF00u) | ((rgb >> 16) & 0x0000FFu);
 
     /// <summary>
     /// Creates a preview display rendering into an X11 window (Linux).
@@ -107,7 +115,7 @@ public sealed class PreviewDisplay : IDisposable
             Adapter = 0
         };
 
-        var handle = ObsDisplay.obs_display_create_x11(ref init, backgroundColor);
+        var handle = ObsDisplay.obs_display_create_x11(ref init, ToObsColor(backgroundColor));
         if (handle.IsNull)
             throw new InvalidOperationException("Failed to create display. Ensure OBS video is initialized.");
 
@@ -250,7 +258,7 @@ public sealed class PreviewDisplay : IDisposable
     public void SetBackgroundColor(uint color)
     {
         ThrowIfDisposed();
-        ObsDisplay.obs_display_set_background_color(_display, color);
+        ObsDisplay.obs_display_set_background_color(_display, ToObsColor(color));
     }
 
     /// <summary>

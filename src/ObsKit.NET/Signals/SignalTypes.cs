@@ -119,9 +119,7 @@ public enum OutputSignal
     /// <summary>Emitted when output file changes (ffmpeg mux). Calldata: next_file (string).</summary>
     FileChanged,
     /// <summary>Emitted when replay buffer is saved.</summary>
-    Saved,
-    /// <summary>Emitted when there is a writing error.</summary>
-    WritingError
+    Saved
 }
 
 /// <summary>
@@ -221,7 +219,6 @@ public static class SignalExtensions
         OutputSignal.ReconnectSuccess => "reconnect_success",
         OutputSignal.FileChanged => "file_changed",
         OutputSignal.Saved => "saved",
-        OutputSignal.WritingError => "writing_error",
         _ => throw new ArgumentOutOfRangeException(nameof(signal), signal, null)
     };
 

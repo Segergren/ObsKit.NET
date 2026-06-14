@@ -367,7 +367,9 @@ public sealed class WebcamCapture : Source
             return this;
 
         // frame_interval is in 100-nanosecond units (DirectShow REFERENCE_TIME).
-        // -1 means "any". For a positive FPS, interval = 10_000_000 / fps.
+        // win-dshow sentinels: -1 (FPS_MATCHING) = match the OBS canvas/output FPS;
+        // 0 (FPS_HIGHEST) = the device's highest available rate. We default fps<=0 to
+        // FPS_MATCHING (the plugin's own default). For a positive FPS, interval = 10_000_000 / fps.
         var frameInterval = fps > 0 ? (long)Math.Round(10_000_000.0 / fps) : -1L;
 
         Update(s =>

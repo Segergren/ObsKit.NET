@@ -71,6 +71,14 @@ internal static partial class CoreGraphics
     [LibraryImport(CoreGraphicsLib, EntryPoint = "CGWindowListCopyWindowInfo")]
     internal static partial nint CGWindowListCopyWindowInfo(uint option, uint relativeToWindow);
 
+    /// <summary>
+    /// Fills a CGRect from its dictionary representation (e.g. the kCGWindowBounds value).
+    /// Exported by the CoreGraphics framework (CGGeometry.h), not CoreFoundation.
+    /// </summary>
+    [LibraryImport(CoreGraphicsLib, EntryPoint = "CGRectMakeWithDictionaryRepresentation")]
+    [return: MarshalAs(UnmanagedType.U1)] // Apple Boolean/_Bool is 1 byte, not the 4-byte Win32 BOOL
+    internal static partial bool CGRectMakeWithDictionaryRepresentation(nint dict, out CGRect rect);
+
     #endregion
 
     #region Structures

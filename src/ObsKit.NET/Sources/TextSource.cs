@@ -3,7 +3,7 @@ using ObsKit.NET.Core;
 namespace ObsKit.NET.Sources;
 
 /// <summary>
-/// Text source (text_gdiplus on Windows, text_ft2_source elsewhere).
+/// Text source (text_gdiplus on Windows, text_ft2_source_v2 elsewhere).
 /// Renders a text string with a configurable font, color, and outline.
 /// </summary>
 public sealed class TextSource : Source
@@ -14,9 +14,10 @@ public sealed class TextSource : Source
     public const string WindowsTypeId = "text_gdiplus";
 
     /// <summary>
-    /// The source type ID for FreeType2 text rendering (Linux/macOS).
+    /// The source type ID for FreeType2 text rendering (Linux/macOS). Uses the current v2
+    /// registration; the bare "text_ft2_source" id is the obsolete v1.
     /// </summary>
-    public const string FreeType2TypeId = "text_ft2_source";
+    public const string FreeType2TypeId = "text_ft2_source_v2";
 
     /// <summary>
     /// Font style flags (OBS_FONT_*).

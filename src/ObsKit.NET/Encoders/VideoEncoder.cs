@@ -414,8 +414,14 @@ public sealed class VideoEncoder : ObsObject
     /// <summary>Gets the video height.</summary>
     public uint Height => ObsEncoder.obs_encoder_get_height(Handle);
 
-    /// <summary>Gets whether GPU encoding is available.</summary>
-    public bool GpuEncodeAvailable => ObsEncoder.obs_encoder_gpu_encode_available(Handle);
+    /// <summary>Gets this encoder instance's capability flags (OBS_ENCODER_CAP_*).</summary>
+    public EncoderCaps Caps => (EncoderCaps)ObsEncoder.obs_encoder_get_caps(Handle);
+
+    /// <summary>
+    /// Gets whether this encoder consumes GPU textures directly (a hardware/GPU encoder),
+    /// i.e. it advertises the <see cref="EncoderCaps.PassTexture"/> capability.
+    /// </summary>
+    public bool SupportsTextureEncode => (Caps & EncoderCaps.PassTexture) != 0;
 
     /// <summary>Gets the last error message.</summary>
     public string? LastError => ObsEncoder.obs_encoder_get_last_error(Handle);

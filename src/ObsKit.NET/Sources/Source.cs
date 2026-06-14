@@ -735,7 +735,7 @@ public class Source : ObsObject
     private const int GS_ZS_NONE = 0;
     private const uint GS_CLEAR_COLOR = 1;
     private const int GS_BLEND_ONE = 1;
-    private const int GS_BLEND_ZERO = 3;
+    private const int GS_BLEND_ZERO = 0;
 
     /// <summary>
     /// Captures a screenshot of the source as BGRA pixel data.
