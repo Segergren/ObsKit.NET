@@ -368,23 +368,26 @@ public sealed class PreviewDisplay : IDisposable
 
         _disposed = true;
 
-        // Removing the callback blocks until any in-flight draw finishes,
-        // so the source/canvas references can be released safely afterwards.
-        ObsDisplay.obs_display_remove_draw_callback(_display, _drawCallback, 0);
-        ObsDisplay.obs_display_destroy(_display);
-
-        if (!_sourceHandle.IsNull)
+        // After obs_shutdown the native display, its canvas and source are already freed and the
+        // global obs pointer is NULL. obs_display_destroy dereferences obs with no guard, so calling
+        // it now would crash on the finalizer thread at exit. Skip native teardown when the core is
+        // down — everything it would free is already gone.
+        if (Obs.IsInitialized)
         {
-            ObsSource.obs_source_release(_sourceHandle);
-            _sourceHandle = ObsSourceHandle.Null;
+            // Removing the callback blocks until any in-flight draw finishes,
+            // so the source/canvas references can be released safely afterwards.
+            ObsDisplay.obs_display_remove_draw_callback(_display, _drawCallback, 0);
+            ObsDisplay.obs_display_destroy(_display);
+
+            if (!_sourceHandle.IsNull)
+                ObsSource.obs_source_release(_sourceHandle);
+
+            if (!_canvasHandle.IsNull)
+                ObsCanvas.obs_canvas_release(_canvasHandle);
         }
 
-        if (!_canvasHandle.IsNull)
-        {
-            ObsCanvas.obs_canvas_release(_canvasHandle);
-            _canvasHandle = ObsCanvasHandle.Null;
-        }
-
+        _sourceHandle = ObsSourceHandle.Null;
+        _canvasHandle = ObsCanvasHandle.Null;
         _source = null;
         _canvas = null;
     }

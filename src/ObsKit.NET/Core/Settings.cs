@@ -263,6 +263,12 @@ public sealed class Settings : ObsObject
 
     #endregion
 
+    // obs_data is reference-counted independently of the OBS core (it exists before obs_startup and
+    // after obs_shutdown, and obs_data_release never touches the global obs), so it must always be
+    // released — including from a finalizer that runs after the core is shut down.
+    /// <inheritdoc/>
+    protected override bool ReleaseRequiresObs => false;
+
     /// <inheritdoc/>
     protected override void ReleaseHandle(nint handle)
     {

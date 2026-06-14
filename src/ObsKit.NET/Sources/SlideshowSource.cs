@@ -100,23 +100,36 @@ public sealed class SlideshowSource : Source
         return this;
     }
 
+    // slideshow_v2 (the mk2 rewrite) replaced the independent legacy "loop"/"randomize" booleans
+    // with a single "playback_mode" combo (once/loop/random) and only reads the legacy keys via a
+    // one-time migration, so writing them is silently ignored after the first update. Track both
+    // intents and resolve them to "playback_mode" on every change. mk2's default is "loop".
+    private bool _loop = true;
+    private bool _randomize;
+
+    // once = play through then stop; loop = loop in order; random = loop in random order.
+    private string ResolvePlaybackMode() => _randomize ? "random" : (_loop ? "loop" : "once");
+
     /// <summary>
     /// Sets whether the slideshow loops back to the first slide.
     /// </summary>
     /// <param name="loop">Whether to loop.</param>
     public SlideshowSource SetLoop(bool loop)
     {
-        Update(s => s.Set("loop", loop));
+        _loop = loop;
+        Update(s => s.Set("playback_mode", ResolvePlaybackMode()));
         return this;
     }
 
     /// <summary>
-    /// Sets whether slides play in random order.
+    /// Sets whether slides play in random order. In slideshow_v2 random order always loops, so
+    /// enabling randomize takes precedence over <see cref="SetLoop"/>.
     /// </summary>
     /// <param name="randomize">Whether to randomize.</param>
     public SlideshowSource SetRandomize(bool randomize)
     {
-        Update(s => s.Set("randomize", randomize));
+        _randomize = randomize;
+        Update(s => s.Set("playback_mode", ResolvePlaybackMode()));
         return this;
     }
 

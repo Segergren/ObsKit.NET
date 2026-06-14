@@ -61,6 +61,20 @@ public abstract class ObsObject : IDisposable
     protected abstract void ReleaseHandle(nint handle);
 
     /// <summary>
+    /// Whether <see cref="ReleaseHandle"/> must only run while the OBS core is initialized.
+    /// </summary>
+    /// <remarks>
+    /// True for objects owned by the OBS core (sources, scenes, scene items, canvases, outputs,
+    /// encoders, services): <c>obs_shutdown</c> already destroys these native objects and nulls the
+    /// global <c>obs</c> pointer, and several of their release functions (e.g. obs_output_release,
+    /// obs_encoder_release, obs_service_release, obs_sceneitem_release) do not guard against that, so
+    /// releasing after shutdown reads/writes freed memory — a crash on the finalizer thread at exit.
+    /// Independent objects whose lifetime is not tied to the core (e.g. obs_data settings) override
+    /// this to false so they are always released.
+    /// </remarks>
+    protected virtual bool ReleaseRequiresObs => true;
+
+    /// <summary>
     /// Replaces the native handle without releasing the previous one.
     /// The caller is responsible for releasing the returned previous handle.
     /// </summary>
@@ -88,7 +102,12 @@ public abstract class ObsObject : IDisposable
 
         if (_ownsHandle && _handle != 0)
         {
-            ReleaseHandle(_handle);
+            // After obs_shutdown, every OBS-core-owned native object has already been freed and the
+            // global obs pointer is NULL. Releasing again would be a use-after-free (most release
+            // functions do not self-guard). Skip it once the core is down — the native object is
+            // already gone, so nothing leaks. Independent objects (obs_data) keep releasing.
+            if (!ReleaseRequiresObs || Obs.IsInitialized)
+                ReleaseHandle(_handle);
         }
 
         _handle = 0;
