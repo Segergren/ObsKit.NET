@@ -303,6 +303,34 @@ public class Service : ObsObject
     }
 
     /// <summary>
+    /// Gets the output resolutions the service supports, or an empty list when the
+    /// service imposes no restriction.
+    /// </summary>
+    public IReadOnlyList<(int Width, int Height)> GetSupportedResolutions()
+    {
+        ObsService.obs_service_get_supported_resolutions(Handle, out var ptr, out var count);
+        if (ptr == nint.Zero || count == 0)
+            return [];
+
+        try
+        {
+            var result = new List<(int, int)>((int)count);
+            for (nuint i = 0; i < count; i++)
+            {
+                // struct obs_service_resolution { int cx; int cy; }
+                var cx = System.Runtime.InteropServices.Marshal.ReadInt32(ptr, (int)(i * 8));
+                var cy = System.Runtime.InteropServices.Marshal.ReadInt32(ptr, (int)(i * 8 + 4));
+                result.Add((cx, cy));
+            }
+            return result;
+        }
+        finally
+        {
+            ObsSignal.bfree(ptr);
+        }
+    }
+
+    /// <summary>
     /// Gets the supported video codecs for the service.
     /// </summary>
     public string[] SupportedVideoCodecs => GetCodecArray(ObsService.obs_service_get_supported_video_codecs(Handle));

@@ -209,6 +209,15 @@ internal static partial class ObsService
 
     #endregion
 
+    /// <summary>
+    /// Gets the resolutions a service supports. resolutions receives a bmalloc'd
+    /// array of obs_service_resolution {int cx; int cy;} — free with bfree.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_service_get_supported_resolutions")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_service_get_supported_resolutions(
+        ObsServiceHandle service, out nint resolutions, out nuint count);
+
     #region Lookup/Enumeration
 
     /// <summary>

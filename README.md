@@ -44,6 +44,20 @@ Console.WriteLine($"Recorded {recording.TotalFrames} frames");
 recording.Stop();   // with Obs.AutoDispose (default), Stop also disposes the output
 ```
 
+### Warming up capture sources
+
+Game/window capture only hooks its target while "showing". Keep a capture hooked
+before recording starts (instant first frames instead of a black lead-in):
+
+```csharp
+using (game.KeepShowing())      // hook stays active while the scope lives
+{
+    // ... user hits record some time later; capture is already hooked
+    recording.Start();
+}
+// also: game.KeepActive() — full program-output activation semantics
+```
+
 ## Source Types
 
 ```csharp

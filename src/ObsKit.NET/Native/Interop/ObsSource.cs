@@ -746,6 +746,36 @@ internal static partial class ObsSource
     internal static partial ObsSourceHandle obs_load_private_source(ObsDataHandle data);
 
     /// <summary>
+    /// Increments the source's "showing" state — lazy sources (e.g. game/window
+    /// capture) start capturing as if displayed, without being rendered.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_inc_showing")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_inc_showing(ObsSourceHandle source);
+
+    /// <summary>
+    /// Decrements the source's "showing" state.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_dec_showing")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_dec_showing(ObsSourceHandle source);
+
+    /// <summary>
+    /// Increments the source's "active" state (as if displayed in the program
+    /// output); also implies showing.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_inc_active")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_inc_active(ObsSourceHandle source);
+
+    /// <summary>
+    /// Decrements the source's "active" state.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_dec_active")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_dec_active(ObsSourceHandle source);
+
+    /// <summary>
     /// Gets a weak reference to the source (an incremented weak reference owned by the caller).
     /// </summary>
     [LibraryImport(Lib, EntryPoint = "obs_source_get_weak_source")]

@@ -549,6 +549,33 @@ internal static partial class ObsCore
 
     #endregion
 
+    #region Audio/Video Info
+
+    /// <summary>
+    /// Gets the current audio settings. Returns false if audio is not initialized.
+    /// </summary>
+    public static bool obs_get_audio_info2(ref ObsAudioInfo2 oai) => obs_get_audio_info2_native(ref oai) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_get_audio_info2")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_get_audio_info2_native(ref ObsAudioInfo2 oai);
+
+    /// <summary>
+    /// Gets the timestamp (ns) of the video frame currently being rendered.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_video_frame_time")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ulong obs_get_video_frame_time();
+
+    /// <summary>
+    /// Gets the current video frame interval in nanoseconds.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_frame_interval_ns")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ulong obs_get_frame_interval_ns();
+
+    #endregion
+
     #region Task Queue
 
     /// <summary>

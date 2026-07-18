@@ -460,6 +460,46 @@ public static class Obs
     }
 
     /// <summary>
+    /// Gets the current audio settings (sample rate, speaker layout, buffering),
+    /// or null if audio is not initialized.
+    /// </summary>
+    public static ObsAudioInfo2? GetAudioInfo()
+    {
+        ThrowIfNotInitialized();
+
+        var oai = default(ObsAudioInfo2);
+        return ObsCore.obs_get_audio_info2(ref oai) ? oai : null;
+    }
+
+    /// <summary>
+    /// Gets the duration of one video frame at the current frame rate
+    /// (e.g. ~16.67 ms at 60 FPS).
+    /// </summary>
+    /// <exception cref="ObsNotInitializedException">Thrown if OBS is not initialized.</exception>
+    public static TimeSpan FrameInterval
+    {
+        get
+        {
+            ThrowIfNotInitialized();
+            return TimeSpan.FromTicks((long)(ObsCore.obs_get_frame_interval_ns() / 100));
+        }
+    }
+
+    /// <summary>
+    /// Gets the timestamp in nanoseconds of the video frame currently being rendered —
+    /// the same clock raw video/audio frame timestamps use.
+    /// </summary>
+    /// <exception cref="ObsNotInitializedException">Thrown if OBS is not initialized.</exception>
+    public static ulong VideoFrameTimestamp
+    {
+        get
+        {
+            ThrowIfNotInitialized();
+            return ObsCore.obs_get_video_frame_time();
+        }
+    }
+
+    /// <summary>
     /// Gets a snapshot of rendering/encoding performance counters
     /// (equivalent to the OBS Studio stats dock). Use it to detect rendering
     /// lag (GPU overload) and encoding lag (encoder overload) while active.

@@ -527,6 +527,45 @@ public class Source : ObsObject
     }
 
     /// <summary>
+    /// Marks the source as showing until the returned scope is disposed. Lazy
+    /// capture sources (game capture, window capture) start capturing as if they
+    /// were displayed — use this to warm up a game capture hook before recording
+    /// starts, or to keep it hooked while not on the program scene.
+    /// </summary>
+    public IDisposable KeepShowing()
+    {
+        ObsSource.obs_source_inc_showing(Handle);
+        return new ShowingScope(this, active: false);
+    }
+
+    /// <summary>
+    /// Marks the source as active (as if displayed in the program output, which also
+    /// implies showing) until the returned scope is disposed.
+    /// </summary>
+    public IDisposable KeepActive()
+    {
+        ObsSource.obs_source_inc_active(Handle);
+        return new ShowingScope(this, active: true);
+    }
+
+    private sealed class ShowingScope(Source source, bool active) : IDisposable
+    {
+        private Source? _source = source;
+
+        public void Dispose()
+        {
+            var source = System.Threading.Interlocked.Exchange(ref _source, null);
+            if (source == null)
+                return;
+
+            if (active)
+                ObsSource.obs_source_dec_active(source.Handle);
+            else
+                ObsSource.obs_source_dec_showing(source.Handle);
+        }
+    }
+
+    /// <summary>
     /// Gets a weak reference to this source — remembers the source without keeping
     /// it alive. Upgrade with <see cref="WeakSource.TryGetSource"/>.
     /// Dispose the returned reference when done.
