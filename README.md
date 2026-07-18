@@ -515,6 +515,11 @@ var scenes = canvas.GetScenes();
 // Duplicate a source (full copy of settings + filters)
 using var copy = source.Duplicate("Copy", createPrivate: false);
 
+// Persist a source across sessions (settings, filters, volume, sync, monitoring, ...)
+using (var saved = source.Save())
+    saved.SaveToFileSafe("mic.json");
+using var restored = Source.Load(Settings.FromJsonFileSafe("mic.json"));
+
 // Unfiltered size and unversioned type id
 uint w = source.BaseWidth, h = source.BaseHeight;       // size before crop/scale filters
 string? id = source.UnversionedTypeId;                  // "color_source" for "color_source_v3"

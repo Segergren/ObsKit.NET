@@ -526,6 +526,41 @@ public class Source : ObsObject
         return new Settings(handle, ownsHandle: true);
     }
 
+    /// <summary>
+    /// Serializes this source — type, name, UUID, settings, filters, volume, audio
+    /// mixers, sync offset, flags, deinterlacing, and monitoring — for persistence
+    /// (e.g. <c>source.Save().SaveToFileSafe(path)</c>). Restore with <see cref="Load"/>.
+    /// Dispose the returned settings when done.
+    /// </summary>
+    public Settings Save()
+    {
+        var handle = ObsSource.obs_save_source(Handle);
+        if (handle.IsNull)
+            throw new InvalidOperationException($"Failed to save source '{Name}'.");
+        return new Settings(handle, ownsHandle: true);
+    }
+
+    /// <summary>
+    /// Recreates a source (including its filters and audio state) from data produced
+    /// by <see cref="Save"/>. The saved UUID is kept, so load a given saved source
+    /// only once per session.
+    /// </summary>
+    /// <param name="data">The saved source data.</param>
+    /// <param name="asPrivate">Create the source as private (not enumerated).</param>
+    /// <returns>The restored source. Dispose it when no longer needed.</returns>
+    public static Source Load(Settings data, bool asPrivate = false)
+    {
+        ThrowIfNotInitialized();
+        ArgumentNullException.ThrowIfNull(data);
+
+        var handle = asPrivate
+            ? ObsSource.obs_load_private_source(data.Handle)
+            : ObsSource.obs_load_source(data.Handle);
+        if (handle.IsNull)
+            throw new InvalidOperationException("Failed to load source from saved data.");
+        return new Source(handle, ownsHandle: true);
+    }
+
     /// <summary>Updates the source settings.</summary>
     public void Update(Settings settings)
     {

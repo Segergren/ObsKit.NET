@@ -720,5 +720,30 @@ internal static partial class ObsSource
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial ObsDataHandle obs_source_get_private_settings(ObsSourceHandle source);
 
+    /// <summary>
+    /// Serializes a source (type, name, uuid, settings, filters, volume, mixers,
+    /// sync offset, flags, deinterlacing, monitoring, hotkeys) into a new obs_data
+    /// object owned by the caller.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_save_source")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsDataHandle obs_save_source(ObsSourceHandle source);
+
+    /// <summary>
+    /// Creates a public source from data produced by obs_save_source.
+    /// Returns a new reference owned by the caller.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_load_source")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsSourceHandle obs_load_source(ObsDataHandle data);
+
+    /// <summary>
+    /// Creates a private source from data produced by obs_save_source.
+    /// Returns a new reference owned by the caller.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_load_private_source")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsSourceHandle obs_load_private_source(ObsDataHandle data);
+
     #endregion
 }
