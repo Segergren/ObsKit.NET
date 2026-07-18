@@ -76,4 +76,205 @@ internal static partial class ObsHotkey
     [LibraryImport(Lib, EntryPoint = "obs_weak_source_get_source")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial Types.ObsSourceHandle obs_weak_source_get_source(nint weak);
+
+    #region Registration
+
+    /// <summary>
+    /// Callback invoked when a registered hotkey is pressed or released.
+    /// Fired on the thread that injects the key event (or triggers the callback).
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void HotkeyCallback(nint data, nuint id, nint hotkey, byte pressed);
+
+    /// <summary>
+    /// Callback for one half of a hotkey pair. Return 1 if the press took effect
+    /// (blocks the partner hotkey from also firing on the same combination).
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate byte HotkeyActiveCallback(nint data, nuint id, nint hotkey, byte pressed);
+
+    /// <summary>
+    /// Registers an application-level (frontend) hotkey.
+    /// Returns OBS_INVALID_HOTKEY_ID (~0) on failure.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_register_frontend")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nuint obs_hotkey_register_frontend(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string description,
+        HotkeyCallback func,
+        nint data);
+
+    /// <summary>
+    /// Registers a hotkey tied to a source (saved/loaded with the source).
+    /// Returns OBS_INVALID_HOTKEY_ID (~0) on failure.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_register_source")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nuint obs_hotkey_register_source(
+        Types.ObsSourceHandle source,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string description,
+        HotkeyCallback func,
+        nint data);
+
+    /// <summary>
+    /// Registers a hotkey tied to an output.
+    /// Returns OBS_INVALID_HOTKEY_ID (~0) on failure.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_register_output")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nuint obs_hotkey_register_output(
+        Types.ObsOutputHandle output,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string description,
+        HotkeyCallback func,
+        nint data);
+
+    /// <summary>
+    /// Registers a pair of mutually-exclusive frontend hotkeys (e.g. start/stop).
+    /// Returns OBS_INVALID_HOTKEY_PAIR_ID (~0) on failure.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_pair_register_frontend")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nuint obs_hotkey_pair_register_frontend(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name0,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string description0,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name1,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string description1,
+        HotkeyActiveCallback func0,
+        HotkeyActiveCallback func1,
+        nint data0,
+        nint data1);
+
+    /// <summary>
+    /// Unregisters a hotkey by id.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_unregister")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_hotkey_unregister(nuint id);
+
+    /// <summary>
+    /// Unregisters a hotkey pair by pair id.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_pair_unregister")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_hotkey_pair_unregister(nuint id);
+
+    #endregion
+
+    #region Bindings/Events
+
+    /// <summary>
+    /// Replaces the key combinations bound to a hotkey. Pass num = 0 to clear.
+    /// combinations points to a pinned array of obs_key_combination.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_load_bindings")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_hotkey_load_bindings(nuint id, nint combinations, nuint num);
+
+    /// <summary>
+    /// Feeds a key press/release event into the hotkey system, which matches it
+    /// against bindings and fires the registered callbacks synchronously.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_inject_event")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_hotkey_inject_event(Types.ObsKeyCombination hotkey, byte pressed);
+
+    /// <summary>
+    /// Enables/disables press events while a modifier-matched binding is held in
+    /// the background (see obs-hotkey.c for exact semantics).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_enable_background_press")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_hotkey_enable_background_press(byte enable);
+
+    /// <summary>
+    /// Callback for enumerating hotkey bindings. Return 0 to stop enumerating.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate byte EnumHotkeyBindingCallback(nint data, nuint idx, nint binding);
+
+    /// <summary>
+    /// Enumerates all key-combination bindings across all hotkeys.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_enum_hotkey_bindings")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_enum_hotkey_bindings(EnumHotkeyBindingCallback callback, nint data);
+
+    /// <summary>
+    /// Gets the key combination of a binding.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_binding_get_key_combination")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial Types.ObsKeyCombination obs_hotkey_binding_get_key_combination(nint binding);
+
+    /// <summary>
+    /// Gets the id of the hotkey a binding belongs to.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_binding_get_hotkey_id")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nuint obs_hotkey_binding_get_hotkey_id(nint binding);
+
+    #endregion
+
+    #region Key Conversion
+
+    /// <summary>
+    /// Gets a key from its OBS name (e.g. "OBS_KEY_F1"). Returns OBS_KEY_NONE for unknown names.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_key_from_name")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial Types.ObsKey obs_key_from_name(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    /// <summary>
+    /// Gets the OBS name of a key (e.g. "OBS_KEY_F1").
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_key_to_name")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_key_to_name(Types.ObsKey key);
+
+    /// <summary>
+    /// Converts an OS virtual key code to an OBS key.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_key_from_virtual_key")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial Types.ObsKey obs_key_from_virtual_key(int code);
+
+    /// <summary>
+    /// Converts an OBS key to an OS virtual key code.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_key_to_virtual_key")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial int obs_key_to_virtual_key(Types.ObsKey key);
+
+    /// <summary>
+    /// libobs dstr — dynamically allocated string. Free the array with bfree.
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct DStrNative
+    {
+        public nint Array;
+        public nuint Len;
+        public nuint Capacity;
+    }
+
+    /// <summary>
+    /// Writes a human-readable, localized display string for a key into str.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_key_to_str")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_key_to_str(Types.ObsKey key, ref DStrNative str);
+
+    /// <summary>
+    /// Writes a human-readable, localized display string for a key combination
+    /// (e.g. "Ctrl + Shift + F1") into str.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_key_combination_to_str")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_key_combination_to_str(Types.ObsKeyCombination key, ref DStrNative str);
+
+    #endregion
 }

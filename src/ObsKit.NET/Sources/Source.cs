@@ -146,6 +146,26 @@ public class Source : ObsObject
         return new Source(handle, ownsHandle: true);
     }
 
+    /// <summary>
+    /// Registers a hotkey tied to this source (unregistered automatically when the
+    /// source is destroyed). Bind key combinations with
+    /// <see cref="Hotkeys.RegisteredHotkey.Bind"/>; libobs polls global key state on
+    /// its own hotkey thread, so bound combinations fire system-wide.
+    /// Keep the returned object alive; dispose it to unregister early.
+    /// </summary>
+    /// <param name="name">The internal hotkey name.</param>
+    /// <param name="description">The user-facing description.</param>
+    /// <param name="onChanged">Invoked with true on press and false on release.</param>
+    public Hotkeys.RegisteredHotkey RegisterHotkey(string name, string description, Action<bool> onChanged)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentNullException.ThrowIfNull(description);
+        ArgumentNullException.ThrowIfNull(onChanged);
+
+        return new Hotkeys.RegisteredHotkey(name, description, onChanged,
+            callback => ObsHotkey.obs_hotkey_register_source(Handle, name, description, callback, nint.Zero));
+    }
+
     /// <summary>Gets the source width in pixels.</summary>
     public uint Width => ObsSource.obs_source_get_width(Handle);
 

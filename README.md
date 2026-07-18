@@ -435,6 +435,50 @@ using var verticalRecording = new RecordingOutput("Vertical")
 verticalRecording.Start();                // records simultaneously with the main output
 ```
 
+## Hotkeys
+
+Register global hotkeys with OBS's hotkey system. libobs polls key state on its own
+background thread, so bound combinations fire system-wide — even while your app is
+not focused — with no OS hook code on your side:
+
+```csharp
+using ObsKit.NET.Hotkeys;
+using ObsKit.NET.Native.Types;
+
+// App-level hotkey: save the replay buffer on Ctrl+Shift+F10
+using var saveReplay = Obs.RegisterHotkey("save_replay", "Save Replay",
+    pressed => { if (pressed) replayBuffer.Save(); });
+saveReplay.Bind(new ObsKeyCombination(ObsKey.F10, ObsKeyModifiers.Control | ObsKeyModifiers.Shift));
+
+// Start/stop pair on one key: only the applicable half consumes the press
+using var recPair = Obs.RegisterHotkeyPair(
+    "start_rec", "Start Recording", "stop_rec", "Stop Recording",
+    onPrimary:   pressed => { if (pressed && !recording.IsActive) { recording.Start(); return true; } return false; },
+    onSecondary: pressed => { if (pressed && recording.IsActive)  { recording.Stop();  return true; } return false; });
+recPair.BindPrimary(new ObsKeyCombination(ObsKey.F9));
+recPair.BindSecondary(new ObsKeyCombination(ObsKey.F9));
+
+// Source-scoped hotkey (auto-unregistered with the source)
+using var micToggle = mic.RegisterHotkey("mic_toggle", "Toggle Mic",
+    pressed => { if (pressed) mic.IsMuted = !mic.IsMuted; });
+
+// Rebind libobs' built-in hotkeys (push-to-talk, mute, ...) by id
+foreach (var hk in Obs.EnumerateHotkeys())
+    if (hk.Name == "libobs.push-to-talk")
+        Obs.BindHotkey(hk.Id, new ObsKeyCombination(ObsKey.Mouse4));
+
+// Key conversions and display strings
+var key = ObsKeys.FromVirtualKey(0x79);            // Win32 VK_F10 -> ObsKey.F10
+var label = ObsKeys.GetDisplayString(combo);       // "Ctrl + Shift + F10" (localized)
+var name = ObsKeys.ToName(key);                    // "OBS_KEY_F10" (for persistence)
+
+// Feed custom input events (optional - e.g. from a game overlay or remote control)
+Obs.InjectHotkeyEvent(new ObsKeyCombination(ObsKey.F10, ObsKeyModifiers.Control), pressed: true);
+
+// Only fire presses you inject yourself (disable the background polling thread's presses)
+Obs.EnableHotkeyBackgroundPress(false);
+```
+
 ## Finding & Enumerating Objects
 
 Look up any live object by name, or enumerate everything that currently exists.
@@ -600,6 +644,7 @@ streaming.Stop();
 - **Audio Tooling** - Per-track routing, live level meters, dB volume and curve-aware faders, sync offset, balance, monitoring device selection
 - **Property Introspection** - Enumerate any source's configurable properties (types, ranges, option lists) to build dynamic config UIs or discover devices/resolutions
 - **Object Lookup** - Find any source, output, encoder, service, or canvas by name/UUID, enumerate all live instances, and duplicate sources
+- **Global Hotkeys** - Register app/source/output hotkeys that fire system-wide via OBS's own key polling, start/stop pairs on a single key, rebindable built-in hotkeys, and key/display-string conversions
 - **Headless Operation** - Run without GUI dependencies
 
 ## Requirements

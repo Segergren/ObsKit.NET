@@ -150,6 +150,26 @@ public class Output : ObsObject
     }
 
     /// <summary>
+    /// Registers a hotkey tied to this output (unregistered automatically when the
+    /// output is destroyed). Bind key combinations with
+    /// <see cref="Hotkeys.RegisteredHotkey.Bind"/>; libobs polls global key state on
+    /// its own hotkey thread, so bound combinations fire system-wide.
+    /// Keep the returned object alive; dispose it to unregister early.
+    /// </summary>
+    /// <param name="name">The internal hotkey name.</param>
+    /// <param name="description">The user-facing description.</param>
+    /// <param name="onChanged">Invoked with true on press and false on release.</param>
+    public Hotkeys.RegisteredHotkey RegisterHotkey(string name, string description, Action<bool> onChanged)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentNullException.ThrowIfNull(description);
+        ArgumentNullException.ThrowIfNull(onChanged);
+
+        return new Hotkeys.RegisteredHotkey(name, description, onChanged,
+            callback => ObsHotkey.obs_hotkey_register_output(Handle, name, description, callback, nint.Zero));
+    }
+
+    /// <summary>
     /// Gets the video codecs an output type supports (e.g. "h264", "hevc", "av1").
     /// </summary>
     /// <param name="typeId">The output type identifier (e.g. "ffmpeg_muxer", "rtmp_output").</param>

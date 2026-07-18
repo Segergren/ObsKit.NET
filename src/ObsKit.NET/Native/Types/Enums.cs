@@ -544,3 +544,37 @@ public enum ObsPropertyListFormat
     /// <summary>Items carry boolean values.</summary>
     Bool = 4,
 }
+
+/// <summary>
+/// Modifier and state flags for a hotkey key combination (interact_flags).
+/// </summary>
+[Flags]
+public enum ObsKeyModifiers : uint
+{
+    /// <summary>No modifiers.</summary>
+    None = 0,
+    /// <summary>Caps Lock is on.</summary>
+    CapsLock = 1 << 0,
+    /// <summary>Shift key.</summary>
+    Shift = 1 << 1,
+    /// <summary>Control key.</summary>
+    Control = 1 << 2,
+    /// <summary>Alt key.</summary>
+    Alt = 1 << 3,
+    /// <summary>Left mouse button.</summary>
+    MouseLeft = 1 << 4,
+    /// <summary>Middle mouse button.</summary>
+    MouseMiddle = 1 << 5,
+    /// <summary>Right mouse button.</summary>
+    MouseRight = 1 << 6,
+    /// <summary>Command key (macOS) / Windows key.</summary>
+    Command = 1 << 7,
+    /// <summary>Num Lock is on.</summary>
+    NumLock = 1 << 8,
+    /// <summary>The key is on the numeric keypad.</summary>
+    IsKeyPad = 1 << 9,
+    /// <summary>The key is the left-side variant (e.g. left Shift).</summary>
+    IsLeft = 1 << 10,
+    /// <summary>The key is the right-side variant (e.g. right Shift).</summary>
+    IsRight = 1 << 11,
+}

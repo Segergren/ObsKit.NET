@@ -385,3 +385,28 @@ internal unsafe struct VideoDataNative
 
     public ulong Timestamp;
 }
+
+/// <summary>
+/// A physical key plus modifier flags, as bound to an OBS hotkey (obs_key_combination).
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct ObsKeyCombination
+{
+    /// <summary>Modifier and state flags that must be held for the combination to match.</summary>
+    public ObsKeyModifiers Modifiers;
+
+    /// <summary>The key. May be <see cref="ObsKey.None"/> for modifier-only combinations.</summary>
+    public ObsKey Key;
+
+    /// <summary>Creates a key combination.</summary>
+    /// <param name="key">The key.</param>
+    /// <param name="modifiers">Modifiers that must be held.</param>
+    public ObsKeyCombination(ObsKey key, ObsKeyModifiers modifiers = ObsKeyModifiers.None)
+    {
+        Key = key;
+        Modifiers = modifiers;
+    }
+
+    /// <summary>Gets whether this combination is empty (no key and no modifiers).</summary>
+    public readonly bool IsEmpty => Modifiers == ObsKeyModifiers.None && Key == ObsKey.None;
+}

@@ -2,6 +2,7 @@ using ObsKit.NET.Audio;
 using ObsKit.NET.Core;
 using ObsKit.NET.Encoders;
 using ObsKit.NET.Exceptions;
+using ObsKit.NET.Hotkeys;
 using ObsKit.NET.Native;
 using ObsKit.NET.Native.Interop;
 using ObsKit.NET.Native.Types;
@@ -658,6 +659,108 @@ public static class Obs
 
         TriggerHotkey(found.Value);
         return true;
+    }
+
+    /// <summary>
+    /// Registers an application-level hotkey. Bind key combinations with
+    /// <see cref="RegisteredHotkey.Bind"/>, then feed key events from your input
+    /// hook to <see cref="InjectHotkeyEvent"/> — OBS matches them against the
+    /// bindings and invokes <paramref name="onChanged"/>.
+    /// Keep the returned object alive; dispose it to unregister.
+    /// </summary>
+    /// <param name="name">The internal hotkey name (unique within your app).</param>
+    /// <param name="description">The user-facing description.</param>
+    /// <param name="onChanged">Invoked with true on press and false on release,
+    /// on the thread that injects the key event.</param>
+    public static RegisteredHotkey RegisterHotkey(string name, string description, Action<bool> onChanged)
+    {
+        ThrowIfNotInitialized();
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentNullException.ThrowIfNull(description);
+        ArgumentNullException.ThrowIfNull(onChanged);
+
+        return new RegisteredHotkey(name, description, onChanged,
+            callback => ObsHotkey.obs_hotkey_register_frontend(name, description, callback, nint.Zero));
+    }
+
+    /// <summary>
+    /// Registers a pair of mutually-exclusive application hotkeys (e.g. start/stop).
+    /// When both are bound to the same key combination, only the handler that returns
+    /// true consumes the press — so a single key can toggle between the two actions.
+    /// </summary>
+    /// <param name="primaryName">Internal name of the first hotkey.</param>
+    /// <param name="primaryDescription">User-facing description of the first hotkey.</param>
+    /// <param name="secondaryName">Internal name of the second hotkey.</param>
+    /// <param name="secondaryDescription">User-facing description of the second hotkey.</param>
+    /// <param name="onPrimary">Invoked with true on press/false on release; return true if the event took effect.</param>
+    /// <param name="onSecondary">Invoked with true on press/false on release; return true if the event took effect.</param>
+    public static RegisteredHotkeyPair RegisterHotkeyPair(
+        string primaryName, string primaryDescription,
+        string secondaryName, string secondaryDescription,
+        Func<bool, bool> onPrimary, Func<bool, bool> onSecondary)
+    {
+        ThrowIfNotInitialized();
+        ArgumentException.ThrowIfNullOrEmpty(primaryName);
+        ArgumentException.ThrowIfNullOrEmpty(secondaryName);
+        ArgumentNullException.ThrowIfNull(primaryDescription);
+        ArgumentNullException.ThrowIfNull(secondaryDescription);
+        ArgumentNullException.ThrowIfNull(onPrimary);
+        ArgumentNullException.ThrowIfNull(onSecondary);
+
+        return new RegisteredHotkeyPair(
+            primaryName, primaryDescription, secondaryName, secondaryDescription, onPrimary, onSecondary);
+    }
+
+    /// <summary>
+    /// Feeds a key press/release into the hotkey system. OBS matches it against all
+    /// bindings and fires the affected hotkey callbacks synchronously on this thread.
+    /// Usually not needed: libobs polls global key state on its own hotkey thread
+    /// (every 25 ms), so bound hotkeys already work system-wide. Use this to feed
+    /// events from a custom input path (e.g. a game overlay or remote control).
+    /// Convert OS virtual key codes with <see cref="ObsKeys.FromVirtualKey"/>.
+    /// </summary>
+    /// <param name="combination">The key (and currently held modifiers).</param>
+    /// <param name="pressed">True for press, false for release.</param>
+    public static void InjectHotkeyEvent(ObsKeyCombination combination, bool pressed)
+    {
+        ThrowIfNotInitialized();
+        ObsHotkey.obs_hotkey_inject_event(combination, pressed ? (byte)1 : (byte)0);
+    }
+
+    /// <summary>
+    /// Replaces the key combinations bound to any hotkey by id — including hotkeys
+    /// registered by libobs itself (e.g. a source's push-to-talk hotkey from
+    /// <see cref="EnumerateHotkeys"/>). Pass no combinations to clear the bindings.
+    /// </summary>
+    /// <param name="id">The hotkey id (from <see cref="EnumerateHotkeys"/> or <see cref="RegisteredHotkey.Id"/>).</param>
+    /// <param name="combinations">The key combinations that should trigger the hotkey.</param>
+    public static void BindHotkey(ulong id, params ObsKeyCombination[] combinations)
+    {
+        ThrowIfNotInitialized();
+        RegisteredHotkey.BindCore((nuint)id, combinations);
+    }
+
+    /// <summary>
+    /// Gets the key combinations currently bound to a hotkey.
+    /// </summary>
+    /// <param name="id">The hotkey id (from <see cref="EnumerateHotkeys"/> or <see cref="RegisteredHotkey.Id"/>).</param>
+    public static IReadOnlyList<ObsKeyCombination> GetHotkeyBindings(ulong id)
+    {
+        ThrowIfNotInitialized();
+        return RegisteredHotkey.GetBindingsForId(id);
+    }
+
+    /// <summary>
+    /// Controls whether libobs's background polling thread may deliver key PRESS
+    /// events (releases are always delivered). Enabled by default — hotkeys fire even
+    /// while your app is not focused. Disable to only fire presses you explicitly
+    /// feed through <see cref="InjectHotkeyEvent"/>.
+    /// </summary>
+    /// <param name="enable">True to deliver background presses.</param>
+    public static void EnableHotkeyBackgroundPress(bool enable = true)
+    {
+        ThrowIfNotInitialized();
+        ObsHotkey.obs_hotkey_enable_background_press(enable ? (byte)1 : (byte)0);
     }
 
     /// <summary>
