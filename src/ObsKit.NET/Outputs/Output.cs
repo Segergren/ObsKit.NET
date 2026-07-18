@@ -156,6 +156,18 @@ public class Output : ObsObject
     }
 
     /// <summary>
+    /// Queues a closed caption (CEA-708) on this output while it is active — embedded
+    /// in the stream for services that support captions (e.g. Twitch).
+    /// </summary>
+    /// <param name="text">The caption text.</param>
+    /// <param name="displayDuration">How long the caption is displayed (default 2 seconds).</param>
+    public void SendCaption(string text, TimeSpan? displayDuration = null)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        ObsOutput.obs_output_output_caption_text2(Handle, text, (displayDuration ?? TimeSpan.FromSeconds(2)).TotalSeconds);
+    }
+
+    /// <summary>
     /// Registers a hotkey tied to this output (unregistered automatically when the
     /// output is destroyed). Bind key combinations with
     /// <see cref="Hotkeys.RegisteredHotkey.Bind"/>; libobs polls global key state on

@@ -745,5 +745,35 @@ internal static partial class ObsSource
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial ObsSourceHandle obs_load_private_source(ObsDataHandle data);
 
+    /// <summary>
+    /// Gets a weak reference to the source (an incremented weak reference owned by the caller).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_weak_source")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_source_get_weak_source(ObsSourceHandle source);
+
+    /// <summary>
+    /// Releases a weak source reference.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_weak_source_release")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_weak_source_release(nint weak);
+
+    /// <summary>
+    /// Gets whether the source a weak reference points to has been destroyed.
+    /// </summary>
+    public static bool obs_weak_source_expired(nint weak) => obs_weak_source_expired_native(weak) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_weak_source_expired")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_weak_source_expired_native(nint weak);
+
+    /// <summary>
+    /// Gets a strong reference from a weak reference, or null if the source was destroyed.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_weak_source_get_source")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsSourceHandle obs_weak_source_get_source(nint weak);
+
     #endregion
 }

@@ -116,4 +116,25 @@ internal static partial class ObsAudioControls
     [LibraryImport(Lib, EntryPoint = "obs_fader_detach_source")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial void obs_fader_detach_source(nint fader);
+
+    /// <summary>
+    /// Callback invoked when the fader's level changes (e.g. the attached source's
+    /// volume was changed elsewhere). Fired on the thread that changed the volume.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void FaderChangedCallback(nint param, float db);
+
+    /// <summary>
+    /// Adds a changed callback to the fader.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_fader_add_callback")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_fader_add_callback(nint fader, FaderChangedCallback callback, nint param);
+
+    /// <summary>
+    /// Removes a changed callback from the fader (must match the added callback/param pair).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_fader_remove_callback")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_fader_remove_callback(nint fader, FaderChangedCallback callback, nint param);
 }

@@ -527,6 +527,19 @@ public class Source : ObsObject
     }
 
     /// <summary>
+    /// Gets a weak reference to this source — remembers the source without keeping
+    /// it alive. Upgrade with <see cref="WeakSource.TryGetSource"/>.
+    /// Dispose the returned reference when done.
+    /// </summary>
+    public WeakSource GetWeakReference()
+    {
+        var weak = ObsSource.obs_source_get_weak_source(Handle);
+        if (weak == nint.Zero)
+            throw new InvalidOperationException($"Failed to get a weak reference to '{Name}'.");
+        return new WeakSource(weak);
+    }
+
+    /// <summary>
     /// Serializes this source — type, name, UUID, settings, filters, volume, audio
     /// mixers, sync offset, flags, deinterlacing, and monitoring — for persistence
     /// (e.g. <c>source.Save().SaveToFileSafe(path)</c>). Restore with <see cref="Load"/>.

@@ -456,6 +456,16 @@ internal static partial class ObsOutput
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial ulong obs_output_get_pause_offset(ObsOutputHandle output);
 
+    /// <summary>
+    /// Queues a caption (CEA-708) on an active output with a display duration in seconds.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_output_output_caption_text2")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_output_output_caption_text2(
+        ObsOutputHandle output,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string text,
+        double displayDuration);
+
     #region Lookup/Enumeration
 
     /// <summary>

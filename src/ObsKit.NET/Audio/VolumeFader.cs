@@ -12,6 +12,9 @@ namespace ObsKit.NET.Audio;
 public sealed class VolumeFader : IDisposable
 {
     private readonly nint _fader;
+    private readonly object _changedLock = new();
+    private ObsAudioControls.FaderChangedCallback? _nativeChanged;
+    private Action<float>? _changed;
     private bool _disposed;
 
     /// <summary>
@@ -76,6 +79,47 @@ public sealed class VolumeFader : IDisposable
     }
 
     /// <summary>
+    /// Raised with the new level in decibels when the fader's level changes — including
+    /// when the attached source's volume is changed elsewhere (another fader, or
+    /// <see cref="Source.Volume"/> directly). Invoked on the thread that changed the
+    /// volume; keep handlers fast.
+    /// </summary>
+    public event Action<float> Changed
+    {
+        add
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            lock (_changedLock)
+            {
+                if (_nativeChanged == null)
+                {
+                    ObsAudioControls.FaderChangedCallback native = (_, db) =>
+                    {
+                        try
+                        {
+                            _changed?.Invoke(db);
+                        }
+                        catch
+                        {
+                            // Don't let exceptions escape into native code
+                        }
+                    };
+                    ObsAudioControls.obs_fader_add_callback(_fader, native, nint.Zero);
+                    _nativeChanged = native;
+                }
+                _changed += value;
+            }
+        }
+        remove
+        {
+            lock (_changedLock)
+            {
+                _changed -= value;
+            }
+        }
+    }
+
+    /// <summary>
     /// Detaches the fader and releases the native resource.
     /// </summary>
     public void Dispose()
@@ -95,7 +139,12 @@ public sealed class VolumeFader : IDisposable
             return;
 
         _disposed = true;
+        // Remove the changed callback before destroying so the native side cannot
+        // invoke a collected delegate thunk between the two calls.
+        if (_nativeChanged != null)
+            ObsAudioControls.obs_fader_remove_callback(_fader, _nativeChanged, nint.Zero);
         ObsAudioControls.obs_fader_detach_source(_fader);
         ObsAudioControls.obs_fader_destroy(_fader);
+        GC.KeepAlive(_nativeChanged);
     }
 }

@@ -520,6 +520,10 @@ using (var saved = source.Save())
     saved.SaveToFileSafe("mic.json");
 using var restored = Source.Load(Settings.FromJsonFileSafe("mic.json"));
 
+// Weak references: remember a source without keeping it alive
+using var weak = source.GetWeakReference();
+using var strong = weak.TryGetSource();                 // null once the source is gone
+
 // Unfiltered size and unversioned type id
 uint w = source.BaseWidth, h = source.BaseHeight;       // size before crop/scale filters
 string? id = source.UnversionedTypeId;                  // "color_source" for "color_source_v3"
@@ -651,6 +655,9 @@ Console.WriteLine($"Streaming: {streaming.IsActive}");
 Console.WriteLine($"Bytes sent: {streaming.TotalBytes}");
 Console.WriteLine($"Frames dropped: {streaming.FramesDropped}");
 Console.WriteLine($"Congestion: {streaming.Congestion:P0}");
+
+// Embed closed captions (CEA-708) in the stream
+streaming.SendCaption("Hello chat!", TimeSpan.FromSeconds(3));
 
 // Stop streaming
 streaming.Stop();
