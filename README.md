@@ -539,6 +539,18 @@ encoder.SetGpuScaledSize(1920, 1080);   // e.g. 1440p canvas -> 1080p recording
 
 // Record at a fraction of the canvas frame rate
 encoder.FrameRateDivisor = 2;           // 60 FPS canvas -> 30 FPS file
+
+// Prioritize quality in a region of the frame (encoders with ROI support)
+encoder.AddRegionOfInterest(new ObsEncoderRoi { Top = 300, Bottom = 780, Left = 640, Right = 1280, Priority = 0.75f });
+encoder.ClearRegionsOfInterest();
+
+// Per-encoder color space/range override (e.g. SDR stream while recording HDR)
+encoder.PreferredColorSpace = VideoColorspace.Srgb;
+encoder.PreferredRange = VideoRangeType.Partial;
+
+// Stats: frames encoded, and time spent paused (also on Output/AudioEncoder)
+uint frames = encoder.EncodedFrames;
+TimeSpan paused = recording.PauseOffset;
 ```
 
 ### Encoder Discovery

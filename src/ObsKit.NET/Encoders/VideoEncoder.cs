@@ -119,6 +119,56 @@ public sealed class VideoEncoder : ObsObject
         return encoders;
     }
 
+    /// <summary>
+    /// Adds a region of interest, prioritizing quality inside the region (e.g. the
+    /// center of the action in a game recording). Regions added earlier take
+    /// precedence where they overlap.
+    /// </summary>
+    /// <param name="roi">The region and its priority.</param>
+    /// <returns>False if the encoder does not support ROI or the region is invalid (smaller than 16x16).</returns>
+    public bool AddRegionOfInterest(ObsEncoderRoi roi) => ObsEncoder.obs_encoder_add_roi(Handle, ref roi);
+
+    /// <summary>
+    /// Gets whether any regions of interest are set.
+    /// </summary>
+    public bool HasRegionOfInterest => ObsEncoder.obs_encoder_has_roi(Handle);
+
+    /// <summary>
+    /// Removes all regions of interest.
+    /// </summary>
+    public void ClearRegionsOfInterest() => ObsEncoder.obs_encoder_clear_roi(Handle);
+
+    /// <summary>
+    /// Gets or sets the color space this encoder prefers over the video output's
+    /// own (e.g. force SDR for a stream while recording HDR). Set before starting.
+    /// <see cref="VideoColorspace.Default"/> uses the video output's color space.
+    /// </summary>
+    public VideoColorspace PreferredColorSpace
+    {
+        get => ObsEncoder.obs_encoder_get_preferred_color_space(Handle);
+        set => ObsEncoder.obs_encoder_set_preferred_color_space(Handle, value);
+    }
+
+    /// <summary>
+    /// Gets or sets the color range this encoder prefers over the video output's own.
+    /// <see cref="VideoRangeType.Default"/> uses the video output's range.
+    /// </summary>
+    public VideoRangeType PreferredRange
+    {
+        get => ObsEncoder.obs_encoder_get_preferred_range(Handle);
+        set => ObsEncoder.obs_encoder_set_preferred_range(Handle, value);
+    }
+
+    /// <summary>
+    /// Gets the number of frames this encoder has encoded.
+    /// </summary>
+    public uint EncodedFrames => ObsEncoder.obs_encoder_get_encoded_frames(Handle);
+
+    /// <summary>
+    /// Gets the total time the encoder has spent paused (via output pause).
+    /// </summary>
+    public TimeSpan PauseOffset => TimeSpan.FromTicks((long)(ObsEncoder.obs_encoder_get_pause_offset(Handle) / 100));
+
     private static nint CreateEncoder(string typeId, string name, Settings? settings, Settings? hotkeyData)
     {
         ThrowIfNotInitialized();

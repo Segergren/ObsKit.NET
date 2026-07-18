@@ -449,6 +449,13 @@ internal static partial class ObsOutput
 
     #endregion
 
+    /// <summary>
+    /// Gets the total time (nanoseconds) the output has spent paused.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_output_get_pause_offset")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ulong obs_output_get_pause_offset(ObsOutputHandle output);
+
     #region Lookup/Enumeration
 
     /// <summary>

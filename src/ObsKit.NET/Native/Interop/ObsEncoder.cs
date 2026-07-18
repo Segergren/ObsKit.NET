@@ -350,6 +350,79 @@ internal static partial class ObsEncoder
 
     #endregion
 
+    #region ROI / Color / Stats
+
+    /// <summary>
+    /// Adds a region of interest to a video encoder. Returns false if the encoder
+    /// does not support ROI (OBS_ENCODER_CAP_ROI) or the region is invalid.
+    /// </summary>
+    public static bool obs_encoder_add_roi(ObsEncoderHandle encoder, ref ObsEncoderRoi roi)
+        => obs_encoder_add_roi_native(encoder, ref roi) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_add_roi")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_encoder_add_roi_native(ObsEncoderHandle encoder, ref ObsEncoderRoi roi);
+
+    /// <summary>
+    /// Gets whether any regions of interest are set on the encoder.
+    /// </summary>
+    public static bool obs_encoder_has_roi(ObsEncoderHandle encoder) => obs_encoder_has_roi_native(encoder) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_has_roi")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_encoder_has_roi_native(ObsEncoderHandle encoder);
+
+    /// <summary>
+    /// Clears all regions of interest from the encoder.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_clear_roi")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_encoder_clear_roi(ObsEncoderHandle encoder);
+
+    /// <summary>
+    /// Sets the color space the encoder prefers over the video output's own.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_set_preferred_color_space")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_encoder_set_preferred_color_space(ObsEncoderHandle encoder, VideoColorspace colorspace);
+
+    /// <summary>
+    /// Gets the encoder's preferred color space (Default when none set).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_get_preferred_color_space")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial VideoColorspace obs_encoder_get_preferred_color_space(ObsEncoderHandle encoder);
+
+    /// <summary>
+    /// Sets the color range the encoder prefers over the video output's own.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_set_preferred_range")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_encoder_set_preferred_range(ObsEncoderHandle encoder, VideoRangeType range);
+
+    /// <summary>
+    /// Gets the encoder's preferred color range (Default when none set).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_get_preferred_range")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial VideoRangeType obs_encoder_get_preferred_range(ObsEncoderHandle encoder);
+
+    /// <summary>
+    /// Gets the total time (nanoseconds) the encoder has spent paused.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_get_pause_offset")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ulong obs_encoder_get_pause_offset(ObsEncoderHandle encoder);
+
+    /// <summary>
+    /// Gets the number of frames a video encoder has encoded.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_get_encoded_frames")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial uint obs_encoder_get_encoded_frames(ObsEncoderHandle encoder);
+
+    #endregion
+
     #region Lookup/Enumeration
 
     /// <summary>

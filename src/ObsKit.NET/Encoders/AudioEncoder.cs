@@ -95,6 +95,11 @@ public sealed class AudioEncoder : ObsObject
         return encoders;
     }
 
+    /// <summary>
+    /// Gets the total time the encoder has spent paused (via output pause).
+    /// </summary>
+    public TimeSpan PauseOffset => TimeSpan.FromTicks((long)(ObsEncoder.obs_encoder_get_pause_offset(Handle) / 100));
+
     private static nint CreateEncoder(string typeId, string name, int mixerIdx, Settings? settings, Settings? hotkeyData)
     {
         ThrowIfNotInitialized();

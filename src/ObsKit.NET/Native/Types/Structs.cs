@@ -410,3 +410,25 @@ public struct ObsKeyCombination
     /// <summary>Gets whether this combination is empty (no key and no modifiers).</summary>
     public readonly bool IsEmpty => Modifiers == ObsKeyModifiers.None && Key == ObsKey.None;
 }
+
+/// <summary>
+/// A region of interest for a video encoder (obs_encoder_roi) — prioritizes
+/// quality inside the region. Edges are in pixels from the frame's top-left.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct ObsEncoderRoi
+{
+    /// <summary>Top edge, in pixels from row 0.</summary>
+    public uint Top;
+    /// <summary>Bottom edge, in pixels from row 0 (exclusive).</summary>
+    public uint Bottom;
+    /// <summary>Left edge, in pixels from column 0.</summary>
+    public uint Left;
+    /// <summary>Right edge, in pixels from column 0 (exclusive).</summary>
+    public uint Right;
+    /// <summary>
+    /// Priority from -1 to 1: above 0 increases quality in the region, below 0
+    /// reduces it (negative values are ignored by some encoders).
+    /// </summary>
+    public float Priority;
+}

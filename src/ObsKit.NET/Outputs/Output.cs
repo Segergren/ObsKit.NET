@@ -100,6 +100,12 @@ public class Output : ObsObject
     public bool IsPaused => ObsOutput.obs_output_paused(Handle);
 
     /// <summary>
+    /// Gets the total time the output has spent paused — subtract from wall-clock
+    /// elapsed time to get the actual media duration.
+    /// </summary>
+    public TimeSpan PauseOffset => TimeSpan.FromTicks((long)(ObsOutput.obs_output_get_pause_offset(Handle) / 100));
+
+    /// <summary>
     /// Gets the output width.
     /// </summary>
     public uint Width => ObsOutput.obs_output_get_width(Handle);
