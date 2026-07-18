@@ -355,4 +355,161 @@ internal static partial class ObsData
         [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
 
     #endregion
+
+    #region Introspection / Defaults / JSON
+
+    /// <summary>
+    /// Creates an OBS data object from a JSON file, falling back to file+backupExt
+    /// (as written by obs_data_save_json_safe) if the main file is missing/corrupt.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_create_from_json_file_safe")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsDataHandle obs_data_create_from_json_file_safe(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string jsonFile,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string backupExt);
+
+    /// <summary>
+    /// Gets the JSON representation including default values (owned by the data object).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_json_with_defaults")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_data_get_json_with_defaults(ObsDataHandle data);
+
+    /// <summary>
+    /// Gets the pretty-printed JSON representation including default values.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_json_pretty_with_defaults")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_data_get_json_pretty_with_defaults(ObsDataHandle data);
+
+    /// <summary>
+    /// Creates a new data object containing only this object's default values (caller owns).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_defaults")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsDataHandle obs_data_get_defaults(ObsDataHandle data);
+
+    /// <summary>
+    /// Gets the default string value for a key (owned by the data object).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_default_string")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_data_get_default_string(
+        ObsDataHandle data,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    /// <summary>
+    /// Gets the default integer value for a key.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_default_int")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial long obs_data_get_default_int(
+        ObsDataHandle data,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    /// <summary>
+    /// Gets the default double value for a key.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_default_double")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial double obs_data_get_default_double(
+        ObsDataHandle data,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    /// <summary>
+    /// Gets the default boolean value for a key.
+    /// </summary>
+    public static bool obs_data_get_default_bool(ObsDataHandle data, string name)
+        => obs_data_get_default_bool_native(data, name) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_default_bool")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_data_get_default_bool_native(
+        ObsDataHandle data,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    /// <summary>
+    /// Gets whether the key has an explicitly set (non-default) value.
+    /// </summary>
+    public static bool obs_data_has_user_value(ObsDataHandle data, string name)
+        => obs_data_has_user_value_native(data, name) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_has_user_value")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_data_has_user_value_native(
+        ObsDataHandle data,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    /// <summary>
+    /// Gets whether the key has a default value.
+    /// </summary>
+    public static bool obs_data_has_default_value(ObsDataHandle data, string name)
+        => obs_data_has_default_value_native(data, name) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_has_default_value")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_data_has_default_value_native(
+        ObsDataHandle data,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    /// <summary>
+    /// Removes the explicitly set value for a key (reverts it to the default).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_unset_user_value")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_unset_user_value(
+        ObsDataHandle data,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    /// <summary>
+    /// Removes the default value for a key.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_unset_default_value")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_unset_default_value(
+        ObsDataHandle data,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    /// <summary>
+    /// Gets the first item for iteration (an incremented item reference, release
+    /// with obs_data_item_release unless iterated to the end).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_first")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_data_first(ObsDataHandle data);
+
+    /// <summary>
+    /// Advances the item iterator (releases the current item, references the next;
+    /// sets it to null past the last item). Returns 0 at the end.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_item_next")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial byte obs_data_item_next(ref nint item);
+
+    /// <summary>
+    /// Releases an item reference (for early loop exit) and nulls it.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_item_release")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_item_release(ref nint item);
+
+    /// <summary>
+    /// Gets the key name of an item (owned by the item).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_item_get_name")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_data_item_get_name(nint item);
+
+    /// <summary>
+    /// Gets the value type of an item (obs_data_type).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_item_gettype")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsDataType obs_data_item_gettype(nint item);
+
+    #endregion
 }

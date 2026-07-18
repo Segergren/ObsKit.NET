@@ -668,6 +668,7 @@ streaming.Stop();
 - **Virtual Camera** - Expose the canvas as a system camera device
 - **Audio Tooling** - Per-track routing, live level meters, dB volume and curve-aware faders, sync offset, balance, monitoring device selection
 - **Property Introspection** - Enumerate any source's configurable properties (types, ranges, option lists) to build dynamic config UIs or discover devices/resolutions
+- **Settings Introspection** - Enumerate keys/types of any settings object, read defaults, JSON round-trips (with or without defaults), and crash-safe settings files (atomic save + backup-aware load)
 - **Object Lookup** - Find any source, output, encoder, service, or canvas by name/UUID, enumerate all live instances, and duplicate sources
 - **Global Hotkeys** - Register app/source/output hotkeys that fire system-wide via OBS's own key polling, start/stop pairs on a single key, rebindable built-in hotkeys, and key/display-string conversions
 - **Headless Operation** - Run without GUI dependencies

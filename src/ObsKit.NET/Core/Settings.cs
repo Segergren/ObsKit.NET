@@ -43,6 +43,20 @@ public sealed class Settings : ObsObject
         return new Settings(handle);
     }
 
+    /// <summary>
+    /// Creates settings from a JSON file, falling back to its backup (path + backupExt,
+    /// as written by <see cref="SaveToFileSafe"/>) when the main file is missing or corrupt.
+    /// </summary>
+    /// <param name="path">The JSON file path.</param>
+    /// <param name="backupExt">The backup extension used when the file was saved.</param>
+    public static Settings FromJsonFileSafe(string path, string backupExt = ".bak")
+    {
+        var handle = ObsData.obs_data_create_from_json_file_safe(path, backupExt);
+        if (handle.IsNull)
+            throw new FileNotFoundException("Settings file (and backup) not found or invalid", path);
+        return new Settings(handle);
+    }
+
     internal new ObsDataHandle Handle => (ObsDataHandle)base.Handle;
 
     #region Setters (Fluent API)
@@ -219,6 +233,88 @@ public sealed class Settings : ObsObject
 
     #endregion
 
+    #region Default Getters / Introspection
+
+    /// <summary>Gets the default string value for a key.</summary>
+    public string? GetDefaultString(string name) => ObsData.obs_data_get_default_string(Handle, name);
+
+    /// <summary>Gets the default integer value for a key.</summary>
+    public long GetDefaultInt(string name) => ObsData.obs_data_get_default_int(Handle, name);
+
+    /// <summary>Gets the default double value for a key.</summary>
+    public double GetDefaultDouble(string name) => ObsData.obs_data_get_default_double(Handle, name);
+
+    /// <summary>Gets the default boolean value for a key.</summary>
+    public bool GetDefaultBool(string name) => ObsData.obs_data_get_default_bool(Handle, name);
+
+    /// <summary>
+    /// Gets whether a key has an explicitly set value (as opposed to only a default).
+    /// </summary>
+    public bool HasValue(string name) => ObsData.obs_data_has_user_value(Handle, name);
+
+    /// <summary>
+    /// Gets whether a key has a default value.
+    /// </summary>
+    public bool HasDefaultValue(string name) => ObsData.obs_data_has_default_value(Handle, name);
+
+    /// <summary>
+    /// Removes the explicitly set value for a key, reverting it to its default.
+    /// (<see cref="Remove"/> removes both the value and the default.)
+    /// </summary>
+    public Settings Unset(string name)
+    {
+        ObsData.obs_data_unset_user_value(Handle, name);
+        return this;
+    }
+
+    /// <summary>
+    /// Removes the default value for a key.
+    /// </summary>
+    public Settings UnsetDefault(string name)
+    {
+        ObsData.obs_data_unset_default_value(Handle, name);
+        return this;
+    }
+
+    /// <summary>
+    /// Creates a new settings object containing only this object's default values.
+    /// Dispose it when done.
+    /// </summary>
+    public Settings GetDefaults() => new(ObsData.obs_data_get_defaults(Handle), ownsHandle: true);
+
+    /// <summary>
+    /// Gets the names and value types of all entries with explicitly set values.
+    /// </summary>
+    public IReadOnlyList<(string Name, ObsDataType Type)> GetEntries()
+    {
+        var entries = new List<(string, ObsDataType)>();
+        // obs_data_first references the item; obs_data_item_next releases it and
+        // references the next, nulling the pointer past the last item — so a full
+        // iteration needs no explicit release.
+        var item = ObsData.obs_data_first(Handle);
+        for (; item != nint.Zero; ObsData.obs_data_item_next(ref item))
+        {
+            var name = ObsData.obs_data_item_get_name(item);
+            if (name != null)
+                entries.Add((name, ObsData.obs_data_item_gettype(item)));
+        }
+        return entries;
+    }
+
+    /// <summary>
+    /// Gets the names of all entries with explicitly set values.
+    /// </summary>
+    public IReadOnlyList<string> GetKeys()
+    {
+        var entries = GetEntries();
+        var keys = new List<string>(entries.Count);
+        foreach (var (name, _) in entries)
+            keys.Add(name);
+        return keys;
+    }
+
+    #endregion
+
     #region JSON
 
     /// <summary>Converts settings to a JSON string.</summary>
@@ -226,6 +322,17 @@ public sealed class Settings : ObsObject
 
     /// <summary>Converts settings to a formatted JSON string.</summary>
     public string? ToJsonPretty() => ObsData.obs_data_get_json_pretty(Handle);
+
+    /// <summary>
+    /// Converts settings to a JSON string, including entries that only have default values.
+    /// </summary>
+    public string? ToJsonWithDefaults() => ObsData.obs_data_get_json_with_defaults(Handle);
+
+    /// <summary>
+    /// Converts settings to a formatted JSON string, including entries that only have
+    /// default values.
+    /// </summary>
+    public string? ToJsonPrettyWithDefaults() => ObsData.obs_data_get_json_pretty_with_defaults(Handle);
 
     /// <summary>Saves settings to a JSON file.</summary>
     public bool SaveToFile(string path) => ObsData.obs_data_save_json(Handle, path);

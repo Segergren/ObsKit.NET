@@ -593,3 +593,22 @@ public enum ObsTaskType
     /// <summary>The async destroy thread.</summary>
     Destroy = 3,
 }
+
+/// <summary>
+/// The value type of a settings entry (obs_data_type).
+/// </summary>
+public enum ObsDataType
+{
+    /// <summary>No value.</summary>
+    Null = 0,
+    /// <summary>A string value.</summary>
+    String = 1,
+    /// <summary>A numeric value (integer or double).</summary>
+    Number = 2,
+    /// <summary>A boolean value.</summary>
+    Boolean = 3,
+    /// <summary>A nested settings object.</summary>
+    Object = 4,
+    /// <summary>An array of settings objects.</summary>
+    Array = 5,
+}
