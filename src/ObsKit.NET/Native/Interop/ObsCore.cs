@@ -549,6 +549,36 @@ internal static partial class ObsCore
 
     #endregion
 
+    #region Misc State
+
+    /// <summary>
+    /// Gets whether video output is active (any output using a video mix is running).
+    /// </summary>
+    public static bool obs_video_active() => obs_video_active_native() != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_video_active")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_video_active_native();
+
+    /// <summary>
+    /// Gets whether audio monitoring is supported on this platform/audio backend.
+    /// </summary>
+    public static bool obs_audio_monitoring_available() => obs_audio_monitoring_available_native() != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_audio_monitoring_available")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_audio_monitoring_available_native();
+
+    /// <summary>
+    /// Tears down and reinitializes audio monitoring for all sources
+    /// (e.g. after the monitoring device becomes unavailable).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_reset_audio_monitoring")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_reset_audio_monitoring();
+
+    #endregion
+
     #region Logging
 
     /// <summary>

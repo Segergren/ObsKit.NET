@@ -75,6 +75,50 @@ public sealed class VideoEncoder : ObsObject
         TypeId = typeId ?? ObsEncoder.obs_encoder_get_id(handle);
     }
 
+    /// <summary>
+    /// Finds a video encoder by its name.
+    /// </summary>
+    /// <param name="name">The encoder name.</param>
+    /// <returns>The encoder, or null if no video encoder with that name exists. Dispose it when done.</returns>
+    public static VideoEncoder? GetByName(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        var handle = ObsEncoder.obs_get_encoder_by_name(name);
+        if (handle.IsNull)
+            return null;
+
+        if (ObsEncoder.obs_encoder_get_type(handle) != ObsEncoderType.Video)
+        {
+            ObsEncoder.obs_encoder_release(handle);
+            return null;
+        }
+
+        return new VideoEncoder(handle, ownsHandle: true);
+    }
+
+    /// <summary>
+    /// Gets all video encoders that currently exist.
+    /// Note: Each encoder in the returned list should be disposed when no longer needed.
+    /// </summary>
+    public static List<VideoEncoder> GetAll()
+    {
+        var encoders = new List<VideoEncoder>();
+        ObsEncoder.EnumEncoderCallback callback = (data, handle) =>
+        {
+            if (!handle.IsNull && ObsEncoder.obs_encoder_get_type(handle) == ObsEncoderType.Video)
+            {
+                // The enum hands us a borrowed pointer; take our own owning ref.
+                var refHandle = ObsEncoder.obs_encoder_get_ref(handle);
+                if (!refHandle.IsNull)
+                    encoders.Add(new VideoEncoder(refHandle, ownsHandle: true));
+            }
+            return 1;
+        };
+        ObsEncoder.obs_enum_encoders(callback, 0);
+        GC.KeepAlive(callback);
+        return encoders;
+    }
+
     private static nint CreateEncoder(string typeId, string name, Settings? settings, Settings? hotkeyData)
     {
         ThrowIfNotInitialized();

@@ -114,6 +114,65 @@ public class Output : ObsObject
     /// </summary>
     public string? LastError => ObsOutput.obs_output_get_last_error(Handle);
 
+    /// <summary>
+    /// Finds an output by its name.
+    /// </summary>
+    /// <param name="name">The output name.</param>
+    /// <returns>The output, or null if no output with that name exists. Dispose it when done.</returns>
+    public static Output? GetByName(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        var handle = ObsOutput.obs_get_output_by_name(name);
+        return handle.IsNull ? null : new Output(handle, ownsHandle: true);
+    }
+
+    /// <summary>
+    /// Gets all outputs that currently exist.
+    /// Note: Each output in the returned list should be disposed when no longer needed.
+    /// </summary>
+    public static List<Output> GetAll()
+    {
+        var outputs = new List<Output>();
+        ObsOutput.EnumOutputCallback callback = (data, handle) =>
+        {
+            if (!handle.IsNull)
+            {
+                // The enum hands us a borrowed pointer; take our own owning ref.
+                var refHandle = ObsOutput.obs_output_get_ref(handle);
+                if (!refHandle.IsNull)
+                    outputs.Add(new Output(refHandle, ownsHandle: true));
+            }
+            return 1;
+        };
+        ObsOutput.obs_enum_outputs(callback, 0);
+        GC.KeepAlive(callback);
+        return outputs;
+    }
+
+    /// <summary>
+    /// Gets the video codecs an output type supports (e.g. "h264", "hevc", "av1").
+    /// </summary>
+    /// <param name="typeId">The output type identifier (e.g. "ffmpeg_muxer", "rtmp_output").</param>
+    /// <returns>The supported codec names, or an empty list if the type is unknown.</returns>
+    public static IReadOnlyList<string> GetSupportedVideoCodecs(string typeId)
+    {
+        ArgumentNullException.ThrowIfNull(typeId);
+        var codecs = ObsOutput.obs_get_output_supported_video_codecs(typeId);
+        return codecs == null ? [] : codecs.Split(';', StringSplitOptions.RemoveEmptyEntries);
+    }
+
+    /// <summary>
+    /// Gets the audio codecs an output type supports (e.g. "aac", "opus").
+    /// </summary>
+    /// <param name="typeId">The output type identifier (e.g. "ffmpeg_muxer", "rtmp_output").</param>
+    /// <returns>The supported codec names, or an empty list if the type is unknown.</returns>
+    public static IReadOnlyList<string> GetSupportedAudioCodecs(string typeId)
+    {
+        ArgumentNullException.ThrowIfNull(typeId);
+        var codecs = ObsOutput.obs_get_output_supported_audio_codecs(typeId);
+        return codecs == null ? [] : codecs.Split(';', StringSplitOptions.RemoveEmptyEntries);
+    }
+
     #region Start/Stop
 
     /// <summary>

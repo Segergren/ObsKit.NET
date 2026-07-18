@@ -46,6 +46,41 @@ public class Service : ObsObject
         TypeId = typeId ?? ObsService.obs_service_get_type(handle);
     }
 
+    /// <summary>
+    /// Finds a service by its name.
+    /// </summary>
+    /// <param name="name">The service name.</param>
+    /// <returns>The service, or null if no service with that name exists. Dispose it when done.</returns>
+    public static Service? GetByName(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        var handle = ObsService.obs_get_service_by_name(name);
+        return handle.IsNull ? null : new Service(handle, ownsHandle: true);
+    }
+
+    /// <summary>
+    /// Gets all services that currently exist.
+    /// Note: Each service in the returned list should be disposed when no longer needed.
+    /// </summary>
+    public static List<Service> GetAll()
+    {
+        var services = new List<Service>();
+        ObsService.EnumServiceCallback callback = (data, handle) =>
+        {
+            if (!handle.IsNull)
+            {
+                // The enum hands us a borrowed pointer; take our own owning ref.
+                var refHandle = ObsService.obs_service_get_ref(handle);
+                if (!refHandle.IsNull)
+                    services.Add(new Service(refHandle, ownsHandle: true));
+            }
+            return 1;
+        };
+        ObsService.obs_enum_services(callback, 0);
+        GC.KeepAlive(callback);
+        return services;
+    }
+
     private static nint CreateService(string typeId, string name, Settings? settings, Settings? hotkeyData)
     {
         ThrowIfNotInitialized();

@@ -208,6 +208,32 @@ internal static partial class ObsService
     internal static partial nint obs_service_get_supported_audio_codecs(ObsServiceHandle service);
 
     #endregion
+
+    #region Lookup/Enumeration
+
+    /// <summary>
+    /// Callback for enumerating services. Return 0 to stop enumerating.
+    /// The service pointer is borrowed — take a ref via obs_service_get_ref to keep it.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate byte EnumServiceCallback(nint data, ObsServiceHandle service);
+
+    /// <summary>
+    /// Enumerates all services.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_enum_services")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_enum_services(EnumServiceCallback callback, nint data);
+
+    /// <summary>
+    /// Gets a service by name. Returns an incremented reference.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_service_by_name")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsServiceHandle obs_get_service_by_name(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    #endregion
 }
 
 /// <summary>

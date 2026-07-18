@@ -163,4 +163,59 @@ internal static partial class ObsCanvas
     [LibraryImport(Lib, EntryPoint = "obs_render_canvas_texture")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial void obs_render_canvas_texture(ObsCanvasHandle canvas);
+
+    /// <summary>
+    /// Callback for enumerating canvases. Return 0 to stop enumerating.
+    /// The canvas pointer is borrowed — take a ref via obs_canvas_get_ref to keep it.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate byte EnumCanvasCallback(nint data, ObsCanvasHandle canvas);
+
+    /// <summary>
+    /// Enumerates all canvases.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_enum_canvases")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_enum_canvases(EnumCanvasCallback callback, nint data);
+
+    /// <summary>
+    /// Gets a named canvas by name. Returns an incremented reference.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_canvas_by_name")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsCanvasHandle obs_get_canvas_by_name(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    /// <summary>
+    /// Gets a canvas by UUID. Returns an incremented reference.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_canvas_by_uuid")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsCanvasHandle obs_get_canvas_by_uuid(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string uuid);
+
+    /// <summary>
+    /// Enumerates the scenes attached to a canvas (passed as their underlying sources).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_canvas_enum_scenes")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_canvas_enum_scenes(
+        ObsCanvasHandle canvas, ObsSource.EnumSourceCallback callback, nint data);
+
+    /// <summary>
+    /// Gets a source attached to a canvas by name. Returns an incremented reference.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_canvas_get_source_by_name")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsSourceHandle obs_canvas_get_source_by_name(
+        ObsCanvasHandle canvas, [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    /// <summary>
+    /// Gets a scene attached to a canvas by name. Returns an incremented reference
+    /// (held on the scene's underlying source).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_canvas_get_scene_by_name")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsSceneHandle obs_canvas_get_scene_by_name(
+        ObsCanvasHandle canvas, [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
 }

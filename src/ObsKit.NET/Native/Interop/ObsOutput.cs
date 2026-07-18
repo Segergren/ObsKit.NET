@@ -448,4 +448,50 @@ internal static partial class ObsOutput
     internal static partial uint obs_output_get_height(ObsOutputHandle output);
 
     #endregion
+
+    #region Lookup/Enumeration
+
+    /// <summary>
+    /// Callback for enumerating outputs. Return 0 to stop enumerating.
+    /// The output pointer is borrowed — take a ref via obs_output_get_ref to keep it.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate byte EnumOutputCallback(nint data, ObsOutputHandle output);
+
+    /// <summary>
+    /// Enumerates all outputs.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_enum_outputs")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_enum_outputs(EnumOutputCallback callback, nint data);
+
+    /// <summary>
+    /// Gets an output by name. Returns an incremented reference.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_output_by_name")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsOutputHandle obs_get_output_by_name(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    /// <summary>
+    /// Gets the video codecs an output type supports as a semicolon-delimited list
+    /// (e.g. "h264;hevc;av1"), or null if the output type does not exist.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_output_supported_video_codecs")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_get_output_supported_video_codecs(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string id);
+
+    /// <summary>
+    /// Gets the audio codecs an output type supports as a semicolon-delimited list
+    /// (e.g. "aac;opus"), or null if the output type does not exist.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_output_supported_audio_codecs")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_get_output_supported_audio_codecs(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string id);
+
+    #endregion
 }

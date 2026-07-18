@@ -1,6 +1,7 @@
 using ObsKit.NET.Core;
 using ObsKit.NET.Native.Interop;
 using ObsKit.NET.Native.Types;
+using ObsKit.NET.Sources;
 
 namespace ObsKit.NET.Scenes;
 
@@ -88,6 +89,53 @@ public sealed class Canvas : ObsObject
         return new Canvas(handle);
     }
 
+    /// <summary>
+    /// Finds a named canvas by its name (the main canvas and private canvases are not searched).
+    /// </summary>
+    /// <param name="name">The canvas name.</param>
+    /// <returns>The canvas, or null if no canvas with that name exists. Dispose it when done.</returns>
+    public static Canvas? GetByName(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        var handle = ObsCanvas.obs_get_canvas_by_name(name);
+        return handle.IsNull ? null : new Canvas(handle);
+    }
+
+    /// <summary>
+    /// Finds a canvas by its UUID.
+    /// </summary>
+    /// <param name="uuid">The canvas UUID (see <see cref="Uuid"/>).</param>
+    /// <returns>The canvas, or null if no canvas with that UUID exists. Dispose it when done.</returns>
+    public static Canvas? GetByUuid(string uuid)
+    {
+        ArgumentNullException.ThrowIfNull(uuid);
+        var handle = ObsCanvas.obs_get_canvas_by_uuid(uuid);
+        return handle.IsNull ? null : new Canvas(handle);
+    }
+
+    /// <summary>
+    /// Gets all canvases that currently exist (including the main canvas).
+    /// Note: Each canvas in the returned list should be disposed when no longer needed.
+    /// </summary>
+    public static List<Canvas> GetAll()
+    {
+        var canvases = new List<Canvas>();
+        ObsCanvas.EnumCanvasCallback callback = (data, handle) =>
+        {
+            if (!handle.IsNull)
+            {
+                // The enum hands us a borrowed pointer; take our own owning ref.
+                var refHandle = ObsCanvas.obs_canvas_get_ref(handle);
+                if (!refHandle.IsNull)
+                    canvases.Add(new Canvas(refHandle));
+            }
+            return 1;
+        };
+        ObsCanvas.obs_enum_canvases(callback, 0);
+        GC.KeepAlive(callback);
+        return canvases;
+    }
+
     /// <summary>Gets or sets the canvas name (the main canvas cannot be renamed).</summary>
     public string? Name
     {
@@ -141,6 +189,58 @@ public sealed class Canvas : ObsObject
             throw new InvalidOperationException($"Failed to create scene '{name}' on canvas '{Name}'.");
 
         return new Scene(sceneHandle, ownsHandle: true);
+    }
+
+    /// <summary>
+    /// Finds a scene attached to this canvas by name.
+    /// </summary>
+    /// <param name="name">The scene name.</param>
+    /// <returns>The scene, or null if this canvas has no scene with that name. Dispose it when done.</returns>
+    public Scene? FindScene(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        var handle = ObsCanvas.obs_canvas_get_scene_by_name(Handle, name);
+        return handle.IsNull ? null : new Scene(handle, ownsHandle: true);
+    }
+
+    /// <summary>
+    /// Finds a source attached to this canvas by name.
+    /// </summary>
+    /// <param name="name">The source name.</param>
+    /// <returns>The source, or null if this canvas has no source with that name. Dispose it when done.</returns>
+    public Source? FindSource(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        var handle = ObsCanvas.obs_canvas_get_source_by_name(Handle, name);
+        return handle.IsNull ? null : new Source(handle, ownsHandle: true);
+    }
+
+    /// <summary>
+    /// Gets all scenes attached to this canvas.
+    /// Note: Each scene in the returned list should be disposed when no longer needed.
+    /// </summary>
+    public List<Scene> GetScenes()
+    {
+        var scenes = new List<Scene>();
+        ObsSource.EnumSourceCallback callback = (data, handle) =>
+        {
+            if (!handle.IsNull)
+            {
+                var sceneHandle = ObsScene.obs_scene_from_source(handle);
+                if (!sceneHandle.IsNull)
+                {
+                    // obs_scene_from_source returns a borrowed pointer; take an owning ref
+                    // via the exported obs_scene_get_ref (null if being destroyed).
+                    var refd = ObsScene.obs_scene_get_ref(sceneHandle);
+                    if (!refd.IsNull)
+                        scenes.Add(new Scene(refd, ownsHandle: true));
+                }
+            }
+            return 1;
+        };
+        ObsCanvas.obs_canvas_enum_scenes(Handle, callback, 0);
+        GC.KeepAlive(callback);
+        return scenes;
     }
 
     /// <summary>

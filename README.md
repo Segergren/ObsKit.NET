@@ -435,6 +435,43 @@ using var verticalRecording = new RecordingOutput("Vertical")
 verticalRecording.Start();                // records simultaneously with the main output
 ```
 
+## Finding & Enumerating Objects
+
+Look up any live object by name, or enumerate everything that currently exists.
+Returned wrappers hold their own reference — dispose them when done.
+
+```csharp
+using var game = Source.GetByName("Game");              // or Obs.Sources.Find("Game")
+using var byUuid = Source.GetByUuid(uuid);              // stable across renames
+var everything = Obs.Sources.ToList(includePrivate: true);
+
+using var rec = Output.GetByName("Recording");
+var outputs = Output.GetAll();
+using var venc = VideoEncoder.GetByName("Video");       // also AudioEncoder.GetByName
+var encoders = VideoEncoder.GetAll();                   // also AudioEncoder.GetAll
+using var svc = Service.GetByName("My Stream");
+
+using var canvas = Canvas.GetByName("Vertical");        // also Canvas.GetByUuid, Canvas.GetAll
+using var scene = canvas.FindScene("Vertical Scene");   // scenes/sources scoped to one canvas
+var scenes = canvas.GetScenes();
+
+// Duplicate a source (full copy of settings + filters)
+using var copy = source.Duplicate("Copy", createPrivate: false);
+
+// Unfiltered size and unversioned type id
+uint w = source.BaseWidth, h = source.BaseHeight;       // size before crop/scale filters
+string? id = source.UnversionedTypeId;                  // "color_source" for "color_source_v3"
+
+// Global state
+bool live = Obs.IsVideoActive;                          // any recording/stream/vcam running
+if (!Obs.IsAudioMonitoringAvailable) { /* hide monitoring UI */ }
+Obs.ResetAudioMonitoring();                             // recover after device loss
+
+// Which codecs an output type accepts (before picking encoders)
+var vcodecs = Output.GetSupportedVideoCodecs("ffmpeg_muxer");   // ["h264", "hevc", "av1", ...]
+var acodecs = Output.GetSupportedAudioCodecs("rtmp_output");    // ["aac"]
+```
+
 ## Encoders
 
 ```csharp
@@ -562,6 +599,7 @@ streaming.Stop();
 - **Virtual Camera** - Expose the canvas as a system camera device
 - **Audio Tooling** - Per-track routing, live level meters, dB volume and curve-aware faders, sync offset, balance, monitoring device selection
 - **Property Introspection** - Enumerate any source's configurable properties (types, ranges, option lists) to build dynamic config UIs or discover devices/resolutions
+- **Object Lookup** - Find any source, output, encoder, service, or canvas by name/UUID, enumerate all live instances, and duplicate sources
 - **Headless Operation** - Run without GUI dependencies
 
 ## Requirements

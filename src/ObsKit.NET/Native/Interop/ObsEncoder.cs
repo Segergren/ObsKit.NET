@@ -349,4 +349,37 @@ internal static partial class ObsEncoder
         [MarshalUsing(typeof(Utf8StringMarshaler))] string message);
 
     #endregion
+
+    #region Lookup/Enumeration
+
+    /// <summary>
+    /// Callback for enumerating encoders. Return 0 to stop enumerating.
+    /// The encoder pointer is borrowed — take a ref via obs_encoder_get_ref to keep it.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate byte EnumEncoderCallback(nint data, ObsEncoderHandle encoder);
+
+    /// <summary>
+    /// Enumerates all encoders.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_enum_encoders")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_enum_encoders(EnumEncoderCallback callback, nint data);
+
+    /// <summary>
+    /// Gets an encoder by name. Returns an incremented reference.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_encoder_by_name")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsEncoderHandle obs_get_encoder_by_name(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    /// <summary>
+    /// Gets the audio track (mixer index) an audio encoder reads from.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_get_mixer_index")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nuint obs_encoder_get_mixer_index(ObsEncoderHandle encoder);
+
+    #endregion
 }

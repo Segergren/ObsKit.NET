@@ -51,6 +51,50 @@ public sealed class AudioEncoder : ObsObject
         MixerIndex = mixerIdx;
     }
 
+    /// <summary>
+    /// Finds an audio encoder by its name.
+    /// </summary>
+    /// <param name="name">The encoder name.</param>
+    /// <returns>The encoder, or null if no audio encoder with that name exists. Dispose it when done.</returns>
+    public static AudioEncoder? GetByName(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        var handle = ObsEncoder.obs_get_encoder_by_name(name);
+        if (handle.IsNull)
+            return null;
+
+        if (ObsEncoder.obs_encoder_get_type(handle) != ObsEncoderType.Audio)
+        {
+            ObsEncoder.obs_encoder_release(handle);
+            return null;
+        }
+
+        return new AudioEncoder(handle, mixerIdx: (int)ObsEncoder.obs_encoder_get_mixer_index(handle), ownsHandle: true);
+    }
+
+    /// <summary>
+    /// Gets all audio encoders that currently exist.
+    /// Note: Each encoder in the returned list should be disposed when no longer needed.
+    /// </summary>
+    public static List<AudioEncoder> GetAll()
+    {
+        var encoders = new List<AudioEncoder>();
+        ObsEncoder.EnumEncoderCallback callback = (data, handle) =>
+        {
+            if (!handle.IsNull && ObsEncoder.obs_encoder_get_type(handle) == ObsEncoderType.Audio)
+            {
+                // The enum hands us a borrowed pointer; take our own owning ref.
+                var refHandle = ObsEncoder.obs_encoder_get_ref(handle);
+                if (!refHandle.IsNull)
+                    encoders.Add(new AudioEncoder(refHandle, mixerIdx: (int)ObsEncoder.obs_encoder_get_mixer_index(refHandle), ownsHandle: true));
+            }
+            return 1;
+        };
+        ObsEncoder.obs_enum_encoders(callback, 0);
+        GC.KeepAlive(callback);
+        return encoders;
+    }
+
     private static nint CreateEncoder(string typeId, string name, int mixerIdx, Settings? settings, Settings? hotkeyData)
     {
         ThrowIfNotInitialized();

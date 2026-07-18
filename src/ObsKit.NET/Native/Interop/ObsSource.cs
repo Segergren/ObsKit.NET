@@ -663,5 +663,55 @@ internal static partial class ObsSource
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial void obs_enum_scenes(EnumSourceCallback callback, nint data);
 
+    /// <summary>
+    /// Enumerates all sources including private ones.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_enum_all_sources")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_enum_all_sources(EnumSourceCallback callback, nint data);
+
+    /// <summary>
+    /// Gets a public source by name. Returns an incremented reference.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_source_by_name")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsSourceHandle obs_get_source_by_name(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    /// <summary>
+    /// Duplicates a source. Returns an incremented reference — either a new source,
+    /// or the same source when it cannot be duplicated (scenes when not creating a
+    /// private copy, and sources with the DO_NOT_DUPLICATE output flag).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_duplicate")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsSourceHandle obs_source_duplicate(
+        ObsSourceHandle source,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string? desiredName,
+        byte createPrivate);
+
+    /// <summary>
+    /// Gets the base width for a source (not taking into account filtering).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_base_width")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial uint obs_source_get_base_width(ObsSourceHandle source);
+
+    /// <summary>
+    /// Gets the base height for a source (not taking into account filtering).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_base_height")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial uint obs_source_get_base_height(ObsSourceHandle source);
+
+    /// <summary>
+    /// Gets the source type id without any versioning suffix (e.g. "color_source"
+    /// for "color_source_v3").
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_unversioned_id")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_source_get_unversioned_id(ObsSourceHandle source);
+
     #endregion
 }

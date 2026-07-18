@@ -481,6 +481,44 @@ public static class Obs
     }
 
     /// <summary>
+    /// Gets whether video output is active — true while any output that uses a
+    /// video mix (recording, streaming, virtual camera) is running.
+    /// </summary>
+    /// <exception cref="ObsNotInitializedException">Thrown if OBS is not initialized.</exception>
+    public static bool IsVideoActive
+    {
+        get
+        {
+            ThrowIfNotInitialized();
+            return ObsCore.obs_video_active();
+        }
+    }
+
+    /// <summary>
+    /// Gets whether audio monitoring is supported by the platform's audio backend.
+    /// </summary>
+    /// <exception cref="ObsNotInitializedException">Thrown if OBS is not initialized.</exception>
+    public static bool IsAudioMonitoringAvailable
+    {
+        get
+        {
+            ThrowIfNotInitialized();
+            return ObsCore.obs_audio_monitoring_available();
+        }
+    }
+
+    /// <summary>
+    /// Tears down and reinitializes audio monitoring for all sources — useful after
+    /// the monitoring device changes or becomes unavailable.
+    /// </summary>
+    /// <exception cref="ObsNotInitializedException">Thrown if OBS is not initialized.</exception>
+    public static void ResetAudioMonitoring()
+    {
+        ThrowIfNotInitialized();
+        ObsCore.obs_reset_audio_monitoring();
+    }
+
+    /// <summary>
     /// Enumerates the audio devices that can be used for audio monitoring.
     /// </summary>
     /// <returns>A list of (Name, Id) pairs; pass an Id to <see cref="SetAudioMonitoringDevice"/>.</returns>

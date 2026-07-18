@@ -116,11 +116,57 @@ public class Source : ObsObject
         return handle.IsNull ? null : new Source(handle, ownsHandle: true);
     }
 
+    /// <summary>
+    /// Finds a public source by its name.
+    /// </summary>
+    /// <param name="name">The source name (see <see cref="Name"/>).</param>
+    /// <returns>The source, or null if no source with that name exists.</returns>
+    public static Source? GetByName(string name)
+    {
+        ThrowIfNotInitialized();
+        ArgumentNullException.ThrowIfNull(name);
+        var handle = ObsSource.obs_get_source_by_name(name);
+        return handle.IsNull ? null : new Source(handle, ownsHandle: true);
+    }
+
+    /// <summary>
+    /// Duplicates this source with a full copy of its settings and filters.
+    /// Sources that cannot be duplicated (scenes when <paramref name="createPrivate"/>
+    /// is false, and capture sources flagged do-not-duplicate such as game/display
+    /// capture) return a new reference to this same source instead.
+    /// </summary>
+    /// <param name="desiredName">The name for the duplicate, or null to auto-generate one.</param>
+    /// <param name="createPrivate">Create the duplicate as a private source (not enumerated).</param>
+    /// <returns>The duplicated source. Dispose it when no longer needed.</returns>
+    public Source Duplicate(string? desiredName = null, bool createPrivate = false)
+    {
+        var handle = ObsSource.obs_source_duplicate(Handle, desiredName, createPrivate ? (byte)1 : (byte)0);
+        if (handle.IsNull)
+            throw new InvalidOperationException($"Failed to duplicate source '{Name}'.");
+        return new Source(handle, ownsHandle: true);
+    }
+
     /// <summary>Gets the source width in pixels.</summary>
     public uint Width => ObsSource.obs_source_get_width(Handle);
 
     /// <summary>Gets the source height in pixels.</summary>
     public uint Height => ObsSource.obs_source_get_height(Handle);
+
+    /// <summary>
+    /// Gets the source width in pixels before any filters (e.g. crop or scale) are applied.
+    /// </summary>
+    public uint BaseWidth => ObsSource.obs_source_get_base_width(Handle);
+
+    /// <summary>
+    /// Gets the source height in pixels before any filters (e.g. crop or scale) are applied.
+    /// </summary>
+    public uint BaseHeight => ObsSource.obs_source_get_base_height(Handle);
+
+    /// <summary>
+    /// Gets the source type id without its version suffix (e.g. "color_source" for
+    /// "color_source_v3"). Useful for type checks that should ignore versioning.
+    /// </summary>
+    public string? UnversionedTypeId => ObsSource.obs_source_get_unversioned_id(Handle);
 
     /// <summary>
     /// Gets whether the source is active (being rendered in an output).

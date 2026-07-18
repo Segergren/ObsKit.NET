@@ -82,6 +82,41 @@ public sealed class SourceCollection : IEnumerable<Source>
     }
 
     /// <summary>
+    /// Finds a public source by its name.
+    /// </summary>
+    /// <param name="name">The source name.</param>
+    /// <returns>The source, or null if no source with that name exists. Dispose it when done.</returns>
+    public Source? Find(string name) => Source.GetByName(name);
+
+    /// <summary>
+    /// Gets all sources as a list, optionally including private sources.
+    /// Note: Each source in the returned list should be disposed when no longer needed.
+    /// </summary>
+    /// <param name="includePrivate">Also include private sources (created via <see cref="CreatePrivate"/> or internally by OBS).</param>
+    public List<Source> ToList(bool includePrivate)
+    {
+        if (!includePrivate)
+            return ToList();
+
+        var sources = new List<Source>();
+        ObsSource.EnumSourceCallback callback = (data, handle) =>
+        {
+            if (!handle.IsNull)
+            {
+                // Borrowed pointer; take our own owning ref (see GetEnumerator).
+                var refHandle = ObsSource.obs_source_get_ref(handle);
+                if (!refHandle.IsNull)
+                    sources.Add(new Source(refHandle, ownsHandle: true));
+            }
+            return 1;
+        };
+
+        ObsSource.obs_enum_all_sources(callback, 0);
+        GC.KeepAlive(callback);
+        return sources;
+    }
+
+    /// <summary>
     /// Enumerates all sources.
     /// </summary>
     public IEnumerator<Source> GetEnumerator()
