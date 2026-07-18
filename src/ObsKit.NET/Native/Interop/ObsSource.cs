@@ -713,5 +713,12 @@ internal static partial class ObsSource
     [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
     internal static partial string? obs_source_get_unversioned_id(ObsSourceHandle source);
 
+    /// <summary>
+    /// Gets the source's private settings (an incremented obs_data reference).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_private_settings")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsDataHandle obs_source_get_private_settings(ObsSourceHandle source);
+
     #endregion
 }

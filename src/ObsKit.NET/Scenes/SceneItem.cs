@@ -191,6 +191,58 @@ public sealed class SceneItem : ObsObject
     public void SetTransform(ObsTransformInfo transform)
         => ObsScene.obs_sceneitem_set_info2(Handle, ref transform);
 
+    /// <summary>
+    /// Gets or sets whether the source is cropped to its bounding box (when
+    /// <see cref="BoundsType"/> is not <see cref="ObsBoundsType.None"/>) instead of
+    /// overflowing it.
+    /// </summary>
+    public bool CropToBounds
+    {
+        get => ObsScene.obs_sceneitem_get_bounds_crop(Handle);
+        set => ObsScene.obs_sceneitem_set_bounds_crop(Handle, value ? (byte)1 : (byte)0);
+    }
+
+    /// <summary>
+    /// Defers transform-change signals until the returned scope is disposed, so a
+    /// series of position/scale/bounds changes emits a single update:
+    /// <c>using (item.DeferUpdates()) { item.Position = ...; item.Scale = ...; }</c>
+    /// </summary>
+    public IDisposable DeferUpdates()
+    {
+        ObsScene.obs_sceneitem_defer_update_begin(Handle);
+        return new DeferUpdateScope(this);
+    }
+
+    private sealed class DeferUpdateScope(SceneItem item) : IDisposable
+    {
+        private SceneItem? _item = item;
+
+        public void Dispose()
+        {
+            var item = Interlocked.Exchange(ref _item, null);
+            if (item != null)
+                ObsScene.obs_sceneitem_defer_update_end(item.Handle);
+        }
+    }
+
+    /// <summary>
+    /// Forces an immediate recalculation of the item's draw transform (normally
+    /// recalculated lazily on the next frame).
+    /// </summary>
+    public void ForceUpdateTransform() => ObsScene.obs_sceneitem_force_update_transform(Handle);
+
+    /// <summary>
+    /// Gets this item's private settings — free-form data saved with the scene item
+    /// (OBS Studio stores e.g. show/hide transition settings here). Dispose when done.
+    /// </summary>
+    public Settings GetPrivateSettings()
+    {
+        var handle = ObsScene.obs_sceneitem_get_private_settings(Handle);
+        if (handle.IsNull)
+            throw new InvalidOperationException("Failed to get private settings.");
+        return new Settings(handle, ownsHandle: true);
+    }
+
     #endregion
 
     #region Crop

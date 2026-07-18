@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using ObsKit.NET.Audio;
 using ObsKit.NET.Core;
 using ObsKit.NET.Encoders;
@@ -479,6 +480,67 @@ public static class Obs
             ObsCore.obs_get_lagged_frames(),
             totalOutputFrames,
             skippedFrames);
+    }
+
+    /// <summary>
+    /// Queues an action to run on one of OBS's internal threads — e.g.
+    /// <see cref="ObsTaskType.Graphics"/> to touch graphics resources safely, or
+    /// <see cref="ObsTaskType.Destroy"/> to defer cleanup. If already on the target
+    /// thread the action runs immediately.
+    /// </summary>
+    /// <param name="type">The target thread. <see cref="ObsTaskType.Ui"/> is dropped
+    /// (with an OBS log error) unless a UI task handler was installed.</param>
+    /// <param name="action">The action to run. Exceptions are swallowed.</param>
+    /// <param name="wait">True to block until the action has executed.</param>
+    public static void QueueTask(ObsTaskType type, Action action, bool wait = false)
+    {
+        ThrowIfNotInitialized();
+        ArgumentNullException.ThrowIfNull(action);
+
+        if (wait)
+        {
+            // Synchronous: the delegate cannot be collected while we block on the call.
+            ObsCore.TaskCallback callback = _ =>
+            {
+                try { action(); } catch { /* don't let exceptions escape into native code */ }
+            };
+            ObsCore.obs_queue_task(type, callback, nint.Zero, 1);
+            GC.KeepAlive(callback);
+            return;
+        }
+
+        // Fire-and-forget: root the delegate until the task has run, otherwise the GC
+        // could collect it before OBS's thread invokes the function pointer.
+        GCHandle gcHandle = default;
+        ObsCore.TaskCallback deferred = _ =>
+        {
+            try { action(); }
+            catch { /* don't let exceptions escape into native code */ }
+            finally { gcHandle.Free(); }
+        };
+        gcHandle = GCHandle.Alloc(deferred);
+        ObsCore.obs_queue_task(type, deferred, nint.Zero, 0);
+    }
+
+    /// <summary>
+    /// Gets whether the calling thread is the given OBS task thread.
+    /// </summary>
+    /// <param name="type">The task thread to test.</param>
+    public static bool IsInTaskThread(ObsTaskType type)
+    {
+        ThrowIfNotInitialized();
+        return ObsCore.obs_in_task_thread(type);
+    }
+
+    /// <summary>
+    /// Blocks until all pending asynchronous source destroys have completed —
+    /// useful before tearing down or when measuring resource usage.
+    /// </summary>
+    /// <returns>False if OBS has no destroy thread.</returns>
+    public static bool WaitForDestroyQueue()
+    {
+        ThrowIfNotInitialized();
+        return ObsCore.obs_wait_for_destroy_queue();
     }
 
     /// <summary>

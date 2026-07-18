@@ -549,6 +549,43 @@ internal static partial class ObsCore
 
     #endregion
 
+    #region Task Queue
+
+    /// <summary>
+    /// Callback executed by obs_queue_task on the target thread.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void TaskCallback(nint param);
+
+    /// <summary>
+    /// Queues a task to run on one of OBS's threads (graphics, audio, destroy) or
+    /// the UI task handler. With wait = 1 blocks until the task has executed.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_queue_task")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_queue_task(ObsTaskType type, TaskCallback task, nint param, byte wait);
+
+    /// <summary>
+    /// Gets whether the caller is on the given task thread.
+    /// </summary>
+    public static bool obs_in_task_thread(ObsTaskType type) => obs_in_task_thread_native(type) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_in_task_thread")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_in_task_thread_native(ObsTaskType type);
+
+    /// <summary>
+    /// Blocks until the destroy task queue is empty (all pending async source
+    /// destroys have completed). Returns false if there is no destroy thread.
+    /// </summary>
+    public static bool obs_wait_for_destroy_queue() => obs_wait_for_destroy_queue_native() != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_wait_for_destroy_queue")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_wait_for_destroy_queue_native();
+
+    #endregion
+
     #region Misc State
 
     /// <summary>

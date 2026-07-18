@@ -154,6 +154,19 @@ webcamItem.SetPosition(1440, 810)
 webcamItem.BoundsAlignment = ObsAlignment.TopLeft;   // pin within the box (default: Center)
 
 webcamItem.IsVisible = false;   // fades out instead of popping
+
+// Batch several transform changes into a single update signal
+using (webcamItem.DeferUpdates())
+{
+    webcamItem.SetPosition(0, 0);
+    webcamItem.SetBounds(ObsBoundsType.ScaleInner, 960, 540);
+}
+
+webcamItem.CropToBounds = true;        // crop to the bounding box instead of overflowing
+
+// Free-form data saved with the item / source (not passed to the source plugin)
+using var priv = webcamItem.GetPrivateSettings();   // also source.GetPrivateSettings()
+priv.Set("my_app_tag", "pinned");
 ```
 
 ### Groups

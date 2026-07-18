@@ -578,3 +578,18 @@ public enum ObsKeyModifiers : uint
     /// <summary>The key is the right-side variant (e.g. right Shift).</summary>
     IsRight = 1 << 11,
 }
+
+/// <summary>
+/// OBS task threads that work can be queued onto (obs_task_type).
+/// </summary>
+public enum ObsTaskType
+{
+    /// <summary>The application's UI thread (requires a UI task handler to be set; otherwise tasks are dropped).</summary>
+    Ui = 0,
+    /// <summary>The graphics/render thread.</summary>
+    Graphics = 1,
+    /// <summary>The audio thread.</summary>
+    Audio = 2,
+    /// <summary>The async destroy thread.</summary>
+    Destroy = 3,
+}

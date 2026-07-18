@@ -555,4 +555,54 @@ internal static partial class ObsScene
     internal static partial void obs_sceneitem_group_enum_items(ObsSceneItemHandle group, EnumSceneItemCallback callback, nint data);
 
     #endregion
+
+    #region Item Update Control / Private Settings
+
+    /// <summary>
+    /// Begins deferring transform update signals for a scene item (batch multiple
+    /// transform changes into one "item_transform" signal).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_defer_update_begin")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_defer_update_begin(ObsSceneItemHandle item);
+
+    /// <summary>
+    /// Ends deferring transform updates and emits the update signal.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_defer_update_end")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_defer_update_end(ObsSceneItemHandle item);
+
+    /// <summary>
+    /// Forces an immediate recalculation of the item's draw transform.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_force_update_transform")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_force_update_transform(ObsSceneItemHandle item);
+
+    /// <summary>
+    /// Sets whether the source is cropped to the bounding box (bounds-type transforms).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_set_bounds_crop")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_set_bounds_crop(ObsSceneItemHandle item, byte crop);
+
+    /// <summary>
+    /// Gets whether the source is cropped to the bounding box.
+    /// </summary>
+    public static bool obs_sceneitem_get_bounds_crop(ObsSceneItemHandle item)
+        => obs_sceneitem_get_bounds_crop_native(item) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_get_bounds_crop")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_sceneitem_get_bounds_crop_native(ObsSceneItemHandle item);
+
+    /// <summary>
+    /// Gets the item's private settings (an incremented obs_data reference).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_get_private_settings")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsDataHandle obs_sceneitem_get_private_settings(ObsSceneItemHandle item);
+
+    #endregion
 }

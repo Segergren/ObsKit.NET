@@ -513,6 +513,19 @@ public class Source : ObsObject
         return new Settings(handle, ownsHandle: true);
     }
 
+    /// <summary>
+    /// Gets the source's private settings — free-form data saved with the source but
+    /// not passed to the source plugin (store your own per-source metadata here).
+    /// Dispose when done.
+    /// </summary>
+    public Settings GetPrivateSettings()
+    {
+        var handle = ObsSource.obs_source_get_private_settings(Handle);
+        if (handle.IsNull)
+            throw new InvalidOperationException("Failed to get private settings.");
+        return new Settings(handle, ownsHandle: true);
+    }
+
     /// <summary>Updates the source settings.</summary>
     public void Update(Settings settings)
     {
