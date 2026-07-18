@@ -90,7 +90,9 @@ public sealed class Canvas : ObsObject
     }
 
     /// <summary>
-    /// Finds a named canvas by its name (the main canvas and private canvases are not searched).
+    /// Finds a canvas by its name (private canvases are not searched). The main
+    /// canvas is included and is named "Main" — prefer <see cref="GetMain"/> to
+    /// fetch it directly rather than relying on that name.
     /// </summary>
     /// <param name="name">The canvas name.</param>
     /// <returns>The canvas, or null if no canvas with that name exists. Dispose it when done.</returns>

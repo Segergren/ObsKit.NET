@@ -528,14 +528,21 @@ public static class Obs
     /// <see cref="ObsTaskType.Destroy"/> to defer cleanup. If already on the target
     /// thread the action runs immediately.
     /// </summary>
-    /// <param name="type">The target thread. <see cref="ObsTaskType.Ui"/> is dropped
-    /// (with an OBS log error) unless a UI task handler was installed.</param>
+    /// <param name="type">The target thread. <see cref="ObsTaskType.Ui"/> is not
+    /// supported — libobs requires an <c>obs_set_ui_task_handler</c> callback
+    /// (not exposed by this library) to marshal onto the host application's UI
+    /// thread; without one, native code never invokes the queued action, and for
+    /// <paramref name="wait"/> = false that would silently leak the callback.</param>
     /// <param name="action">The action to run. Exceptions are swallowed.</param>
     /// <param name="wait">True to block until the action has executed.</param>
     public static void QueueTask(ObsTaskType type, Action action, bool wait = false)
     {
         ThrowIfNotInitialized();
         ArgumentNullException.ThrowIfNull(action);
+        if (type == ObsTaskType.Ui)
+            throw new NotSupportedException(
+                "ObsTaskType.Ui requires a UI task handler, which this library does not expose. " +
+                "Use Graphics, Audio, or Destroy instead.");
 
         if (wait)
         {

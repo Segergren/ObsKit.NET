@@ -584,7 +584,7 @@ public enum ObsKeyModifiers : uint
 /// </summary>
 public enum ObsTaskType
 {
-    /// <summary>The application's UI thread (requires a UI task handler to be set; otherwise tasks are dropped).</summary>
+    /// <summary>The application's UI thread. Not usable via <c>Obs.QueueTask</c> — see its docs.</summary>
     Ui = 0,
     /// <summary>The graphics/render thread.</summary>
     Graphics = 1,
