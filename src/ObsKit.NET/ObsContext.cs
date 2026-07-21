@@ -230,25 +230,23 @@ public sealed class ObsContext : IDisposable
         ObsCore.base_set_log_handler(_logHandler, 0);
     }
 
+    // Single-pass so we never reuse the va_list: on the SysV/AMD64 ABI (Linux/macOS) va_list is a
+    // mutable struct vsnprintf advances in place, so a size-then-format second pass reads past the
+    // arguments. OBS log lines are short; an overlong one truncates into this buffer.
+    private const int LogFormatBufferSize = 8192;
+
     private static string FormatLogMessage(nint format, nint args)
     {
         if (format == nint.Zero)
             return string.Empty;
 
-        // Use vsnprintf to format the message with va_list arguments
-        // First call with null buffer to get required size
-        int size = NativeVsnprintf(nint.Zero, 0, format, args);
-        if (size <= 0)
-        {
-            // Fallback to just the format string if formatting fails
-            return Marshal.PtrToStringUTF8(format) ?? string.Empty;
-        }
-
-        // Allocate buffer and format the message
-        var buffer = Marshal.AllocHGlobal(size + 1);
+        var buffer = Marshal.AllocHGlobal(LogFormatBufferSize);
         try
         {
-            NativeVsnprintf(buffer, (nuint)(size + 1), format, args);
+            int written = NativeVsnprintf(buffer, LogFormatBufferSize, format, args);
+            if (written < 0)
+                return Marshal.PtrToStringUTF8(format) ?? string.Empty;
+
             return Marshal.PtrToStringUTF8(buffer) ?? string.Empty;
         }
         finally
@@ -257,8 +255,18 @@ public sealed class ObsContext : IDisposable
         }
     }
 
+    // vsnprintf lives in a different C runtime per OS: msvcrt on Windows, libc elsewhere (libSystem
+    // on macOS). Importing msvcrt everywhere threw DllNotFoundException off Windows, dropping all logs.
+    private static int NativeVsnprintf(nint buffer, nuint size, nint format, nint args)
+        => OperatingSystem.IsWindows()
+            ? NativeVsnprintfWindows(buffer, size, format, args)
+            : NativeVsnprintfLibc(buffer, size, format, args);
+
     [DllImport("msvcrt.dll", EntryPoint = "vsnprintf", CallingConvention = CallingConvention.Cdecl)]
-    private static extern int NativeVsnprintf(nint buffer, nuint size, nint format, nint args);
+    private static extern int NativeVsnprintfWindows(nint buffer, nuint size, nint format, nint args);
+
+    [DllImport("libc", EntryPoint = "vsnprintf", CallingConvention = CallingConvention.Cdecl)]
+    private static extern int NativeVsnprintfLibc(nint buffer, nuint size, nint format, nint args);
 
     [SupportedOSPlatform("windows")]
     private void InitializeComForWindows()
