@@ -111,6 +111,10 @@ public sealed class ObsContext : IDisposable
 
     private void LoadModulesFromDirectory(string binPath, string dataPathTemplate)
     {
+        // Absolute so obs_open_module never receives relative paths (see Initialize).
+        binPath = Path.GetFullPath(binPath);
+        dataPathTemplate = Path.GetFullPath(dataPathTemplate);
+
         if (!Directory.Exists(binPath))
             return;
 
