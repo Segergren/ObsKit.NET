@@ -46,27 +46,28 @@ public sealed class ObsContext : IDisposable
             throw new ObsInitializationException("obs_startup failed");
         }
 
-        // OBS's check_path concatenates path + filename directly, so the path must end
-        // with a trailing slash.
+        // Resolve to absolute so obs_module_file() hands the game-capture inject-helper an
+        // absolute graphics-hook path (relative paths fail to load under OBS 32.2.0+ hardening).
+        // OBS's check_path concatenates path + filename directly, so the path must end with a
+        // trailing slash. Path.GetFullPath keeps the %module% token literal.
         if (!string.IsNullOrEmpty(_config.DataPath))
         {
-            var dataPath = _config.DataPath;
+            var dataPath = Path.GetFullPath(_config.DataPath);
             if (!dataPath.EndsWith('/') && !dataPath.EndsWith('\\'))
             {
-                dataPath += '/';
+                dataPath += Path.DirectorySeparatorChar;
             }
             ObsCore.obs_add_data_path(dataPath);
         }
 
-        // Module paths may also need trailing slashes depending on usage.
         foreach (var (bin, data) in _config.ModulePaths)
         {
-            var binPath = bin;
-            var dataPath = data;
+            var binPath = Path.GetFullPath(bin);
+            var dataPath = Path.GetFullPath(data);
             if (!binPath.EndsWith('/') && !binPath.EndsWith('\\'))
-                binPath += '/';
+                binPath += Path.DirectorySeparatorChar;
             if (!dataPath.EndsWith('/') && !dataPath.EndsWith('\\'))
-                dataPath += '/';
+                dataPath += Path.DirectorySeparatorChar;
             ObsCore.obs_add_module_path(binPath, dataPath);
         }
 
