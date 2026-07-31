@@ -44,6 +44,14 @@ internal static partial class ObsCore
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     private static partial byte obs_initialized_native();
 
+    /// <summary>
+    /// Hands libobs a native display connection (X11 Display*). Linux-only export;
+    /// stable across libobs versions, unlike the obs_set_nix_platform enum.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_set_nix_platform_display")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_set_nix_platform_display(nint display);
+
     #endregion
 
     #region Version

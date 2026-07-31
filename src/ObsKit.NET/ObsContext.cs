@@ -41,6 +41,11 @@ public sealed class ObsContext : IDisposable
             InitializeComForWindows();
         }
 
+        if (OperatingSystem.IsLinux())
+        {
+            SetNixPlatformDisplay();
+        }
+
         if (!ObsCore.obs_startup(_config.Locale, _config.ModuleConfigPath, 0))
         {
             throw new ObsInitializationException("obs_startup failed");
@@ -292,6 +297,25 @@ public sealed class ObsContext : IDisposable
         }
         // If hr == RPC_E_CHANGED_MODE, COM is already initialized in STA mode
         // OBS will handle this internally - capture may still work via WGC
+    }
+
+    [SupportedOSPlatform("linux")]
+    private static void SetNixPlatformDisplay()
+    {
+        // Hand libobs an X connection like the OBS Studio frontend does; without it,
+        // EGL init opens its own and can deadlock the NVIDIA driver against the compositor.
+        // X11 sessions only — a wl_display* is unsafe unless libobs resolves to Wayland.
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY")))
+        {
+            return;
+        }
+
+        var display = Platform.Linux.Interop.X11.XOpenDisplay(0);
+        if (display != 0)
+        {
+            // Never closed: libobs holds this pointer for the process lifetime.
+            ObsCore.obs_set_nix_platform_display(display);
+        }
     }
 
     /// <summary>
