@@ -51,29 +51,18 @@ public sealed class ObsContext : IDisposable
             throw new ObsInitializationException("obs_startup failed");
         }
 
-        // Resolve to absolute so obs_module_file() hands the game-capture inject-helper an
-        // absolute graphics-hook path (relative paths fail to load under OBS 32.2.0+ hardening).
-        // OBS's check_path concatenates path + filename directly, so the path must end with a
-        // trailing slash. Path.GetFullPath keeps the %module% token literal.
+        // Paths must be absolute (OBS 32.2.0+ inject-helper hardening), end with a slash
+        // (OBS's check_path concatenates path + filename directly), and use forward slashes
+        // (libobs resolves effect #include directives by splitting on '/' only).
+        // Path.GetFullPath keeps the %module% token literal.
         if (!string.IsNullOrEmpty(_config.DataPath))
         {
-            var dataPath = Path.GetFullPath(_config.DataPath);
-            if (!dataPath.EndsWith('/') && !dataPath.EndsWith('\\'))
-            {
-                dataPath += Path.DirectorySeparatorChar;
-            }
-            ObsCore.obs_add_data_path(dataPath);
+            ObsCore.obs_add_data_path(NormalizeObsPath(_config.DataPath));
         }
 
         foreach (var (bin, data) in _config.ModulePaths)
         {
-            var binPath = Path.GetFullPath(bin);
-            var dataPath = Path.GetFullPath(data);
-            if (!binPath.EndsWith('/') && !binPath.EndsWith('\\'))
-                binPath += Path.DirectorySeparatorChar;
-            if (!dataPath.EndsWith('/') && !dataPath.EndsWith('\\'))
-                dataPath += Path.DirectorySeparatorChar;
-            ObsCore.obs_add_module_path(binPath, dataPath);
+            ObsCore.obs_add_module_path(NormalizeObsPath(bin), NormalizeObsPath(data));
         }
 
         if (_config.LoadModulesBeforeVideo)
@@ -114,11 +103,25 @@ public sealed class ObsContext : IDisposable
         ObsCore.obs_post_load_modules();
     }
 
+    /// <summary>
+    /// Resolves a directory path to the form libobs expects: absolute (OBS 32.2.0+
+    /// rejects relative module paths), forward slashes (effect #include resolution
+    /// splits on '/' only), and a trailing slash (check_path concatenates directly).
+    /// </summary>
+    private static string NormalizeObsPath(string path)
+    {
+        var full = Path.GetFullPath(path);
+        if (OperatingSystem.IsWindows())
+            full = full.Replace('\\', '/');
+        if (!full.EndsWith('/'))
+            full += '/';
+        return full;
+    }
+
     private void LoadModulesFromDirectory(string binPath, string dataPathTemplate)
     {
-        // Absolute so obs_open_module never receives relative paths (see Initialize).
-        binPath = Path.GetFullPath(binPath);
-        dataPathTemplate = Path.GetFullPath(dataPathTemplate);
+        binPath = NormalizeObsPath(binPath);
+        dataPathTemplate = NormalizeObsPath(dataPathTemplate);
 
         if (!Directory.Exists(binPath))
             return;
@@ -129,8 +132,9 @@ public sealed class ObsContext : IDisposable
                         "*.so";
         var moduleFiles = Directory.GetFiles(binPath, extension);
 
-        foreach (var modulePath in moduleFiles)
+        foreach (var moduleFile in moduleFiles)
         {
+            var modulePath = OperatingSystem.IsWindows() ? moduleFile.Replace('\\', '/') : moduleFile;
             var moduleName = Path.GetFileNameWithoutExtension(modulePath);
 
             // Skip excluded modules
