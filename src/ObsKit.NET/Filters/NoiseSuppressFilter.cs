@@ -1,7 +1,7 @@
 namespace ObsKit.NET.Filters;
 
 /// <summary>
-/// Noise suppression audio filter (noise_suppress_filter_v2).
+/// Noise suppression audio filter (noise_suppress_filter).
 /// Removes background noise using Speex or RNNoise.
 /// </summary>
 public sealed class NoiseSuppressFilter : Filter
@@ -9,7 +9,7 @@ public sealed class NoiseSuppressFilter : Filter
     /// <summary>
     /// The filter type ID for noise suppression.
     /// </summary>
-    public const string FilterTypeId = "noise_suppress_filter_v2";
+    public const string FilterTypeId = "noise_suppress_filter";
 
     /// <summary>
     /// Noise suppression methods.

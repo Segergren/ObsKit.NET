@@ -1,14 +1,14 @@
 namespace ObsKit.NET.Filters;
 
 /// <summary>
-/// Sharpness video filter (sharpness_filter_v2).
+/// Sharpness video filter (sharpness_filter).
 /// </summary>
 public sealed class SharpnessFilter : Filter
 {
     /// <summary>
     /// The filter type ID for sharpness.
     /// </summary>
-    public const string FilterTypeId = "sharpness_filter_v2";
+    public const string FilterTypeId = "sharpness_filter";
 
     /// <summary>
     /// Creates a sharpness filter.

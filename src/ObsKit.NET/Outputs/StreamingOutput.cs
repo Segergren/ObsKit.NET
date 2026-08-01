@@ -17,7 +17,7 @@ public sealed class StreamingOutput : Output
     private VideoEncoder? _videoEncoder;
     private AudioEncoder? _audioEncoder;
     private Service? _service;
-    private bool _encodersOwned;
+    private readonly HashSet<object> _ownedEncoders = new();
     private bool _serviceOwned;
 
     /// <summary>
@@ -41,6 +41,10 @@ public sealed class StreamingOutput : Output
         {
             if (IsActive)
                 throw new InvalidOperationException("Cannot change service while streaming is active.");
+
+            // Dispose a previously owned service so its native reference is not leaked.
+            if (_service != null && !ReferenceEquals(_service, value) && _serviceOwned)
+                _service.Dispose();
 
             if (value != null)
                 ApplyService(value);
@@ -105,6 +109,10 @@ public sealed class StreamingOutput : Output
     {
         if (IsActive)
             throw new InvalidOperationException("Cannot change service while streaming is active.");
+
+        // Dispose a previously owned service so its native reference is not leaked.
+        if (_service != null && !ReferenceEquals(_service, service) && _serviceOwned)
+            _service.Dispose();
 
         ApplyService(service);
         _service = service;
@@ -184,8 +192,7 @@ public sealed class StreamingOutput : Output
     /// <returns>This output for method chaining.</returns>
     public StreamingOutput WithVideoEncoder(VideoEncoder encoder, bool takeOwnership = false)
     {
-        _videoEncoder = encoder;
-        _encodersOwned = takeOwnership;
+        ReplaceEncoder(ref _videoEncoder, encoder, takeOwnership);
 
         var video = ObsCore.obs_get_video();
         encoder.SetVideo(video);
@@ -203,14 +210,30 @@ public sealed class StreamingOutput : Output
     /// <returns>This output for method chaining.</returns>
     public StreamingOutput WithAudioEncoder(AudioEncoder encoder, bool takeOwnership = false, int track = 0)
     {
-        _audioEncoder = encoder;
-        _encodersOwned = takeOwnership;
+        ReplaceEncoder(ref _audioEncoder, encoder, takeOwnership);
 
         var audio = ObsCore.obs_get_audio();
         encoder.SetAudio(audio);
 
         SetAudioEncoder(encoder, track);
         return this;
+    }
+
+    /// <summary>
+    /// Tracks ownership per encoder instance: ownership is decided by the most recent
+    /// <c>With*Encoder</c> call for that instance, and an owned encoder that is replaced
+    /// is disposed when the replacement happens.
+    /// </summary>
+    private void ReplaceEncoder<T>(ref T? current, T encoder, bool takeOwnership) where T : ObsKit.NET.Core.ObsObject
+    {
+        if (current != null && !ReferenceEquals(current, encoder) && _ownedEncoders.Remove(current))
+            current.Dispose();
+
+        current = encoder;
+        if (takeOwnership)
+            _ownedEncoders.Add(encoder);
+        else
+            _ownedEncoders.Remove(encoder);
     }
 
     /// <summary>
@@ -420,10 +443,13 @@ public sealed class StreamingOutput : Output
     {
         if (disposing)
         {
-            if (_encodersOwned)
+            if (_ownedEncoders.Count > 0)
             {
-                _videoEncoder?.Dispose();
-                _audioEncoder?.Dispose();
+                if (_videoEncoder != null && _ownedEncoders.Remove(_videoEncoder))
+                    _videoEncoder.Dispose();
+                if (_audioEncoder != null && _ownedEncoders.Remove(_audioEncoder))
+                    _audioEncoder.Dispose();
+                _ownedEncoders.Clear();
             }
 
             if (_serviceOwned)

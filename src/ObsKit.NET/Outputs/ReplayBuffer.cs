@@ -16,7 +16,7 @@ public sealed class ReplayBuffer : Output
 
     private VideoEncoder? _videoEncoder;
     private AudioEncoder? _audioEncoder;
-    private bool _encodersOwned;
+    private readonly HashSet<object> _ownedEncoders = new();
     private readonly object _savedLock = new();
     private SignalConnection? _savedConnection;
     private EventHandler<ReplaySavedEventArgs>? _saved;
@@ -101,8 +101,7 @@ public sealed class ReplayBuffer : Output
     /// <param name="takeOwnership">If true, disposes the encoder when output is disposed.</param>
     public ReplayBuffer WithVideoEncoder(VideoEncoder encoder, bool takeOwnership = false)
     {
-        _videoEncoder = encoder;
-        _encodersOwned = takeOwnership;
+        ReplaceEncoder(ref _videoEncoder, encoder, takeOwnership);
 
         var video = ObsCore.obs_get_video();
         encoder.SetVideo(video);
@@ -120,8 +119,7 @@ public sealed class ReplayBuffer : Output
     /// <param name="takeOwnership">If true, disposes the encoder when output is disposed.</param>
     public ReplayBuffer WithVideoEncoder(VideoEncoder encoder, Scenes.Canvas canvas, bool takeOwnership = false)
     {
-        _videoEncoder = encoder;
-        _encodersOwned = takeOwnership;
+        ReplaceEncoder(ref _videoEncoder, encoder, takeOwnership);
 
         encoder.SetVideo(canvas.Video);
 
@@ -137,14 +135,30 @@ public sealed class ReplayBuffer : Output
     /// <param name="track">The audio track index.</param>
     public ReplayBuffer WithAudioEncoder(AudioEncoder encoder, bool takeOwnership = false, int track = 0)
     {
-        _audioEncoder = encoder;
-        _encodersOwned = takeOwnership;
+        ReplaceEncoder(ref _audioEncoder, encoder, takeOwnership);
 
         var audio = ObsCore.obs_get_audio();
         encoder.SetAudio(audio);
 
         SetAudioEncoder(encoder, track);
         return this;
+    }
+
+    /// <summary>
+    /// Tracks ownership per encoder instance: ownership is decided by the most recent
+    /// <c>With*Encoder</c> call for that instance, and an owned encoder that is replaced
+    /// is disposed when the replacement happens.
+    /// </summary>
+    private void ReplaceEncoder<T>(ref T? current, T encoder, bool takeOwnership) where T : ObsKit.NET.Core.ObsObject
+    {
+        if (current != null && !ReferenceEquals(current, encoder) && _ownedEncoders.Remove(current))
+            current.Dispose();
+
+        current = encoder;
+        if (takeOwnership)
+            _ownedEncoders.Add(encoder);
+        else
+            _ownedEncoders.Remove(encoder);
     }
 
     /// <summary>
@@ -182,12 +196,16 @@ public sealed class ReplayBuffer : Output
     }
 
     /// <summary>
-    /// Saves the current buffer to a file. Must be called while buffer is running.
+    /// Saves the current buffer to a file. Must be called while buffer is running
+    /// and not paused — OBS silently ignores saves while the encoders are paused.
     /// </summary>
     public void Save()
     {
         if (!IsActive)
             throw new InvalidOperationException("Replay buffer is not active. Call Start() first.");
+
+        if (IsPaused)
+            throw new InvalidOperationException("Cannot save the replay buffer while it is paused.");
 
         var procHandler = ObsOutput.obs_output_get_proc_handler(Handle);
         if (procHandler == 0)
@@ -344,10 +362,13 @@ public sealed class ReplayBuffer : Output
                 _savedConnection = null;
             }
 
-            if (_encodersOwned)
+            if (_ownedEncoders.Count > 0)
             {
-                _videoEncoder?.Dispose();
-                _audioEncoder?.Dispose();
+                if (_videoEncoder != null && _ownedEncoders.Remove(_videoEncoder))
+                    _videoEncoder.Dispose();
+                if (_audioEncoder != null && _ownedEncoders.Remove(_audioEncoder))
+                    _audioEncoder.Dispose();
+                _ownedEncoders.Clear();
             }
         }
 

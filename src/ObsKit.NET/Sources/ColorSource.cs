@@ -1,15 +1,15 @@
 namespace ObsKit.NET.Sources;
 
 /// <summary>
-/// Solid color source (color_source_v3).
+/// Solid color source (color_source, v3 registration).
 /// </summary>
 public sealed class ColorSource : Source
 {
     /// <summary>
-    /// The source type ID for the color source. Uses the current v3 registration
-    /// (SRGB-aware); the bare "color_source" id is the obsolete v1.
+    /// The source type ID for the color source. The current v3 registration
+    /// (SRGB-aware) shares the same id with a version bump.
     /// </summary>
-    public const string SourceTypeId = "color_source_v3";
+    public const string SourceTypeId = "color_source";
 
     /// <summary>
     /// Creates a color source.

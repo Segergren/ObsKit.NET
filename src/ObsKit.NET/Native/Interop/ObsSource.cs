@@ -706,7 +706,7 @@ internal static partial class ObsSource
 
     /// <summary>
     /// Gets the source type id without any versioning suffix (e.g. "color_source"
-    /// for "color_source_v3").
+    /// for the color source, whose id is "color_source" with version 3).
     /// </summary>
     [LibraryImport(Lib, EntryPoint = "obs_source_get_unversioned_id")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]

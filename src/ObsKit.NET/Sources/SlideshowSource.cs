@@ -12,9 +12,9 @@ namespace ObsKit.NET.Sources;
 public sealed class SlideshowSource : Source
 {
     /// <summary>
-    /// The source type ID for slideshows.
+    /// The source type ID for slideshows (v2 registration shares the same id).
     /// </summary>
-    public const string SourceTypeId = "slideshow_v2";
+    public const string SourceTypeId = "slideshow";
 
     /// <summary>
     /// Transition styles between slides.
@@ -100,10 +100,11 @@ public sealed class SlideshowSource : Source
         return this;
     }
 
-    // slideshow_v2 (the mk2 rewrite) replaced the independent legacy "loop"/"randomize" booleans
-    // with a single "playback_mode" combo (once/loop/random) and only reads the legacy keys via a
-    // one-time migration, so writing them is silently ignored after the first update. Track both
-    // intents and resolve them to "playback_mode" on every change. mk2's default is "loop".
+    // The mk2 rewrite of "slideshow" (same id, version 2) replaced the independent legacy
+    // "loop"/"randomize" booleans with a single "playback_mode" combo (once/loop/random) and
+    // only reads the legacy keys via a one-time migration, so writing them is silently ignored
+    // after the first update. Track both intents and resolve them to "playback_mode" on every
+    // change. mk2's default is "loop".
     private bool _loop = true;
     private bool _randomize;
 
@@ -122,8 +123,8 @@ public sealed class SlideshowSource : Source
     }
 
     /// <summary>
-    /// Sets whether slides play in random order. In slideshow_v2 random order always loops, so
-    /// enabling randomize takes precedence over <see cref="SetLoop"/>.
+    /// Sets whether slides play in random order. In the mk2 slideshow random order always
+    /// loops, so enabling randomize takes precedence over <see cref="SetLoop"/>.
     /// </summary>
     /// <param name="randomize">Whether to randomize.</param>
     public SlideshowSource SetRandomize(bool randomize)

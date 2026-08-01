@@ -334,10 +334,16 @@ public class Output : ObsObject
     /// <summary>
     /// Sets the video encoder for this output.
     /// The encoder's ref count is incremented for automatic lifecycle management.
+    /// Re-setting the same encoder is a no-op.
     /// </summary>
     /// <param name="encoder">The video encoder.</param>
     public void SetVideoEncoder(VideoEncoder encoder)
     {
+        // Re-setting the same instance must not detach (which would dispose it at
+        // refcount 0 with Obs.AutoDispose) only to attach it again.
+        if (ReferenceEquals(_videoEncoder, encoder))
+            return;
+
         // Detach previous encoder if any
         _videoEncoder?.Detach();
 
@@ -351,14 +357,18 @@ public class Output : ObsObject
     /// Sets the audio encoder for this output.
     /// The encoder's ref count is incremented for automatic lifecycle management.
     /// If a different encoder was previously set for this track, it will be detached.
+    /// Re-setting the same encoder is a no-op.
     /// </summary>
     /// <param name="encoder">The audio encoder.</param>
     /// <param name="track">The audio track index (default 0).</param>
     public void SetAudioEncoder(AudioEncoder encoder, int track = 0)
     {
-        // Detach previous encoder for this track if any
-        if (_audioEncoders.TryGetValue(track, out var previous) && previous != encoder)
+        // Re-setting the same instance must not detach (which would dispose it at
+        // refcount 0 with Obs.AutoDispose) only to attach it again.
+        if (_audioEncoders.TryGetValue(track, out var previous))
         {
+            if (ReferenceEquals(previous, encoder))
+                return;
             previous.Detach();
         }
 

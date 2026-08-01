@@ -48,7 +48,7 @@ public sealed class RecordingOutput : Output
 
     private VideoEncoder? _videoEncoder;
     private AudioEncoder? _audioEncoder;
-    private bool _encodersOwned;
+    private readonly HashSet<object> _ownedEncoders = new();
 
     /// <summary>
     /// Creates a new recording output.
@@ -158,8 +158,7 @@ public sealed class RecordingOutput : Output
     /// <param name="takeOwnership">If true, disposes the encoder when output is disposed.</param>
     public RecordingOutput WithVideoEncoder(VideoEncoder encoder, bool takeOwnership = false)
     {
-        _videoEncoder = encoder;
-        _encodersOwned = takeOwnership;
+        ReplaceEncoder(ref _videoEncoder, encoder, takeOwnership);
 
         var video = ObsCore.obs_get_video();
         encoder.SetVideo(video);
@@ -177,8 +176,7 @@ public sealed class RecordingOutput : Output
     /// <param name="takeOwnership">If true, disposes the encoder when output is disposed.</param>
     public RecordingOutput WithVideoEncoder(VideoEncoder encoder, Scenes.Canvas canvas, bool takeOwnership = false)
     {
-        _videoEncoder = encoder;
-        _encodersOwned = takeOwnership;
+        ReplaceEncoder(ref _videoEncoder, encoder, takeOwnership);
 
         encoder.SetVideo(canvas.Video);
 
@@ -194,14 +192,30 @@ public sealed class RecordingOutput : Output
     /// <param name="track">The audio track index.</param>
     public RecordingOutput WithAudioEncoder(AudioEncoder encoder, bool takeOwnership = false, int track = 0)
     {
-        _audioEncoder = encoder;
-        _encodersOwned = takeOwnership;
+        ReplaceEncoder(ref _audioEncoder, encoder, takeOwnership);
 
         var audio = ObsCore.obs_get_audio();
         encoder.SetAudio(audio);
 
         SetAudioEncoder(encoder, track);
         return this;
+    }
+
+    /// <summary>
+    /// Tracks ownership per encoder instance: ownership is decided by the most recent
+    /// <c>With*Encoder</c> call for that instance, and an owned encoder that is replaced
+    /// is disposed when the replacement happens.
+    /// </summary>
+    private void ReplaceEncoder<T>(ref T? current, T encoder, bool takeOwnership) where T : ObsKit.NET.Core.ObsObject
+    {
+        if (current != null && !ReferenceEquals(current, encoder) && _ownedEncoders.Remove(current))
+            current.Dispose();
+
+        current = encoder;
+        if (takeOwnership)
+            _ownedEncoders.Add(encoder);
+        else
+            _ownedEncoders.Remove(encoder);
     }
 
     /// <summary>
@@ -361,8 +375,10 @@ public sealed class RecordingOutput : Output
 
     /// <summary>
     /// When file splitting is enabled, generates the first file's path from the
-    /// directory/format/extension settings, like the OBS frontend does. The muxer
-    /// only generates names for the second file onward.
+    /// directory/format/extension settings, like the OBS muxer does for every file:
+    /// the directory is created if missing and, when overwriting is disabled, an
+    /// existing file gets " (2)", " (3)" ... (or "_2" without spaces) appended.
+    /// The muxer only generates names for the second file onward.
     /// </summary>
     private void GenerateSplitFilePath()
     {
@@ -374,16 +390,49 @@ public sealed class RecordingOutput : Output
         if (string.IsNullOrEmpty(directory))
             return;
 
+        var allowSpaces = settings.GetBool("allow_spaces");
         var filename = ObsCore.os_generate_formatted_filename(
             settings.GetString("extension") ?? "mp4",
-            settings.GetBool("allow_spaces"),
+            allowSpaces,
             settings.GetString("format") ?? "%CCYY-%MM-%DD %hh-%mm-%ss");
 
         if (string.IsNullOrEmpty(filename))
             return;
 
         var path = $"{directory.TrimEnd('/', '\\').Replace('\\', '/')}/{filename}";
+
+        // Mirrors generate_filename() in plugins/obs-ffmpeg/obs-ffmpeg-mux.c.
+        var dirEnd = path.LastIndexOf('/');
+        if (dirEnd > 0)
+            Directory.CreateDirectory(path[..dirEnd]);
+
+        if (!settings.GetBool("allow_overwrite"))
+            path = FindBestFilename(path, allowSpaces);
+
         Update(s => s.Set("path", path));
+    }
+
+    /// <summary>
+    /// Replicates find_best_filename() from obs-ffmpeg-mux.c: appends " (N)" (or "_N"
+    /// when spaces are not allowed) until the path does not collide with an existing file.
+    /// </summary>
+    private static string FindBestFilename(string path, bool allowSpaces)
+    {
+        if (!File.Exists(path))
+            return path;
+
+        var extIndex = path.LastIndexOf('.');
+        if (extIndex < 0)
+            return path;
+
+        var basePath = path[..extIndex];
+        var ext = path[extIndex..];
+        for (int num = 2; ; num++)
+        {
+            var candidate = $"{basePath}{(allowSpaces ? $" ({num})" : $"_{num}")}{ext}";
+            if (!File.Exists(candidate))
+                return candidate;
+        }
     }
 
     /// <summary>Stops the recording.</summary>
@@ -393,10 +442,13 @@ public sealed class RecordingOutput : Output
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
-        if (disposing && _encodersOwned)
+        if (disposing && _ownedEncoders.Count > 0)
         {
-            _videoEncoder?.Dispose();
-            _audioEncoder?.Dispose();
+            if (_videoEncoder != null && _ownedEncoders.Remove(_videoEncoder))
+                _videoEncoder.Dispose();
+            if (_audioEncoder != null && _ownedEncoders.Remove(_audioEncoder))
+                _audioEncoder.Dispose();
+            _ownedEncoders.Clear();
         }
 
         base.Dispose(disposing);

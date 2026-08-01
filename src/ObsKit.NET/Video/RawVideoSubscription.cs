@@ -78,9 +78,29 @@ public sealed class RawVideoSubscription : IDisposable
     /// </summary>
     public void Dispose()
     {
-        if (_disposed) return;
+        ReleaseSubscription();
+        GC.SuppressFinalize(this);
+    }
+
+    // The native video thread keeps invoking the callback pointer after
+    // obs_add_raw_video_callback2, so the callback must stay rooted until the
+    // subscription is removed — otherwise the GC could collect the delegate
+    // while OBS still calls it (crash on the video thread).
+    ~RawVideoSubscription()
+    {
+        ReleaseSubscription();
+    }
+
+    private void ReleaseSubscription()
+    {
+        if (_disposed)
+            return;
+
         _disposed = true;
-        ObsCore.obs_remove_raw_video_callback(_nativeCallback, nint.Zero);
+        // After obs_shutdown the video output is gone and its mutex freed —
+        // removing the callback then would be a use-after-free on the finalizer thread.
+        if (Obs.IsInitialized)
+            ObsCore.obs_remove_raw_video_callback(_nativeCallback, nint.Zero);
         GC.KeepAlive(_nativeCallback);
     }
 }

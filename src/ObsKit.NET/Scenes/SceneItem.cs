@@ -46,15 +46,17 @@ public sealed class SceneItem : ObsObject
     /// <summary>Gets the parent scene.</summary>
     public Scene Scene => _scene;
 
-    /// <summary>Gets the source associated with this scene item.</summary>
-    public Source Source
+    /// <summary>Gets the source associated with this scene item, or null if the item is being destroyed.</summary>
+    public Source? Source
     {
         get
         {
             var sourceHandle = ObsScene.obs_sceneitem_get_source(Handle);
+            if (sourceHandle.IsNull)
+                return null;
             // obs_sceneitem_get_source returns a borrowed pointer; take an owning ref.
             var refHandle = ObsSource.obs_source_get_ref(sourceHandle);
-            return new Source(refHandle, ownsHandle: true);
+            return refHandle.IsNull ? null : new Source(refHandle, ownsHandle: true);
         }
     }
 
@@ -502,7 +504,6 @@ public sealed class SceneItem : ObsObject
         var innerHandle = ObsScene.obs_sceneitem_group_get_scene(Handle);
         if (innerHandle.IsNull)
             return items;
-        var innerScene = new Scene(innerHandle, ownsHandle: false);
 
         ObsScene.EnumSceneItemCallback callback = (scene, item, data) =>
         {
@@ -511,7 +512,10 @@ public sealed class SceneItem : ObsObject
                 // obs_scene_enum_items references each item only for the callback's
                 // duration, so take our own reference to keep the wrapper valid.
                 ObsScene.obs_sceneitem_addref(item);
-                items.Add(new SceneItem(item, innerScene, ownsHandle: true));
+                // Members are bound to the OUTER scene (the scene containing the group
+                // item); obs_sceneitem_get_group needs that scene to locate the parent
+                // group, and the inner group scene is exposed via GroupScene instead.
+                items.Add(new SceneItem(item, _scene, ownsHandle: true));
             }
             return 1; // Continue enumeration
         };
@@ -564,6 +568,8 @@ public sealed class SceneItem : ObsObject
     public override string ToString()
     {
         using var source = Source;
-        return $"SceneItem[{Id}]: {source.Name}";
+        return source != null
+            ? $"SceneItem[{Id}]: {source.Name}"
+            : $"SceneItem[{Id}]";
     }
 }

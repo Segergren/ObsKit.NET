@@ -19,8 +19,6 @@ public sealed class AudioEncoder : ObsObject
         public const string FfmpegAac = "ffmpeg_aac";
         /// <summary>Core Audio AAC encoder (macOS).</summary>
         public const string CoreAudioAac = "CoreAudio_AAC";
-        /// <summary>Media Foundation AAC encoder (Windows).</summary>
-        public const string MfAac = "mf_aac";
         /// <summary>Opus encoder.</summary>
         public const string Opus = "ffmpeg_opus";
         /// <summary>FLAC lossless encoder.</summary>

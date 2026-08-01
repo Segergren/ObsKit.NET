@@ -10,8 +10,9 @@ namespace ObsKit.NET.Core;
 internal static class ObsPropertyReader
 {
     /// <summary>
-    /// Reads every property from a properties handle in display order, then destroys the
-    /// handle. Returns an empty list if <paramref name="props"/> is null.
+    /// Reads every property from a properties handle (in OBS's enumeration order,
+    /// which is not necessarily registration order), then destroys the handle.
+    /// Returns an empty list if <paramref name="props"/> is null.
     /// </summary>
     public static IReadOnlyList<ObsPropertyInfo> ReadAllAndDestroy(nint props)
     {
