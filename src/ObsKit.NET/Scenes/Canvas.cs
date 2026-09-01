@@ -25,7 +25,7 @@ namespace ObsKit.NET.Scenes;
 /// </example>
 public sealed class Canvas : ObsObject
 {
-    private Canvas(ObsCanvasHandle handle)
+    internal Canvas(ObsCanvasHandle handle)
         : base(handle, ownsHandle: true)
     {
     }

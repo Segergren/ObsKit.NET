@@ -589,3 +589,43 @@ internal struct EncoderPacketTimeNative
     public ulong Ferc;
     public ulong Pir;
 }
+
+/// <summary>
+/// Native layout of the readable head of OBS's <c>struct obs_source_frame</c> (the trailing
+/// internal refcount fields are omitted; this struct is only ever read through a pointer).
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal unsafe struct ObsSourceFrameNative
+{
+    public nint Data0;
+    public nint Data1;
+    public nint Data2;
+    public nint Data3;
+    public nint Data4;
+    public nint Data5;
+    public nint Data6;
+    public nint Data7;
+
+    public uint Linesize0;
+    public uint Linesize1;
+    public uint Linesize2;
+    public uint Linesize3;
+    public uint Linesize4;
+    public uint Linesize5;
+    public uint Linesize6;
+    public uint Linesize7;
+
+    public uint Width;
+    public uint Height;
+    public ulong Timestamp;
+
+    public VideoFormat Format;
+    public fixed float ColorMatrix[16];
+    public byte FullRange;
+    public ushort MaxLuminance;
+    public fixed float ColorRangeMin[3];
+    public fixed float ColorRangeMax[3];
+    public byte Flip;
+    public byte Flags;
+    public byte Trc;
+}

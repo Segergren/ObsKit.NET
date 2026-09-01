@@ -806,4 +806,255 @@ internal static partial class ObsSource
     internal static partial ObsSourceHandle obs_weak_source_get_source(nint weak);
 
     #endregion
+
+    #region Capabilities, Kind and Visibility
+
+    /// <summary>
+    /// Gets the capability flags of the source instance (OBS_SOURCE_VIDEO, OBS_SOURCE_AUDIO, ...).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_output_flags")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial uint obs_source_get_output_flags(ObsSourceHandle source);
+
+    public static bool obs_source_is_scene(ObsSourceHandle source) => obs_source_is_scene_native(source) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_is_scene")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_source_is_scene_native(ObsSourceHandle source);
+
+    public static bool obs_source_is_group(ObsSourceHandle source) => obs_source_is_group_native(source) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_is_group")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_source_is_group_native(ObsSourceHandle source);
+
+    public static bool obs_source_type_is_scene(string id) => obs_source_type_is_scene_native(id) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_type_is_scene")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_source_type_is_scene_native([MarshalUsing(typeof(Utf8StringMarshaler))] string id);
+
+    public static bool obs_source_type_is_group(string id) => obs_source_type_is_group_native(id) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_type_is_group")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_source_type_is_group_native([MarshalUsing(typeof(Utf8StringMarshaler))] string id);
+
+    public static bool obs_source_is_hidden(ObsSourceHandle source) => obs_source_is_hidden_native(source) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_is_hidden")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_source_is_hidden_native(ObsSourceHandle source);
+
+    public static void obs_source_set_hidden(ObsSourceHandle source, bool hidden)
+        => obs_source_set_hidden_native(source, hidden ? (byte)1 : (byte)0);
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_set_hidden")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial void obs_source_set_hidden_native(ObsSourceHandle source, byte hidden);
+
+    public static bool obs_source_configurable(ObsSourceHandle source) => obs_source_configurable_native(source) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_configurable")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_source_configurable_native(ObsSourceHandle source);
+
+    /// <summary>
+    /// Gets the OBS version (packed major.minor.patch) the source was last saved with.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_last_obs_version")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial uint obs_source_get_last_obs_version(ObsSourceHandle source);
+
+    /// <summary>
+    /// Sets the flags a source starts with before user flags are applied.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_set_default_flags")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_set_default_flags(ObsSourceHandle source, uint flags);
+
+    #endregion
+
+    #region Settings, Properties and Rendering Hints
+
+    /// <summary>
+    /// Replaces the settings wholesale (clears, then applies) and updates the source.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_reset_settings")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_reset_settings(ObsSourceHandle source, ObsDataHandle settings);
+
+    /// <summary>
+    /// Emits the "update_properties" signal so property UIs refresh.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_update_properties")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_update_properties(ObsSourceHandle source);
+
+    /// <summary>
+    /// Sets the rotation (degrees, multiples of 90) applied to async video frames. Declared as
+    /// a C <c>long</c>; a native-sized integer covers both 32-bit (Windows) and 64-bit ABIs.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_set_async_rotation")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_set_async_rotation(ObsSourceHandle source, nint rotation);
+
+    public static bool obs_source_get_texcoords_centered(ObsSourceHandle source) => obs_source_get_texcoords_centered_native(source) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_texcoords_centered")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_source_get_texcoords_centered_native(ObsSourceHandle source);
+
+    /// <summary>
+    /// Gets the color space the source renders in, choosing among <paramref name="preferredSpaces"/>
+    /// (pointer to <paramref name="count"/> gs_color_space values, may be null with count 0).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_color_space")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial GsColorSpace obs_source_get_color_space(ObsSourceHandle source, nuint count, nint preferredSpaces);
+
+    /// <summary>
+    /// Gets a strong reference to the canvas the source belongs to (release when done), or null.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_canvas")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsCanvasHandle obs_source_get_canvas(ObsSourceHandle source);
+
+    #endregion
+
+    #region Audio State
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_speaker_layout")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial SpeakerLayout obs_source_get_speaker_layout(ObsSourceHandle source);
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_audio_timestamp")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ulong obs_source_get_audio_timestamp(ObsSourceHandle source);
+
+    public static bool obs_source_audio_pending(ObsSourceHandle source) => obs_source_audio_pending_native(source) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_audio_pending")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_source_audio_pending_native(ObsSourceHandle source);
+
+    public static bool obs_source_audio_active(ObsSourceHandle source) => obs_source_audio_active_native(source) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_audio_active")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_source_audio_active_native(ObsSourceHandle source);
+
+    public static void obs_source_set_audio_active(ObsSourceHandle source, bool active)
+        => obs_source_set_audio_active_native(source, active ? (byte)1 : (byte)0);
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_set_audio_active")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial void obs_source_set_audio_active_native(ObsSourceHandle source, byte active);
+
+    #endregion
+
+    #region Source Trees
+
+    /// <summary>
+    /// Enumerates the sources a composite source (scene, group, transition) is actively
+    /// showing, one level deep. Callback sources are borrowed.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_enum_active_sources")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_enum_active_sources(ObsSourceHandle source, EnumFilterCallback callback, nint param);
+
+    /// <summary>
+    /// Enumerates the whole active child tree, depth first (children before their parent).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_enum_active_tree")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_enum_active_tree(ObsSourceHandle source, EnumFilterCallback callback, nint param);
+
+    /// <summary>
+    /// Enumerates the whole child tree including hidden items, depth first.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_enum_full_tree")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_enum_full_tree(ObsSourceHandle source, EnumFilterCallback callback, nint param);
+
+    #endregion
+
+    #region Filter Backup
+
+    /// <summary>
+    /// Serializes every filter on the source into a new array (release when done).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_backup_filters")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsDataArrayHandle obs_source_backup_filters(ObsSourceHandle source);
+
+    /// <summary>
+    /// Restores filters from a backup array: existing filters with the same name are updated
+    /// and reordered, missing ones are recreated, others are removed.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_restore_filters")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_restore_filters(ObsSourceHandle source, ObsDataArrayHandle array);
+
+    #endregion
+
+    #region Missing Files
+
+    /// <summary>
+    /// Gets a new missing-files collection for the source (destroy with obs_missing_files_destroy).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_missing_files")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_source_get_missing_files(ObsSourceHandle source);
+
+    [LibraryImport(Lib, EntryPoint = "obs_missing_files_count")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nuint obs_missing_files_count(nint files);
+
+    /// <summary>
+    /// Gets a borrowed file entry (owned by the collection).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_missing_files_get_file")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_missing_files_get_file(nint files, int idx);
+
+    [LibraryImport(Lib, EntryPoint = "obs_missing_files_destroy")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_missing_files_destroy(nint files);
+
+    [LibraryImport(Lib, EntryPoint = "obs_missing_file_get_path")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_missing_file_get_path(nint file);
+
+    [LibraryImport(Lib, EntryPoint = "obs_missing_file_get_source_name")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_missing_file_get_source_name(nint file);
+
+    /// <summary>
+    /// Points the owning source at a replacement path (invokes the plugin's replace callback).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_missing_file_issue_callback")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_missing_file_issue_callback(nint file, [MarshalUsing(typeof(Utf8StringMarshaler))] string newPath);
+
+    #endregion
+
+    #region Async Frames
+
+    /// <summary>
+    /// Takes the newest undisplayed async video frame (adds a reference; release with
+    /// obs_source_release_frame). Returns null if none is pending. Points at an
+    /// <see cref="ObsSourceFrameNative"/>.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_frame")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_source_get_frame(ObsSourceHandle source);
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_release_frame")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_source_release_frame(ObsSourceHandle source, nint frame);
+
+    #endregion
 }

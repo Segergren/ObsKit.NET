@@ -644,3 +644,18 @@ public enum ObsIconType
     Custom,
     ProcessAudioOutput,
 }
+
+/// <summary>
+/// Graphics color spaces (gs_color_space).
+/// </summary>
+public enum GsColorSpace
+{
+    /// <summary>SDR sRGB.</summary>
+    Srgb,
+    /// <summary>High-precision (16-bit float) SDR.</summary>
+    Srgb16F,
+    /// <summary>Extended-range Rec.709 (canvas, macOS EDR HDR).</summary>
+    Rec709Extended,
+    /// <summary>scRGB, 1.0 = 80 nits (Windows/Linux HDR).</summary>
+    Rec709Scrgb,
+}

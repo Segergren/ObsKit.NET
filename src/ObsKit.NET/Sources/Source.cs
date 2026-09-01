@@ -1031,4 +1031,255 @@ public class Source : ObsObject
 
     /// <inheritdoc/>
     public override string ToString() => $"Source[{TypeId}]: {Name}";
+
+    #region Capabilities, Kind and Visibility
+
+    /// <summary>
+    /// Gets the capability flags of this source instance (video, audio, async, composite, ...).
+    /// </summary>
+    public ObsSourceFlags OutputFlags => (ObsSourceFlags)ObsSource.obs_source_get_output_flags(Handle);
+
+    /// <summary>Gets whether this source is a scene (see <see cref="Scenes.Scene.FromSource"/>).</summary>
+    public bool IsScene => ObsSource.obs_source_is_scene(Handle);
+
+    /// <summary>Gets whether this source is a scene group.</summary>
+    public bool IsGroup => ObsSource.obs_source_is_group(Handle);
+
+    /// <summary>Gets whether a source type id denotes a scene.</summary>
+    public static bool IsSceneType(string typeId)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(typeId);
+        return ObsSource.obs_source_type_is_scene(typeId);
+    }
+
+    /// <summary>Gets whether a source type id denotes a group.</summary>
+    public static bool IsGroupType(string typeId)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(typeId);
+        return ObsSource.obs_source_type_is_group(typeId);
+    }
+
+    /// <summary>
+    /// Gets or sets whether the source is hidden from UI lists (it still renders and is still
+    /// enumerated; this is only a presentation hint stored with the source).
+    /// </summary>
+    public bool IsHidden
+    {
+        get => ObsSource.obs_source_is_hidden(Handle);
+        set => ObsSource.obs_source_set_hidden(Handle, value);
+    }
+
+    /// <summary>Gets whether the source type exposes configurable properties.</summary>
+    public bool IsConfigurable => ObsSource.obs_source_configurable(Handle);
+
+    /// <summary>
+    /// Gets the icon category the source type declares (see <see cref="Obs.GetSourceIconType"/>).
+    /// </summary>
+    public ObsIconType IconType => TypeId != null ? ObsCore.obs_source_get_icon_type(TypeId) : ObsIconType.Unknown;
+
+    /// <summary>
+    /// Gets the OBS version the source's settings were last saved with, as "major.minor.patch",
+    /// or null if unknown. Plugins use it to migrate old settings.
+    /// </summary>
+    public string? LastObsVersion
+    {
+        get
+        {
+            var v = ObsSource.obs_source_get_last_obs_version(Handle);
+            return v == 0 ? null : $"{v >> 24}.{(v >> 16) & 0xFF}.{v & 0xFFFF}";
+        }
+    }
+
+    /// <summary>
+    /// Sets the default flags the source starts with before user flags are applied
+    /// (OBS_SOURCE_FLAG_* values, see <see cref="Flags"/>).
+    /// </summary>
+    public void SetDefaultFlags(uint flags) => ObsSource.obs_source_set_default_flags(Handle, flags);
+
+    #endregion
+
+    #region Settings, Properties and Rendering Hints
+
+    /// <summary>
+    /// Replaces the source's settings wholesale (existing keys not present in
+    /// <paramref name="settings"/> are removed) and updates the source. Unlike
+    /// <see cref="Update(Settings)"/>, which merges.
+    /// </summary>
+    public void ResetSettings(Settings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        ObsSource.obs_source_reset_settings(Handle, settings.Handle);
+    }
+
+    /// <summary>
+    /// Raises the source's <c>update_properties</c> signal, telling property UIs to re-read
+    /// <see cref="GetProperties"/> (e.g. after a device list changed).
+    /// </summary>
+    public void NotifyPropertiesChanged() => ObsSource.obs_source_update_properties(Handle);
+
+    /// <summary>
+    /// Sets the rotation applied to async video frames (webcams, capture cards), in degrees.
+    /// Only 0, 90, 180 and 270 are meaningful.
+    /// </summary>
+    public void SetAsyncRotation(int degrees) => ObsSource.obs_source_set_async_rotation(Handle, degrees);
+
+    /// <summary>
+    /// Gets whether the source renders with centered texel coordinates (a hint that it will
+    /// blend texels, used by the compositor to pick a sampling mode).
+    /// </summary>
+    public bool TexcoordsCentered => ObsSource.obs_source_get_texcoords_centered(Handle);
+
+    /// <summary>
+    /// Gets the color space the source renders in, picking the first of
+    /// <paramref name="preferredSpaces"/> it can honor (or the source's native space if none
+    /// match). Pass nothing to get the native space.
+    /// </summary>
+    public GsColorSpace GetColorSpace(params GsColorSpace[] preferredSpaces)
+    {
+        if (preferredSpaces == null || preferredSpaces.Length == 0)
+            return ObsSource.obs_source_get_color_space(Handle, 0, nint.Zero);
+
+        var pinned = GCHandle.Alloc(preferredSpaces, GCHandleType.Pinned);
+        try
+        {
+            return ObsSource.obs_source_get_color_space(Handle, (nuint)preferredSpaces.Length, pinned.AddrOfPinnedObject());
+        }
+        finally
+        {
+            pinned.Free();
+        }
+    }
+
+    /// <summary>
+    /// Gets the canvas this source belongs to (OBS 32+), or null for sources not bound to a
+    /// canvas. Dispose the returned canvas when done.
+    /// </summary>
+    public Scenes.Canvas? GetCanvas()
+    {
+        var handle = ObsSource.obs_source_get_canvas(Handle);
+        return handle.IsNull ? null : new Scenes.Canvas(handle);
+    }
+
+    #endregion
+
+    #region Audio State
+
+    /// <summary>Gets the speaker layout of the source's audio (Unknown for video-only sources).</summary>
+    public SpeakerLayout SpeakerLayout => ObsSource.obs_source_get_speaker_layout(Handle);
+
+    /// <summary>Gets the timestamp (ns) of the most recent audio the source produced.</summary>
+    public ulong AudioTimestamp => ObsSource.obs_source_get_audio_timestamp(Handle);
+
+    /// <summary>Gets whether the source has audio buffered that has not been mixed yet.</summary>
+    public bool IsAudioPending => ObsSource.obs_source_audio_pending(Handle);
+
+    /// <summary>
+    /// Gets or sets whether the source is currently producing audio (as shown by OBS's mixer
+    /// panel). libobs manages this for most sources; setting it is meant for sources whose
+    /// audio activity you control yourself.
+    /// </summary>
+    public bool IsAudioActive
+    {
+        get => ObsSource.obs_source_audio_active(Handle);
+        set => ObsSource.obs_source_set_audio_active(Handle, value);
+    }
+
+    #endregion
+
+    #region Source Trees
+
+    /// <summary>
+    /// Gets the sources this composite source (scene, group, transition) is actively showing,
+    /// one level deep. Empty for non-composite sources. Dispose the results when done.
+    /// </summary>
+    public List<Source> GetActiveChildren() => EnumerateTree(ObsSource.obs_source_enum_active_sources);
+
+    /// <summary>
+    /// Gets the entire active source tree under this source, depth first (children before
+    /// their parents). Dispose the results when done.
+    /// </summary>
+    public List<Source> GetActiveTree() => EnumerateTree(ObsSource.obs_source_enum_active_tree);
+
+    /// <summary>
+    /// Gets the entire source tree under this source including hidden scene items, depth first.
+    /// Dispose the results when done.
+    /// </summary>
+    public List<Source> GetFullTree() => EnumerateTree(ObsSource.obs_source_enum_full_tree);
+
+    private List<Source> EnumerateTree(Action<ObsSourceHandle, ObsSource.EnumFilterCallback, nint> enumerate)
+    {
+        var result = new List<Source>();
+        ObsSource.EnumFilterCallback callback = (_, child, _) =>
+        {
+            var refd = ObsSource.obs_source_get_ref(child);
+            if (!refd.IsNull)
+                result.Add(new Source(refd, ownsHandle: true));
+        };
+        enumerate(Handle, callback, nint.Zero);
+        GC.KeepAlive(callback);
+        return result;
+    }
+
+    #endregion
+
+    #region Filter Backup and Missing Files
+
+    /// <summary>
+    /// Serializes every filter on the source (type, settings, order, enabled state) into an
+    /// array that <see cref="RestoreFilters"/> can apply later, e.g. to undo filter edits.
+    /// Dispose the array when done.
+    /// </summary>
+    public SettingsArray BackupFilters()
+    {
+        var array = ObsSource.obs_source_backup_filters(Handle);
+        if (array.IsNull)
+            throw new InvalidOperationException("Failed to back up filters.");
+        return new SettingsArray(array, ownsHandle: true);
+    }
+
+    /// <summary>
+    /// Restores filters from a <see cref="BackupFilters"/> array: filters with matching names
+    /// are updated and reordered, missing ones are recreated, and extra ones are removed.
+    /// </summary>
+    public void RestoreFilters(SettingsArray backup)
+    {
+        ArgumentNullException.ThrowIfNull(backup);
+        ObsSource.obs_source_restore_filters(Handle, backup.Handle);
+    }
+
+    /// <summary>
+    /// Asks the source which of its files are missing (e.g. a media or image path that no
+    /// longer exists). Each entry can be pointed at a replacement with
+    /// <see cref="MissingFile.Resolve"/>. Dispose the collection when done.
+    /// </summary>
+    public MissingFileCollection GetMissingFiles()
+        => new(ObsSource.obs_source_get_missing_files(Handle));
+
+    #endregion
+
+    #region Async Frames
+
+    /// <summary>
+    /// Takes the newest video frame an async source (webcam, capture card, media source, ...)
+    /// has queued but not yet displayed, copied into managed memory, or null if none is
+    /// pending. Frames are consumed: each one is returned at most once, and taking a frame
+    /// removes it from the source's display queue. For rendered output of any source (including
+    /// synchronous ones) use <see cref="TakeScreenshot()"/> instead.
+    /// </summary>
+    public unsafe SourceFrame? TryGetAsyncFrame()
+    {
+        var frame = ObsSource.obs_source_get_frame(Handle);
+        if (frame == nint.Zero)
+            return null;
+        try
+        {
+            return new SourceFrame((ObsSourceFrameNative*)frame);
+        }
+        finally
+        {
+            ObsSource.obs_source_release_frame(Handle, frame);
+        }
+    }
+
+    #endregion
 }
