@@ -68,4 +68,12 @@ public sealed class WeakSource : IDisposable
             ObsSource.obs_weak_source_release(_weak);
         _weak = nint.Zero;
     }
+
+    /// <summary>Gets whether this weak reference points at <paramref name="source"/>.</summary>
+    public bool References(Source source)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentNullException.ThrowIfNull(source);
+        return ObsSource.obs_weak_source_references_source(_weak, source.Handle);
+    }
 }

@@ -270,4 +270,11 @@ internal static partial class ObsCanvas
     internal static partial void obs_weak_canvas_release(nint weak);
 
     #endregion
+
+    /// <summary>
+    /// Renders the canvas's channels into the current render target (graphics thread only).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_canvas_render")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_canvas_render(ObsCanvasHandle canvas);
 }

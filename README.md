@@ -201,6 +201,41 @@ foreach (var member in overlay.GetGroupItems())
 scene.GetGroup("Overlay")?.Ungroup();              // disband, returning items to the scene
 ```
 
+### Transform matrices, atomic updates & snapshots
+
+For preview hit-testing and selection outlines, read the item's on-canvas transform directly.
+Batch related edits under a scene lock so a frame never renders a half-applied layout, and
+snapshot transforms for undo:
+
+```csharp
+using ObsKit.NET.Native.Types;
+
+Matrix4 m = item.GetDrawTransform();                 // item-local pixels -> canvas pixels
+Vec2 topLeft = m.Transform(Vec2.Zero);
+Vec2 bottomRight = m.Transform(new Vec2(item.Source.Width, item.Source.Height));
+Vec2 box = item.GetBoxScale();                       // bounding box size in canvas pixels
+
+scene.AtomicUpdate(s =>                              // applied under the scene lock
+{
+    item.Position = new Vec2(100, 100);
+    overlay.Position = new Vec2(200, 200);
+});
+
+using var before = scene.SaveTransformStates();      // snapshot for undo
+// ... user drags items around ...
+Scene.LoadTransformStates(before);                   // restore
+
+// Groups: create with initial members, dissolve, and reorder across group boundaries
+using var group = scene.InsertGroup("HUD", new[] { item, overlay });
+using (group.DeferGroupResize()) { item.Position = new Vec2(0, 0); overlay.Position = new Vec2(50, 50); }
+scene.ReorderItems(new (SceneItem? Group, SceneItem Item)[] { (null, group), (group, item), (group, overlay) });
+
+// Persist items independently of sources (sources are matched by name on load)
+using var items = new SettingsArray();
+item.Save(items);
+otherScene.AddItems(items);
+```
+
 ## Scene Transitions
 
 Animate the program output between scenes. Assign a transition to an output channel,
@@ -365,6 +400,49 @@ using var micTap = mic.SubscribeAudio((in RawAudioFrame frame, bool muted) =>
 // Dispose to stop receiving audio.
 ```
 
+## Converting Raw Frames & Audio
+
+libobs ships a software scaler and resampler. Use them to turn raw callback data into the
+format another component needs (e.g. NV12 to BGRA for a thumbnail, or 48 kHz stereo float
+to 16 kHz mono PCM for speech detection):
+
+```csharp
+using ObsKit.NET.Video;
+using ObsKit.NET.Audio;
+
+using var scaler = new VideoScaler(
+    new VideoScaleInfo { Format = VideoFormat.NV12, Width = 1920, Height = 1080 },
+    new VideoScaleInfo { Format = VideoFormat.BGRA, Width = 320, Height = 180 },
+    VideoScaleType.Bilinear);
+var thumb = new byte[320 * 180 * 4];
+using var tap = Obs.SubscribeRawVideo(VideoFormat.NV12, 1920, 1080, (in RawVideoFrame f) => scaler.Scale(in f, thumb));
+
+// Pull the latest decoded frame straight from an async source (webcam, media, capture card)
+SourceFrame? latest = webcam.TryGetAsyncFrame();      // null if nothing new is queued
+if (latest != null) scaler.Scale(latest, thumb);      // scaler input must match latest.Format/size
+
+using var resampler = new AudioResampler(
+    new ResampleInfo(48000, AudioFormat.FloatPlanar, SpeakerLayout.Stereo),
+    new ResampleInfo(16000, AudioFormat.Bit16, SpeakerLayout.Mono));
+using var audioTap = mic.SubscribeAudio((in RawAudioFrame f, bool muted) =>
+{
+    if (resampler.Resample(in f, out var pcm))
+        Feed(pcm.GetPlane(0));                        // 16-bit mono PCM, valid until the next Resample call
+});
+```
+
+## Frame Hooks
+
+Hook the render loop itself: a per-frame tick, a chance to draw into the main canvas after it
+is composited (so your drawing lands in every output), and a "frame done" signal. All run on
+OBS's graphics thread, so keep them short:
+
+```csharp
+using var tick = Obs.SubscribeTick(seconds => stats.Advance(seconds));
+using var overlay = Obs.SubscribeMainRender((cx, cy) => { /* gs_* drawing via NativeHandle interop */ });
+using var done = Obs.SubscribeMainRendered(() => frameCounter++);
+```
+
 ## Recording
 
 ```csharp
@@ -418,6 +496,40 @@ replay.Saved += (_, e) => Console.WriteLine($"Replay saved to {e.Path}");
 replay.Save();
 ```
 
+## Remuxing Recordings
+
+Convert a finished recording to another container without re-encoding (the same remuxer OBS
+uses for its "Remux Recordings" dialog). Works without starting the OBS core:
+
+```csharp
+using ObsKit.NET.Video;
+
+var progress = new Progress<float>(p => Console.WriteLine($"{p:F0}%"));
+bool ok = await MediaRemux.RemuxAsync("clip.mkv", "clip.mp4", progress, cancellationToken);
+```
+
+## Output Packet Tap & Reconnect Gate
+
+Observe every encoded packet as it is interleaved into an output (custom stats, latency
+measurement, forwarding to your own sink), and decide whether a stream may auto-reconnect:
+
+```csharp
+using var packets = recording.SubscribePackets((in EncoderPacket p, EncoderPacketTiming? t) =>
+{
+    if (p.Type == ObsEncoderType.Video && p.IsKeyframe) keyframes++;
+    if (t.HasValue) latency = t.Value.TotalLatency;   // render -> interleave, per video frame
+    // p.Data is only valid during the callback; copy it if you need it.
+});
+
+stream.SetReconnectGate(code => code != ObsOutputStopCode.InvalidStream);  // false vetoes the retry
+stream.SetPreferredSize(1280, 720);                   // scale this output without touching the encoder settings
+var protocols = stream.Protocols;                     // ["RTMP", "RTMPS"] for rtmp_output
+
+// Introspect output types like sources/encoders
+var props = Output.GetProperties("ffmpeg_muxer");
+using var defaults = Output.GetDefaults("ffmpeg_muxer");
+```
+
 ## Preview Display
 
 Render the live canvas into a window of your app (WinForms, WPF via HwndHost, Avalonia native control host). OBS draws straight into the window's swap chain — no extra encoding, no CPU frame copies.
@@ -462,6 +574,35 @@ using var verticalRecording = new RecordingOutput("Vertical")
 verticalRecording.Start();                // records simultaneously with the main output
 ```
 
+### Canvas persistence & signals
+
+```csharp
+using var hidden = Canvas.CreatePrivate("Scratch", 1280, 720);   // not enumerated or saved
+using var saved = vertical.Save();                                // name/uuid/flags, restore with Canvas.Load
+using var conn = vertical.ConnectSignal(CanvasSignal.SourceAdd, cd => { /* ... */ });
+using var weak = vertical.GetWeakReference();                     // also on Output/VideoEncoder/AudioEncoder/Service
+using var owner = someSource.GetCanvas();                         // which canvas a source belongs to (OBS 32+)
+```
+
+## Views
+
+A view is a lightweight channel set that can become its own video mix, the mechanism OBS uses
+to feed the virtual camera from a single scene or source. On OBS 31+ prefer a canvas for full
+mixes; a view is handy for encoding one source at its native size:
+
+```csharp
+using ObsKit.NET.Video;
+
+using var view = new View();
+view.SetSource(0, webcam);
+view.AddVideoMix(1280, 720);                          // 0x0 = main canvas size
+
+using var camRecording = new RecordingOutput("Webcam")
+    .SetPath("webcam.mp4")
+    .WithVideoEncoder(VideoEncoder.CreateBest("Webcam Video"), view, takeOwnership: true)
+    .WithAudioEncoder(AudioEncoder.CreateAac("Webcam Audio"), takeOwnership: true);
+```
+
 ## Hotkeys
 
 Register global hotkeys with OBS's hotkey system. libobs polls key state on its own
@@ -504,6 +645,34 @@ Obs.InjectHotkeyEvent(new ObsKeyCombination(ObsKey.F10, ObsKeyModifiers.Control)
 
 // Only fire presses you inject yourself (disable the background polling thread's presses)
 Obs.EnableHotkeyBackgroundPress(false);
+// Persist bindings across sessions (OBS's own hotkey JSON shape)
+using var bindings = saveReplay.SaveBindings();     // also Obs.SaveHotkeyBindings(id) for built-ins
+saveReplay.LoadBindings(bindings);
+using var micHotkeys = mic.SaveHotkeys();            // every hotkey on the source, keyed by name
+mic.LoadHotkeys(micHotkeys);
+
+// Pairs and hotkeys on any object: Source/Output pairs, VideoEncoder/AudioEncoder/Service hotkeys
+using var micPair = mic.RegisterHotkeyPair("mic_on", "Unmute Mic", "mic_off", "Mute Mic",
+    p => { if (p && mic.IsMuted) { mic.IsMuted = false; return true; } return false; },
+    p => { if (p && !mic.IsMuted) { mic.IsMuted = true; return true; } return false; });
+```
+
+## Settings Objects
+
+`Settings` wraps `obs_data_t` and `SettingsArray` wraps `obs_data_array_t`, covering every value
+kind libobs stores, including the vector and frame-rate types used by some plugin properties:
+
+```csharp
+using var s = new Settings()
+    .Set("pos", new Vec2(10, 20))
+    .Set("color", new Vec4(1, 0, 0, 1))
+    .SetFramesPerSecond("fps", new MediaFramesPerSecond(60000, 1001))
+    .SetDefault("files", SettingsArray.FromStrings(new[] { "a.png", "b.png" }));
+
+if (s.TryGetFramesPerSecond("fps", out var fps, out var option)) Console.WriteLine(fps.Value);
+using var files = s.GetDefaultArray("files");
+foreach (var name in files!.ToStrings()) Console.WriteLine(name);
+s.SaveToFilePrettySafe("settings.json");            // atomic write + .bak
 ```
 
 ## Finding & Enumerating Objects
@@ -550,6 +719,33 @@ Obs.ResetAudioMonitoring();                             // recover after device 
 // Which codecs an output type accepts (before picking encoders)
 var vcodecs = Output.GetSupportedVideoCodecs("ffmpeg_muxer");   // ["h264", "hevc", "av1", ...]
 var acodecs = Output.GetSupportedAudioCodecs("rtmp_output");    // ["aac"]
+// Save/restore everything at once, like an OBS scene collection
+using var collection = Obs.SaveSources();                       // every public source + scene
+collection.ToJson();                                            // or Settings.Set("sources", collection)
+var restored = Obs.LoadSources(collection);                     // owning refs; dispose when done
+
+// What a composite source is showing, recursively
+var tree = scene.AsSource.GetActiveTree();                      // also GetActiveChildren, GetFullTree
+
+// Capabilities, kind, and health of a source
+bool hasAudio = (source.OutputFlags & ObsSourceFlags.Audio) != 0;
+bool isScene = source.IsScene, isGroup = source.IsGroup;
+using var missing = media.GetMissingFiles();                    // moved/deleted media paths
+foreach (var f in missing) f.Resolve(Path.Combine(newDir, Path.GetFileName(f.Path)));
+using var filterBackup = source.BackupFilters();                // ... edit filters ...
+source.RestoreFilters(filterBackup);                            // undo
+
+// Plugins, protocols and type ids
+var installed = Obs.FindModules();                              // every module file in the search paths
+var loaded = Obs.GetLoadedModule("obs-browser");               // null if not loaded
+var protocols = Obs.EnumerateOutputProtocols();                 // ["RTMP", "RTMPS", "SRT", ...]
+var srtOutputs = Obs.EnumerateOutputTypesForProtocol("SRT");
+var versioned = Obs.EnumerateInputTypesWithVersions();          // ("color_source_v3", "color_source")
+string? newest = Obs.GetLatestInputTypeId("color_source");
+
+// App-wide private data shared with plugins
+using var priv = Obs.GetPrivateData();
+priv.Set("my_app_session", sessionId);
 ```
 
 ## Encoders
@@ -587,6 +783,18 @@ encoder.PreferredRange = VideoRangeType.Partial;
 // Stats: frames encoded, and time spent paused (also on Output/AudioEncoder)
 uint frames = encoder.EncodedFrames;
 TimeSpan paused = recording.PauseOffset;
+// Codec headers (SPS/PPS, AudioSpecificConfig) once the encoder is running
+byte[]? extraData = encoder.GetExtraData();
+
+// Instance-level introspection (dependent options resolved against current settings)
+var props = encoder.GetProperties();
+using var defaults = encoder.GetDefaults();
+var rois = encoder.GetRegionsOfInterest();
+bool zeroCopy = encoder.IsTextureEncodeActive();     // NV12 texture path in use?
+
+// Start several encoders in lockstep (multitrack streaming)
+using var group = new EncoderGroup();
+group.Add(videoEncoder); group.Add(audioEncoder);
 ```
 
 ### Encoder Discovery
@@ -697,6 +905,13 @@ streaming.Stop();
 - **Settings Introspection** - Enumerate keys/types of any settings object, read defaults, JSON round-trips (with or without defaults), and crash-safe settings files (atomic save + backup-aware load)
 - **Object Lookup** - Find any source, output, encoder, service, or canvas by name/UUID, enumerate all live instances, and duplicate sources
 - **Global Hotkeys** - Register app/source/output hotkeys that fire system-wide via OBS's own key polling, start/stop pairs on a single key, rebindable built-in hotkeys, and key/display-string conversions
+- **Frame Hooks** - Per-frame tick, draw-into-the-main-canvas overlay hook, and frame-done signal on the graphics thread
+- **Packet Tap** - Observe every encoded packet (with render-to-mux latency) and gate auto-reconnect per stop code
+- **Remux** - Convert finished recordings between containers without re-encoding, with progress and cancellation
+- **Raw Conversion** - Software video scaler/format converter and audio resampler for callback data and async source frames
+- **Views** - Extra video mixes from a single source or scene, recordable like a canvas
+- **Scene Editing Tools** - Draw/box transform matrices for hit-testing, atomic multi-item updates, transform snapshots for undo, group insert/reorder
+- **Persistence** - Save/load all sources like a scene collection, per-item and per-filter backups, canvas identity, hotkey bindings
 - **Headless Operation** - Run without GUI dependencies
 
 ## Requirements

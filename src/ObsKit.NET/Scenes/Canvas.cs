@@ -413,4 +413,11 @@ public sealed class Canvas : ObsObject
     }
 
     #endregion
+
+    /// <summary>
+    /// Renders the canvas's scene into the current render target. Only valid on the graphics
+    /// thread inside a render callback (e.g. <see cref="Obs.SubscribeMainRender"/> or a display
+    /// draw callback); <see cref="Video.PreviewDisplay"/> already does this for previews.
+    /// </summary>
+    public void Render() => ObsCanvas.obs_canvas_render(Handle);
 }

@@ -1057,4 +1057,11 @@ internal static partial class ObsSource
     internal static partial void obs_source_release_frame(ObsSourceHandle source, nint frame);
 
     #endregion
+
+    public static bool obs_weak_source_references_source(nint weak, ObsSourceHandle source)
+        => obs_weak_source_references_source_native(weak, source) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_weak_source_references_source")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_weak_source_references_source_native(nint weak, ObsSourceHandle source);
 }
