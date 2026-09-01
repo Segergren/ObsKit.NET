@@ -47,8 +47,8 @@ public sealed class RecordingOutput : Output
     public const string HybridMovTypeId = "mov_output";
 
     private VideoEncoder? _videoEncoder;
-    private AudioEncoder? _audioEncoder;
-    private readonly HashSet<object> _ownedEncoders = new();
+    private readonly Dictionary<int, AudioEncoder> _trackAudioEncoders = new();
+    private readonly HashSet<ObsKit.NET.Core.ObsObject> _ownedEncoders = new();
 
     /// <summary>
     /// Creates a new recording output.
@@ -158,7 +158,8 @@ public sealed class RecordingOutput : Output
     /// <param name="takeOwnership">If true, disposes the encoder when output is disposed.</param>
     public RecordingOutput WithVideoEncoder(VideoEncoder encoder, bool takeOwnership = false)
     {
-        ReplaceEncoder(ref _videoEncoder, encoder, takeOwnership);
+        TrackOwnership(_videoEncoder, encoder, takeOwnership);
+        _videoEncoder = encoder;
 
         var video = ObsCore.obs_get_video();
         encoder.SetVideo(video);
@@ -176,7 +177,8 @@ public sealed class RecordingOutput : Output
     /// <param name="takeOwnership">If true, disposes the encoder when output is disposed.</param>
     public RecordingOutput WithVideoEncoder(VideoEncoder encoder, Scenes.Canvas canvas, bool takeOwnership = false)
     {
-        ReplaceEncoder(ref _videoEncoder, encoder, takeOwnership);
+        TrackOwnership(_videoEncoder, encoder, takeOwnership);
+        _videoEncoder = encoder;
 
         encoder.SetVideo(canvas.Video);
 
@@ -192,7 +194,9 @@ public sealed class RecordingOutput : Output
     /// <param name="track">The audio track index.</param>
     public RecordingOutput WithAudioEncoder(AudioEncoder encoder, bool takeOwnership = false, int track = 0)
     {
-        ReplaceEncoder(ref _audioEncoder, encoder, takeOwnership);
+        _trackAudioEncoders.TryGetValue(track, out var previous);
+        TrackOwnership(previous, encoder, takeOwnership);
+        _trackAudioEncoders[track] = encoder;
 
         var audio = ObsCore.obs_get_audio();
         encoder.SetAudio(audio);
@@ -204,14 +208,13 @@ public sealed class RecordingOutput : Output
     /// <summary>
     /// Tracks ownership per encoder instance: ownership is decided by the most recent
     /// <c>With*Encoder</c> call for that instance, and an owned encoder that is replaced
-    /// is disposed when the replacement happens.
+    /// in its slot (video, or the same audio track) is disposed at replacement time.
     /// </summary>
-    private void ReplaceEncoder<T>(ref T? current, T encoder, bool takeOwnership) where T : ObsKit.NET.Core.ObsObject
+    private void TrackOwnership(ObsKit.NET.Core.ObsObject? previous, ObsKit.NET.Core.ObsObject encoder, bool takeOwnership)
     {
-        if (current != null && !ReferenceEquals(current, encoder) && _ownedEncoders.Remove(current))
-            current.Dispose();
+        if (previous != null && !ReferenceEquals(previous, encoder) && _ownedEncoders.Remove(previous))
+            previous.Dispose();
 
-        current = encoder;
         if (takeOwnership)
             _ownedEncoders.Add(encoder);
         else
@@ -444,10 +447,8 @@ public sealed class RecordingOutput : Output
     {
         if (disposing && _ownedEncoders.Count > 0)
         {
-            if (_videoEncoder != null && _ownedEncoders.Remove(_videoEncoder))
-                _videoEncoder.Dispose();
-            if (_audioEncoder != null && _ownedEncoders.Remove(_audioEncoder))
-                _audioEncoder.Dispose();
+            foreach (var encoder in _ownedEncoders)
+                encoder.Dispose();
             _ownedEncoders.Clear();
         }
 

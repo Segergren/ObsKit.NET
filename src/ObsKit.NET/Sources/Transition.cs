@@ -51,10 +51,10 @@ public sealed class Transition : Source
     /// <param name="destination">The source to transition to.</param>
     /// <param name="duration">Animation duration (ignored for fixed-duration transitions and instant cuts).</param>
     /// <param name="mode">Auto-animate, or drive manually via <see cref="SetManualTime"/>.</param>
-    /// <returns>False only when the destination equals the current source while no
-    /// transition is active. Note: OBS force-stops any transition already in progress
-    /// and restarts it, so this returns true even when a transition was running —
-    /// check <see cref="IsTransitioning"/> first if that matters.</returns>
+    /// <returns>False when the destination equals the transition's current source and no
+    /// transition ends up running. Note: OBS force-completes any transition already in
+    /// progress before restarting, so starting toward that transition's own destination
+    /// also returns false; check <see cref="IsTransitioning"/> first if that matters.</returns>
     public bool Start(Source destination, TimeSpan duration, ObsTransitionMode mode = ObsTransitionMode.Auto)
     {
         ArgumentNullException.ThrowIfNull(destination);
@@ -75,10 +75,10 @@ public sealed class Transition : Source
     /// <param name="destination">The scene to transition to.</param>
     /// <param name="duration">Animation duration (ignored for fixed-duration transitions and instant cuts).</param>
     /// <param name="mode">Auto-animate, or drive manually via <see cref="SetManualTime"/>.</param>
-    /// <returns>False only when the destination equals the current source while no
-    /// transition is active. Note: OBS force-stops any transition already in progress
-    /// and restarts it, so this returns true even when a transition was running —
-    /// check <see cref="IsTransitioning"/> first if that matters.</returns>
+    /// <returns>False when the destination equals the transition's current source and no
+    /// transition ends up running. Note: OBS force-completes any transition already in
+    /// progress before restarting, so starting toward that transition's own destination
+    /// also returns false; check <see cref="IsTransitioning"/> first if that matters.</returns>
     public bool Start(Scenes.Scene destination, TimeSpan duration, ObsTransitionMode mode = ObsTransitionMode.Auto)
     {
         ArgumentNullException.ThrowIfNull(destination);

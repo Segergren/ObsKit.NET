@@ -3,21 +3,22 @@ using ObsKit.NET.Core;
 namespace ObsKit.NET.Sources;
 
 /// <summary>
-/// Text source (text_gdiplus on Windows, text_ft2_source elsewhere).
+/// Text source (text_gdiplus_v3 on Windows, text_ft2_source_v2 elsewhere).
 /// Renders a text string with a configurable font, color, and outline.
 /// </summary>
 public sealed class TextSource : Source
 {
     /// <summary>
-    /// The source type ID for Windows text rendering (GDI+).
+    /// The source type ID for Windows text rendering (GDI+). Uses the current v3
+    /// registration (OBS 30.2+); the bare "text_gdiplus" id is the obsolete v1.
     /// </summary>
-    public const string WindowsTypeId = "text_gdiplus";
+    public const string WindowsTypeId = "text_gdiplus_v3";
 
     /// <summary>
-    /// The source type ID for FreeType2 text rendering (Linux/macOS). The current v2
-    /// registration shares the same id with a version bump.
+    /// The source type ID for FreeType2 text rendering (Linux/macOS). Uses the current v2
+    /// registration; the bare "text_ft2_source" id is the obsolete v1.
     /// </summary>
-    public const string FreeType2TypeId = "text_ft2_source";
+    public const string FreeType2TypeId = "text_ft2_source_v2";
 
     /// <summary>
     /// Font style flags (OBS_FONT_*).
@@ -123,12 +124,11 @@ public sealed class TextSource : Source
     {
         if (OperatingSystem.IsWindows())
         {
-            // GDI+ uses an RGB color (0xRRGGBB) plus a separate opacity percentage,
-            // so the 0xAABBGGRR input must be byte-swapped red/blue first.
+            // GDI+ stores "color" in the same R-low-byte layout as the input (the
+            // plugin swaps it for GDI+ itself), plus a separate opacity percentage.
             var alpha = (abgr >> 24) & 0xFF;
-            var rgb = ((abgr & 0xFF) << 16) | (abgr & 0xFF00) | ((abgr >> 16) & 0xFF);
             Update(s => s
-                .Set("color", (long)rgb)
+                .Set("color", (long)(abgr & 0xFFFFFF))
                 .Set("opacity", (long)(alpha * 100 / 255)));
         }
         else

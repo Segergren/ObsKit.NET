@@ -6,8 +6,9 @@ namespace ObsKit.NET.Filters;
 /// </summary>
 public sealed class ColorCorrectionFilter : Filter
 {
-    /// <summary>The filter type ID for the color correction (v2, SDR/sRGB) filter.</summary>
-    public const string FilterTypeId = "color_filter";
+    /// <summary>The filter type ID for the color correction (v2, SDR/sRGB) filter.
+    /// The bare "color_filter" id is the obsolete v1.</summary>
+    public const string FilterTypeId = "color_filter_v2";
 
     /// <summary>
     /// Creates a color correction filter with neutral defaults.

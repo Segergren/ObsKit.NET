@@ -6,8 +6,9 @@ namespace ObsKit.NET.Filters;
 /// </summary>
 public sealed class ChromaKeyFilter : Filter
 {
-    /// <summary>The filter type ID for the chroma key (v2, SDR/sRGB) filter.</summary>
-    public const string FilterTypeId = "chroma_key_filter";
+    /// <summary>The filter type ID for the chroma key (v2, SDR/sRGB) filter.
+    /// The bare "chroma_key_filter" id is the obsolete v1.</summary>
+    public const string FilterTypeId = "chroma_key_filter_v2";
 
     /// <summary>
     /// Preset key colors.

@@ -540,7 +540,7 @@ using var strong = weak.TryGetSource();                 // null once the source 
 
 // Unfiltered size and unversioned type id
 uint w = source.BaseWidth, h = source.BaseHeight;       // size before crop/scale filters
-string? id = source.UnversionedTypeId;                  // "color_source" (id without the v3 version suffix)
+string? id = source.UnversionedTypeId;                  // "color_source" for "color_source_v3"
 
 // Global state
 bool live = Obs.IsVideoActive;                          // any recording/stream/vcam running

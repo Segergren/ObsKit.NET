@@ -184,8 +184,7 @@ public class Source : ObsObject
 
     /// <summary>
     /// Gets the source type id without its version suffix (e.g. "color_source" for
-    /// the color source, whose id is "color_source" with version 3). Useful for type
-    /// checks that should ignore versioning.
+    /// "color_source_v3"). Useful for type checks that should ignore versioning.
     /// </summary>
     public string? UnversionedTypeId => ObsSource.obs_source_get_unversioned_id(Handle);
 
