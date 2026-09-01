@@ -43,7 +43,7 @@ public sealed class ObsContext : IDisposable
 
         if (OperatingSystem.IsLinux())
         {
-            SetNixPlatformDisplay();
+            SetNixPlatform();
         }
 
         if (!ObsCore.obs_startup(_config.Locale, _config.ModuleConfigPath, 0))
@@ -304,16 +304,34 @@ public sealed class ObsContext : IDisposable
     }
 
     [SupportedOSPlatform("linux")]
-    private static void SetNixPlatformDisplay()
+    private static void SetNixPlatform()
     {
-        // Hand libobs an X connection like the OBS Studio frontend does; without it,
-        // EGL init opens its own and can deadlock the NVIDIA driver against the compositor.
-        // X11 sessions only — a wl_display* is unsafe unless libobs resolves to Wayland.
+        // libobs defaults to X11, so a Wayland session without a reachable X display
+        // (e.g. Flatpak with fallback-x11) fails obs_startup unless we select Wayland here.
         if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY")))
         {
-            return;
+            nint wlDisplay = 0;
+            try
+            {
+                wlDisplay = Platform.Linux.Interop.WaylandClient.wl_display_connect(0);
+            }
+            catch (DllNotFoundException)
+            {
+            }
+
+            if (wlDisplay != 0)
+            {
+                // The display must be set before obs_startup: the Wayland hotkey init
+                // dereferences it without a null check. Never closed; libobs holds it
+                // for the process lifetime.
+                ObsCore.obs_set_nix_platform((int)ObsNixPlatform.Wayland);
+                ObsCore.obs_set_nix_platform_display(wlDisplay);
+                return;
+            }
         }
 
+        // Hand libobs an X connection like the OBS Studio frontend does; without it,
+        // EGL init opens its own and can deadlock the NVIDIA driver against the compositor.
         var display = Platform.Linux.Interop.X11.XOpenDisplay(0);
         if (display != 0)
         {

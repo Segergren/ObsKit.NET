@@ -70,6 +70,16 @@ public enum VideoFormat
 }
 
 /// <summary>
+/// Unix windowing platform for obs_set_nix_platform. Values match OBS 28+ (they differed before).
+/// </summary>
+internal enum ObsNixPlatform
+{
+    Invalid = 0,
+    X11Egl = 1,
+    Wayland = 2,
+}
+
+/// <summary>
 /// Video transfer characteristics.
 /// </summary>
 public enum VideoTrc
