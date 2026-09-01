@@ -659,3 +659,15 @@ public enum GsColorSpace
     /// <summary>scRGB, 1.0 = 80 nits (Windows/Linux HDR).</summary>
     Rec709Scrgb,
 }
+
+/// <summary>
+/// Scaling algorithm for the software video scaler (video_scale_type).
+/// </summary>
+public enum VideoScaleType
+{
+    Default = 0,
+    Point,
+    FastBilinear,
+    Bilinear,
+    Bicubic,
+}

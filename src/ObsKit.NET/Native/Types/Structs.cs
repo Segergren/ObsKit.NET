@@ -639,3 +639,28 @@ internal struct ObsSceneItemOrderInfoNative
     public nint Group;
     public nint Item;
 }
+
+/// <summary>
+/// Audio format description for <c>AudioResampler</c> (libobs <c>struct resample_info</c>).
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct ResampleInfo
+{
+    /// <summary>Sample rate in Hz.</summary>
+    public uint SampleRate;
+
+    /// <summary>Sample format.</summary>
+    public AudioFormat Format;
+
+    /// <summary>Speaker layout.</summary>
+    public SpeakerLayout Speakers;
+
+    public ResampleInfo(uint sampleRate, AudioFormat format, SpeakerLayout speakers)
+    {
+        SampleRate = sampleRate;
+        Format = format;
+        Speakers = speakers;
+    }
+
+    public override readonly string ToString() => $"{SampleRate} Hz {Format} {Speakers}";
+}

@@ -454,4 +454,24 @@ public sealed class RecordingOutput : Output
 
         base.Dispose(disposing);
     }
+
+    /// <summary>
+    /// Sets the video encoder for recording, taking video from a <see cref="Video.View"/> that
+    /// has a video mix (see <see cref="Video.View.AddVideoMix"/>), e.g. to record a single
+    /// source independently of the main canvas.
+    /// </summary>
+    /// <param name="encoder">The video encoder.</param>
+    /// <param name="view">The view whose video mix is recorded.</param>
+    /// <param name="takeOwnership">If true, disposes the encoder when output is disposed.</param>
+    public RecordingOutput WithVideoEncoder(VideoEncoder encoder, Video.View view, bool takeOwnership = false)
+    {
+        ArgumentNullException.ThrowIfNull(view);
+        TrackOwnership(_videoEncoder, encoder, takeOwnership);
+        _videoEncoder = encoder;
+
+        encoder.SetVideo(view.Video);
+
+        SetVideoEncoder(encoder);
+        return this;
+    }
 }
