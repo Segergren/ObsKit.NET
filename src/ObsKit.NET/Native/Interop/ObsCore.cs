@@ -931,4 +931,18 @@ internal static partial class ObsCore
     internal static partial void obs_load_sources(ObsDataArrayHandle array, LoadSourceCallback callback, nint data);
 
     #endregion
+
+    #region Weak Object
+
+    /// <summary>
+    /// Returns whether a weak reference of any OBS object kind (all obs_weak_* types share
+    /// the same header) no longer points at a live object.
+    /// </summary>
+    public static bool obs_weak_object_expired(nint weak) => obs_weak_object_expired_native(weak) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_weak_object_expired")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_weak_object_expired_native(nint weak);
+
+    #endregion
 }

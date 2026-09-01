@@ -582,6 +582,9 @@ public class Output : ObsObject
 
         ObsOutput.obs_output_set_mixers(newHandle, mixers);
 
+        if (_reconnectNative != null)
+            ObsOutput.obs_output_set_reconnect_callback(newHandle, _reconnectNative, nint.Zero);
+
         if (_delaySec != 0)
             ObsOutput.obs_output_set_delay(newHandle, _delaySec, _delayFlags);
 
@@ -620,4 +623,158 @@ public class Output : ObsObject
     }
 
     public override string ToString() => $"Output[{TypeId}]: {Name}";
+
+    #region Packet Tap and Reconnect Gate
+
+    private ObsOutput.ReconnectCallbackNative? _reconnectNative;
+
+    /// <summary>
+    /// Taps every encoded packet as it is interleaved into this output, before the output
+    /// implementation (muxer/streamer) sees it. Useful for custom stats, latency measurement,
+    /// or forwarding packets to your own sink. The callback runs synchronously on the
+    /// output's packet thread, so keep it short and never block.
+    /// Dispose the returned subscription to stop; it becomes inert if the output type is
+    /// changed afterwards (re-subscribe in that case).
+    /// </summary>
+    /// <param name="callback">Invoked per packet with data valid only for the call.</param>
+    public OutputPacketSubscription SubscribePackets(OutputPacketCallback callback)
+    {
+        ArgumentNullException.ThrowIfNull(callback);
+        return new OutputPacketSubscription(Handle, callback);
+    }
+
+    /// <summary>
+    /// Installs a gate that decides whether the output may auto-reconnect after a failure
+    /// (only consulted when reconnect is enabled via <c>SetReconnectSettings</c>). Return
+    /// false to stop reconnecting, e.g. after an authentication error. Pass null to remove
+    /// the gate. Runs on OBS's output thread.
+    /// </summary>
+    /// <param name="shouldReconnect">Receives the stop code of the failed attempt.</param>
+    public void SetReconnectGate(Func<ObsOutputStopCode, bool>? shouldReconnect)
+    {
+        if (shouldReconnect == null)
+        {
+            ObsOutput.obs_output_set_reconnect_callback(Handle, null, nint.Zero);
+            _reconnectNative = null;
+            return;
+        }
+
+        ObsOutput.ReconnectCallbackNative native = (_, _, code) =>
+        {
+            try
+            {
+                return shouldReconnect((ObsOutputStopCode)code) ? (byte)1 : (byte)0;
+            }
+            catch
+            {
+                return 0;
+            }
+        };
+        ObsOutput.obs_output_set_reconnect_callback(Handle, native, nint.Zero);
+        _reconnectNative = native;
+    }
+
+    #endregion
+
+    #region Sizing and Introspection
+
+    /// <summary>
+    /// Sets the preferred scaled output resolution, applied to the video encoder when the
+    /// output starts (pass 0x0 to disable scaling). Has no effect while the encoder is active.
+    /// </summary>
+    /// <param name="width">Scaled width in pixels.</param>
+    /// <param name="height">Scaled height in pixels.</param>
+    /// <param name="videoTrack">Video encoder index, for outputs with multiple video tracks.</param>
+    public void SetPreferredSize(uint width, uint height, int videoTrack = 0)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(videoTrack);
+        if (videoTrack == 0)
+            ObsOutput.obs_output_set_preferred_size(Handle, width, height);
+        else
+            ObsOutput.obs_output_set_preferred_size2(Handle, width, height, (nuint)videoTrack);
+    }
+
+    /// <summary>
+    /// Gets the encoded width of a specific video track (outputs with multiple video encoders).
+    /// </summary>
+    public uint GetWidth(int videoTrack)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(videoTrack);
+        return ObsOutput.obs_output_get_width2(Handle, (nuint)videoTrack);
+    }
+
+    /// <summary>
+    /// Gets the encoded height of a specific video track (outputs with multiple video encoders).
+    /// </summary>
+    public uint GetHeight(int videoTrack)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(videoTrack);
+        return ObsOutput.obs_output_get_height2(Handle, (nuint)videoTrack);
+    }
+
+    /// <summary>
+    /// Gets the streaming protocols this output type supports (e.g. "RTMP", "RTMPS"), or an
+    /// empty list for non-streaming outputs.
+    /// </summary>
+    public IReadOnlyList<string> Protocols
+    {
+        get
+        {
+            var raw = ObsOutput.obs_output_get_protocols(Handle);
+            return string.IsNullOrEmpty(raw)
+                ? Array.Empty<string>()
+                : raw.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        }
+    }
+
+    /// <summary>
+    /// Gets the default settings of an output type (dispose when done).
+    /// </summary>
+    /// <param name="typeId">The output type id (e.g. "ffmpeg_muxer").</param>
+    public static Settings GetDefaults(string typeId)
+    {
+        ThrowIfNotInitialized();
+        ArgumentException.ThrowIfNullOrEmpty(typeId);
+        var handle = ObsOutput.obs_output_defaults(typeId);
+        if (handle.IsNull)
+            throw new NotSupportedException($"Output type '{typeId}' is not available in this OBS version.");
+        return new Settings(handle);
+    }
+
+    /// <summary>
+    /// Gets the default settings of this output's type (dispose when done).
+    /// </summary>
+    public Settings GetDefaults() => GetDefaults(TypeId ?? throw new InvalidOperationException("Output has no type id."));
+
+    /// <summary>
+    /// Introspects the configurable properties of an output type (names, labels, types,
+    /// ranges and option lists), without creating an instance.
+    /// </summary>
+    /// <param name="typeId">The output type id.</param>
+    public static IReadOnlyList<ObsPropertyInfo> GetProperties(string typeId)
+    {
+        ThrowIfNotInitialized();
+        ArgumentException.ThrowIfNullOrEmpty(typeId);
+        return ObsPropertyReader.ReadAllAndDestroy(ObsOutput.obs_get_output_properties(typeId));
+    }
+
+    /// <summary>
+    /// Introspects this output's configurable properties, evaluated against its current settings.
+    /// </summary>
+    public IReadOnlyList<ObsPropertyInfo> GetProperties()
+        => ObsPropertyReader.ReadAllAndDestroy(ObsOutput.obs_output_properties(Handle));
+
+    /// <summary>
+    /// Creates a weak reference that does not keep the output alive. Upgrade with
+    /// <see cref="WeakOutput.TryGetOutput"/>.
+    /// </summary>
+    public WeakOutput GetWeakReference()
+    {
+        var weak = ObsOutput.obs_output_get_weak_output(Handle);
+        if (weak == nint.Zero)
+            throw new InvalidOperationException("Failed to create a weak reference.");
+        return new WeakOutput(weak);
+    }
+
+    #endregion
 }

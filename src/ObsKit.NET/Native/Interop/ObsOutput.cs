@@ -511,4 +511,123 @@ internal static partial class ObsOutput
         [MarshalUsing(typeof(Utf8StringMarshaler))] string id);
 
     #endregion
+
+    #region Sizing, Protocols, Defaults and Properties
+
+    /// <summary>
+    /// Sets the preferred scaled output size (0x0 disables scaling). Applied to the video
+    /// encoder when the output starts; ignored with a warning if the encoder is already active.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_output_set_preferred_size")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_output_set_preferred_size(ObsOutputHandle output, uint width, uint height);
+
+    /// <summary>
+    /// Like <see cref="obs_output_set_preferred_size"/> for a specific video encoder index
+    /// (multi-video outputs only).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_output_set_preferred_size2")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_output_set_preferred_size2(ObsOutputHandle output, uint width, uint height, nuint idx);
+
+    [LibraryImport(Lib, EntryPoint = "obs_output_get_width2")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial uint obs_output_get_width2(ObsOutputHandle output, nuint idx);
+
+    [LibraryImport(Lib, EntryPoint = "obs_output_get_height2")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial uint obs_output_get_height2(ObsOutputHandle output, nuint idx);
+
+    /// <summary>
+    /// Gets the semicolon-separated protocols the output type supports (OBS-owned string; null for
+    /// non-streaming outputs).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_output_get_protocols")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_output_get_protocols(ObsOutputHandle output);
+
+    /// <summary>
+    /// Gets a new data object holding the default settings of an output type (release when done).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_output_defaults")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsDataHandle obs_output_defaults([MarshalUsing(typeof(Utf8StringMarshaler))] string id);
+
+    /// <summary>
+    /// Gets the properties of an output type (destroy with obs_properties_destroy).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_output_properties")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_get_output_properties([MarshalUsing(typeof(Utf8StringMarshaler))] string id);
+
+    /// <summary>
+    /// Gets the properties of an output instance (destroy with obs_properties_destroy).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_output_properties")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_output_properties(ObsOutputHandle output);
+
+    #endregion
+
+    #region Packet and Reconnect Callbacks
+
+    /// <summary>
+    /// Native packet callback: invoked synchronously on the output's interleave path for every
+    /// encoded packet before it reaches the output implementation. <paramref name="pkt"/> points
+    /// at an <see cref="EncoderPacketNative"/>; <paramref name="pktTime"/> points at an
+    /// <see cref="EncoderPacketTimeNative"/> or is null. Both are valid only during the call.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void PacketCallbackNative(ObsOutputHandle output, nint pkt, nint pktTime, nint param);
+
+    [LibraryImport(Lib, EntryPoint = "obs_output_add_packet_callback")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_output_add_packet_callback(ObsOutputHandle output, PacketCallbackNative callback, nint param);
+
+    [LibraryImport(Lib, EntryPoint = "obs_output_remove_packet_callback")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_output_remove_packet_callback(ObsOutputHandle output, PacketCallbackNative callback, nint param);
+
+    /// <summary>
+    /// Native reconnect gate: return 0 to veto an automatic reconnect attempt after the output
+    /// stopped with <paramref name="code"/>.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate byte ReconnectCallbackNative(nint data, ObsOutputHandle output, int code);
+
+    [LibraryImport(Lib, EntryPoint = "obs_output_set_reconnect_callback")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_output_set_reconnect_callback(ObsOutputHandle output, ReconnectCallbackNative? callback, nint param);
+
+    #endregion
+
+    #region Weak References
+
+    /// <summary>
+    /// Gets a new weak reference to the output (release with obs_weak_output_release).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_output_get_weak_output")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_output_get_weak_output(ObsOutputHandle output);
+
+    /// <summary>
+    /// Upgrades a weak reference to a strong one (release with obs_output_release), or null.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_weak_output_get_output")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsOutputHandle obs_weak_output_get_output(nint weak);
+
+    [LibraryImport(Lib, EntryPoint = "obs_weak_output_release")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_weak_output_release(nint weak);
+
+    public static bool obs_weak_output_references_output(nint weak, ObsOutputHandle output)
+        => obs_weak_output_references_output_native(weak, output) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_weak_output_references_output")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_weak_output_references_output_native(nint weak, ObsOutputHandle output);
+
+    #endregion
 }

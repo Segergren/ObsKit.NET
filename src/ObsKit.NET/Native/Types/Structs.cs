@@ -554,3 +554,38 @@ internal struct ObsModuleInfo2Native
     public nint DataPath;
     public nint Name;
 }
+
+/// <summary>
+/// Native layout of OBS's <c>struct encoder_packet</c>.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct EncoderPacketNative
+{
+    public nint Data;
+    public nuint Size;
+    public long Pts;
+    public long Dts;
+    public int TimebaseNum;
+    public int TimebaseDen;
+    public ObsEncoderType Type;
+    public byte Keyframe;
+    public long DtsUsec;
+    public long SysDtsUsec;
+    public int Priority;
+    public int DropPriority;
+    public nuint TrackIdx;
+    public nint Encoder;
+}
+
+/// <summary>
+/// Native layout of OBS's <c>struct encoder_packet_time</c>.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct EncoderPacketTimeNative
+{
+    public long Pts;
+    public ulong Cts;
+    public ulong Fer;
+    public ulong Ferc;
+    public ulong Pir;
+}
