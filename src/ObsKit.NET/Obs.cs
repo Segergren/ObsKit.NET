@@ -887,11 +887,7 @@ public static class Obs
             if (fileName == null)
                 return;
 
-            modules.Add(new ObsModuleInfo(
-                fileName,
-                ObsCore.obs_get_module_name(module),
-                ObsCore.obs_get_module_author(module),
-                ObsCore.obs_get_module_description(module)));
+            modules.Add(ReadModuleInfo(module));
         };
         ObsCore.obs_enum_modules(callback, nint.Zero);
         GC.KeepAlive(callback);
@@ -994,4 +990,416 @@ public static class Obs
         if (!IsInitialized)
             throw new ObsNotInitializedException();
     }
+
+    #region Frame Hooks
+
+    /// <summary>
+    /// Registers a per-frame tick callback. It runs on OBS's graphics thread once per video
+    /// frame, before sources are rendered, with the seconds elapsed since the previous tick.
+    /// Keep the callback fast; dispose the returned subscription to remove it.
+    /// </summary>
+    /// <param name="callback">Invoked with the elapsed seconds since the last tick.</param>
+    public static TickSubscription SubscribeTick(Action<float> callback)
+    {
+        ThrowIfNotInitialized();
+        ArgumentNullException.ThrowIfNull(callback);
+        return new TickSubscription(callback);
+    }
+
+    /// <summary>
+    /// Registers a callback that runs on the graphics thread right after the main canvas is
+    /// composited, with the graphics context active and the main texture bound as the render
+    /// target. Anything drawn here (via the graphics API) lands in every output that uses the
+    /// main canvas, which makes it the hook for custom overlays. Dispose to remove.
+    /// </summary>
+    /// <param name="draw">Invoked with the canvas base width and height.</param>
+    public static MainRenderSubscription SubscribeMainRender(Action<uint, uint> draw)
+    {
+        ThrowIfNotInitialized();
+        ArgumentNullException.ThrowIfNull(draw);
+        return new MainRenderSubscription(draw);
+    }
+
+    /// <summary>
+    /// Registers a callback that fires on the graphics thread once every canvas has finished
+    /// rendering a frame (a lightweight "frame done" signal). Dispose to remove.
+    /// </summary>
+    public static MainRenderedSubscription SubscribeMainRendered(Action rendered)
+    {
+        ThrowIfNotInitialized();
+        ArgumentNullException.ThrowIfNull(rendered);
+        return new MainRenderedSubscription(rendered);
+    }
+
+    #endregion
+
+    #region Type and Protocol Discovery
+
+    /// <summary>
+    /// Enumerates input source types together with their unversioned ids, e.g.
+    /// ("color_source_v3", "color_source"). Use the unversioned id for stable lookups across
+    /// OBS versions and <see cref="GetLatestInputTypeId"/> to resolve it back.
+    /// </summary>
+    public static IReadOnlyList<(string Id, string UnversionedId)> EnumerateInputTypesWithVersions()
+    {
+        ThrowIfNotInitialized();
+        var result = new List<(string, string)>();
+        for (nuint i = 0; ObsCore.obs_enum_input_types2(i, out var id, out var unversioned); i++)
+        {
+            var idStr = Marshal.PtrToStringUTF8(id);
+            if (idStr == null)
+                continue;
+            result.Add((idStr, Marshal.PtrToStringUTF8(unversioned) ?? idStr));
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Resolves an unversioned input type id (e.g. "color_source") to the newest registered
+    /// versioned id (e.g. "color_source_v3"), or null if no such type is registered.
+    /// </summary>
+    public static string? GetLatestInputTypeId(string unversionedId)
+    {
+        ThrowIfNotInitialized();
+        ArgumentException.ThrowIfNullOrEmpty(unversionedId);
+        return ObsCore.obs_get_latest_input_type_id(unversionedId);
+    }
+
+    /// <summary>
+    /// Enumerates the streaming protocols registered by loaded output plugins
+    /// (e.g. "RTMP", "RTMPS", "SRT", "RIST", "WHIP").
+    /// </summary>
+    public static IReadOnlyList<string> EnumerateOutputProtocols()
+    {
+        ThrowIfNotInitialized();
+        var result = new List<string>();
+        for (nuint i = 0; ObsCore.obs_enum_output_protocols(i, out var ptr); i++)
+        {
+            var protocol = Marshal.PtrToStringUTF8(ptr);
+            if (protocol != null)
+                result.Add(protocol);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Gets whether any loaded output plugin registered the given protocol (case-sensitive,
+    /// e.g. "RTMPS" or "SRT").
+    /// </summary>
+    public static bool IsOutputProtocolRegistered(string protocol)
+    {
+        ThrowIfNotInitialized();
+        ArgumentException.ThrowIfNullOrEmpty(protocol);
+        return ObsCore.obs_is_output_protocol_registered(protocol);
+    }
+
+    /// <summary>
+    /// Enumerates the output type ids that can stream with the given protocol, in
+    /// registration order (e.g. "rtmp_output" for "RTMP").
+    /// </summary>
+    public static IReadOnlyList<string> EnumerateOutputTypesForProtocol(string protocol)
+    {
+        ThrowIfNotInitialized();
+        ArgumentException.ThrowIfNullOrEmpty(protocol);
+
+        var result = new List<string>();
+        ObsCore.EnumOutputTypesWithProtocolCallback callback = (_, id) =>
+        {
+            var idStr = Marshal.PtrToStringUTF8(id);
+            if (idStr != null)
+                result.Add(idStr);
+            return 1;
+        };
+        ObsCore.obs_enum_output_types_with_protocol(protocol, nint.Zero, callback);
+        GC.KeepAlive(callback);
+        return result;
+    }
+
+    /// <summary>
+    /// Gets whether a source type exposes configurable properties (false for e.g. scenes and
+    /// groups, or types that are not registered).
+    /// </summary>
+    public static bool IsSourceTypeConfigurable(string typeId)
+    {
+        ThrowIfNotInitialized();
+        ArgumentException.ThrowIfNullOrEmpty(typeId);
+        return ObsCore.obs_is_source_configurable(typeId);
+    }
+
+    /// <summary>
+    /// Gets the icon category a source type declares, for picking a glyph in source lists.
+    /// Returns <see cref="ObsIconType.Unknown"/> for unregistered types.
+    /// </summary>
+    public static ObsIconType GetSourceIconType(string typeId)
+    {
+        ThrowIfNotInitialized();
+        ArgumentException.ThrowIfNullOrEmpty(typeId);
+        return ObsCore.obs_source_get_icon_type(typeId);
+    }
+
+    #endregion
+
+    #region Module Discovery
+
+    /// <summary>
+    /// Lists every plugin module file present in the configured module search paths, whether
+    /// or not it was loaded (compare with <see cref="GetLoadedModules"/>). Useful for showing
+    /// which plugins are installed, or for building an exclusion list before initialization.
+    /// </summary>
+    public static IReadOnlyList<ObsModuleLocation> FindModules()
+    {
+        ThrowIfNotInitialized();
+
+        var modules = new List<ObsModuleLocation>();
+        ObsCore.FindModuleCallback2 callback = (_, infoPtr) =>
+        {
+            if (infoPtr == nint.Zero)
+                return;
+            var info = Marshal.PtrToStructure<ObsModuleInfo2Native>(infoPtr);
+            var name = Marshal.PtrToStringUTF8(info.Name);
+            var bin = Marshal.PtrToStringUTF8(info.BinPath);
+            if (name == null || bin == null)
+                return;
+            modules.Add(new ObsModuleLocation(name, bin, Marshal.PtrToStringUTF8(info.DataPath) ?? string.Empty));
+        };
+        ObsCore.obs_find_modules2(callback, nint.Zero);
+        GC.KeepAlive(callback);
+        return modules;
+    }
+
+    /// <summary>
+    /// Gets a loaded module by name (file name without extension, e.g. "obs-browser"),
+    /// or null if no such module is loaded.
+    /// </summary>
+    public static ObsModuleInfo? GetLoadedModule(string name)
+    {
+        ThrowIfNotInitialized();
+        ArgumentException.ThrowIfNullOrEmpty(name);
+
+        var module = ObsCore.obs_get_module(name);
+        if (module == nint.Zero)
+            return null;
+        return ReadModuleInfo(module);
+    }
+
+    /// <summary>
+    /// Gets whether a module by that name is on the disabled-modules list
+    /// (see <see cref="AddDisabledModule"/>).
+    /// </summary>
+    public static bool IsModuleDisabled(string name)
+    {
+        ThrowIfNotInitialized();
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        return ObsCore.obs_get_disabled_module(name) != nint.Zero;
+    }
+
+    private static ObsModuleInfo ReadModuleInfo(nint module)
+        => new(
+            ObsCore.obs_get_module_file_name(module) ?? string.Empty,
+            ObsCore.obs_get_module_name(module),
+            ObsCore.obs_get_module_author(module),
+            ObsCore.obs_get_module_description(module),
+            ObsCore.obs_get_module_binary_path(module),
+            ObsCore.obs_get_module_data_path(module));
+
+    /// <summary>
+    /// Adds a module to the safe-mode allow list. When the list is non-empty, only listed
+    /// modules load. Must be called before modules are loaded (i.e. from the
+    /// <c>ObsConfiguration</c> callback or before <c>Obs.Initialize</c> loads modules).
+    /// </summary>
+    /// <param name="name">The module name (file name without extension).</param>
+    public static void AddSafeModule(string name)
+    {
+        ThrowIfNotInitialized();
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ObsCore.obs_add_safe_module(name);
+    }
+
+    /// <summary>
+    /// Marks a module as a core module that cannot be disabled by
+    /// <see cref="AddDisabledModule"/>. Must be called before modules are loaded.
+    /// </summary>
+    /// <param name="name">The module name (file name without extension).</param>
+    public static void AddCoreModule(string name)
+    {
+        ThrowIfNotInitialized();
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ObsCore.obs_add_core_module(name);
+    }
+
+    /// <summary>
+    /// Adds a module to the disabled list so the module loader skips it (it is still
+    /// discoverable via <see cref="FindModules"/>). Must be called before modules are loaded.
+    /// </summary>
+    /// <param name="name">The module name (file name without extension).</param>
+    public static void AddDisabledModule(string name)
+    {
+        ThrowIfNotInitialized();
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ObsCore.obs_add_disabled_module(name);
+    }
+
+    /// <summary>
+    /// Gets whether a module may be disabled (false for modules registered as core modules).
+    /// </summary>
+    public static bool IsModuleDisableAllowed(string name)
+    {
+        ThrowIfNotInitialized();
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        return ObsCore.obs_get_module_allow_disable(name);
+    }
+
+    /// <summary>
+    /// Resolves a file relative to the libobs data directories (e.g. an effect or LUT shipped
+    /// with libobs), returning its full path or null if not found.
+    /// </summary>
+    public static string? FindDataFile(string file)
+    {
+        ThrowIfNotInitialized();
+        ArgumentException.ThrowIfNullOrEmpty(file);
+
+        var ptr = ObsCore.obs_find_data_file(file);
+        if (ptr == nint.Zero)
+            return null;
+        try
+        {
+            return Marshal.PtrToStringUTF8(ptr);
+        }
+        finally
+        {
+            ObsSignal.bfree(ptr);
+        }
+    }
+
+    /// <summary>
+    /// Resolves a file inside a loaded module's data directory, returning its full path or
+    /// null if the module is not loaded or the file does not exist.
+    /// </summary>
+    /// <param name="moduleName">The module name (file name without extension).</param>
+    /// <param name="file">The file path relative to the module's data directory.</param>
+    public static string? FindModuleFile(string moduleName, string file)
+    {
+        ThrowIfNotInitialized();
+        ArgumentException.ThrowIfNullOrEmpty(moduleName);
+        ArgumentException.ThrowIfNullOrEmpty(file);
+
+        var module = ObsCore.obs_get_module(moduleName);
+        if (module == nint.Zero)
+            return null;
+
+        var ptr = ObsCore.obs_find_module_file(module, file);
+        if (ptr == nint.Zero)
+            return null;
+        try
+        {
+            return Marshal.PtrToStringUTF8(ptr);
+        }
+        finally
+        {
+            ObsSignal.bfree(ptr);
+        }
+    }
+
+    #endregion
+
+    #region Private Data
+
+    /// <summary>
+    /// Gets a reference to the global private data object: arbitrary app state that plugins
+    /// and the host can share (OBS's frontend uses it for the current scene collection name,
+    /// etc.). Dispose the returned object when done; changes made through it are live.
+    /// </summary>
+    public static Settings GetPrivateData()
+    {
+        ThrowIfNotInitialized();
+        return new Settings(ObsCore.obs_get_private_data(), ownsHandle: true);
+    }
+
+    /// <summary>
+    /// Replaces the global private data with a copy of <paramref name="settings"/>
+    /// (pass null to clear it).
+    /// </summary>
+    public static void SetPrivateData(Settings? settings)
+    {
+        ThrowIfNotInitialized();
+        ObsCore.obs_set_private_data(settings?.Handle ?? default);
+    }
+
+    /// <summary>
+    /// Merges <paramref name="settings"/> into the global private data.
+    /// </summary>
+    public static void ApplyPrivateData(Settings settings)
+    {
+        ThrowIfNotInitialized();
+        ArgumentNullException.ThrowIfNull(settings);
+        ObsCore.obs_apply_private_data(settings.Handle);
+    }
+
+    #endregion
+
+    #region Bulk Source Persistence
+
+    /// <summary>
+    /// Serializes every public, non-filter source (scenes and their items included) into an
+    /// array, like an OBS scene collection. Filters attached to sources are saved with their
+    /// parent. Restore with <see cref="LoadSources"/>. Dispose the returned array when done.
+    /// </summary>
+    /// <param name="filter">Optional predicate; return false to skip a source. The source
+    /// passed in is a temporary reference valid only during the call.</param>
+    public static SettingsArray SaveSources(Func<Source, bool>? filter = null)
+    {
+        ThrowIfNotInitialized();
+
+        if (filter == null)
+            return new SettingsArray(ObsCore.obs_save_sources(), ownsHandle: true);
+
+        ObsCore.SaveSourceFilterCallback callback = (_, handle) =>
+        {
+            var refd = ObsSource.obs_source_get_ref(handle);
+            if (refd.IsNull)
+                return 0;
+            using var source = new Source(refd, ownsHandle: true);
+            try
+            {
+                return filter(source) ? (byte)1 : (byte)0;
+            }
+            catch
+            {
+                return 0;
+            }
+        };
+        var array = ObsCore.obs_save_sources_filtered(callback, nint.Zero);
+        GC.KeepAlive(callback);
+        return new SettingsArray(array, ownsHandle: true);
+    }
+
+    /// <summary>
+    /// Creates every source described in <paramref name="data"/> (as produced by
+    /// <see cref="SaveSources"/>), restoring settings, filters, and scene items, then runs
+    /// each source's load hook. Returns an owning reference to each loaded source in array
+    /// order; dispose them when your own bookkeeping no longer needs them (scene items keep
+    /// their sources alive, so disposing does not destroy a source that is still used by a
+    /// scene). Sources are matched to existing ones by UUID, so loading the same data twice
+    /// in one session mints new UUIDs for the duplicates.
+    /// </summary>
+    public static List<Source> LoadSources(SettingsArray data)
+    {
+        ThrowIfNotInitialized();
+        ArgumentNullException.ThrowIfNull(data);
+
+        var loaded = new List<Source>();
+        ObsCore.LoadSourceCallback callback = (_, handle) =>
+        {
+            // libobs drops its own reference after the load completes.
+            var refd = ObsSource.obs_source_get_ref(handle);
+            if (refd.IsNull)
+                return;
+            loaded.Add(new Source(refd, ownsHandle: true));
+        };
+        ObsCore.obs_load_sources(data.Handle, callback, nint.Zero);
+        GC.KeepAlive(callback);
+        return loaded;
+    }
+
+    #endregion
 }

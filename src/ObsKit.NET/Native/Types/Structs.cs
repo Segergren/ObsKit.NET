@@ -543,3 +543,14 @@ public struct MediaFramesPerSecond
 
     public override readonly string ToString() => Denominator == 1 ? $"{Numerator} fps" : $"{Numerator}/{Denominator} fps";
 }
+
+/// <summary>
+/// Native layout of OBS's <c>struct obs_module_info2</c> (strings are OBS-owned).
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct ObsModuleInfo2Native
+{
+    public nint BinPath;
+    public nint DataPath;
+    public nint Name;
+}

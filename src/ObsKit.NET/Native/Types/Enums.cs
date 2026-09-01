@@ -622,3 +622,25 @@ public enum ObsDataType
     /// <summary>An array of settings objects.</summary>
     Array = 5,
 }
+
+/// <summary>
+/// Icon category a source type declares (obs_icon_type), for picking a glyph in source lists.
+/// </summary>
+public enum ObsIconType
+{
+    Unknown,
+    Image,
+    Color,
+    Slideshow,
+    AudioInput,
+    AudioOutput,
+    DesktopCapture,
+    WindowCapture,
+    GameCapture,
+    Camera,
+    Text,
+    Media,
+    Browser,
+    Custom,
+    ProcessAudioOutput,
+}

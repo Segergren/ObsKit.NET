@@ -674,4 +674,261 @@ internal static partial class ObsCore
     internal static partial void base_set_log_handler(LogHandlerDelegate handler, nint param);
 
     #endregion
+
+    #region Frame Hooks
+
+    /// <summary>
+    /// Native callback for <c>obs_add_tick_callback</c>: invoked once per video frame on the
+    /// graphics thread with the elapsed seconds since the previous tick.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void TickCallbackNative(nint param, float seconds);
+
+    [LibraryImport(Lib, EntryPoint = "obs_add_tick_callback")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_add_tick_callback(TickCallbackNative tick, nint param);
+
+    [LibraryImport(Lib, EntryPoint = "obs_remove_tick_callback")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_remove_tick_callback(TickCallbackNative tick, nint param);
+
+    /// <summary>
+    /// Native callback for <c>obs_add_main_render_callback</c>: invoked on the graphics thread
+    /// after the main canvas has been rendered, with the graphics context active and the main
+    /// texture as the render target (base width/height passed).
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void MainRenderCallbackNative(nint param, uint cx, uint cy);
+
+    [LibraryImport(Lib, EntryPoint = "obs_add_main_render_callback")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_add_main_render_callback(MainRenderCallbackNative draw, nint param);
+
+    [LibraryImport(Lib, EntryPoint = "obs_remove_main_render_callback")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_remove_main_render_callback(MainRenderCallbackNative draw, nint param);
+
+    /// <summary>
+    /// Native callback for <c>obs_add_main_rendered_callback</c>: invoked on the graphics
+    /// thread once every video mix has finished rendering a frame.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void MainRenderedCallbackNative(nint param);
+
+    [LibraryImport(Lib, EntryPoint = "obs_add_main_rendered_callback")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_add_main_rendered_callback(MainRenderedCallbackNative rendered, nint param);
+
+    [LibraryImport(Lib, EntryPoint = "obs_remove_main_rendered_callback")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_remove_main_rendered_callback(MainRenderedCallbackNative rendered, nint param);
+
+    #endregion
+
+    #region Type and Protocol Discovery
+
+    /// <summary>
+    /// Enumerates input source types with both the versioned and unversioned id (OBS-owned strings).
+    /// </summary>
+    public static bool obs_enum_input_types2(nuint idx, out nint id, out nint unversionedId)
+        => obs_enum_input_types2_native(idx, out id, out unversionedId) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_enum_input_types2")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_enum_input_types2_native(nuint idx, out nint id, out nint unversionedId);
+
+    /// <summary>
+    /// Gets the latest (highest-versioned) registered type id for an unversioned id, or null.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_latest_input_type_id")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_get_latest_input_type_id(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string unversionedId);
+
+    /// <summary>
+    /// Enumerates registered output protocols (OBS-owned strings).
+    /// </summary>
+    public static bool obs_enum_output_protocols(nuint idx, out nint protocol)
+        => obs_enum_output_protocols_native(idx, out protocol) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_enum_output_protocols")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_enum_output_protocols_native(nuint idx, out nint protocol);
+
+    public static bool obs_is_output_protocol_registered(string protocol)
+        => obs_is_output_protocol_registered_native(protocol) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_is_output_protocol_registered")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_is_output_protocol_registered_native(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string protocol);
+
+    /// <summary>
+    /// Callback for <c>obs_enum_output_types_with_protocol</c>. Return 1 to continue, 0 to stop.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate byte EnumOutputTypesWithProtocolCallback(nint data, nint id);
+
+    [LibraryImport(Lib, EntryPoint = "obs_enum_output_types_with_protocol")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_enum_output_types_with_protocol(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string protocol,
+        nint data,
+        EnumOutputTypesWithProtocolCallback callback);
+
+    /// <summary>
+    /// Returns whether a source type exposes configurable properties.
+    /// </summary>
+    public static bool obs_is_source_configurable(string id) => obs_is_source_configurable_native(id) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_is_source_configurable")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_is_source_configurable_native(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string id);
+
+    /// <summary>
+    /// Gets the icon type a source type declares (obs_icon_type).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_icon_type")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsIconType obs_source_get_icon_type(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string id);
+
+    #endregion
+
+    #region Module Discovery and Safety Lists
+
+    /// <summary>
+    /// Callback for <c>obs_find_modules2</c>; <paramref name="info"/> points at an
+    /// <see cref="ObsModuleInfo2Native"/> valid only during the call.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void FindModuleCallback2(nint param, nint info);
+
+    /// <summary>
+    /// Enumerates every module file found in the registered module search paths,
+    /// whether or not it has been loaded.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_find_modules2")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_find_modules2(FindModuleCallback2 callback, nint param);
+
+    /// <summary>
+    /// Gets a loaded module by name (file name without extension), or null.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_module")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_get_module([MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    /// <summary>
+    /// Gets a module from the disabled-modules list by name, or null.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_disabled_module")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_get_disabled_module([MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    [LibraryImport(Lib, EntryPoint = "obs_get_module_binary_path")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_get_module_binary_path(nint module);
+
+    [LibraryImport(Lib, EntryPoint = "obs_get_module_data_path")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_get_module_data_path(nint module);
+
+    /// <summary>
+    /// Resolves a file inside a module's data directory. Returns a bmalloc'd string
+    /// (free with <c>bfree</c>) or null if not found.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_find_module_file")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_find_module_file(nint module, [MarshalUsing(typeof(Utf8StringMarshaler))] string file);
+
+    /// <summary>
+    /// Resolves a file inside the libobs data search paths. Returns a bmalloc'd string
+    /// (free with <c>bfree</c>) or null if not found.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_find_data_file")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_find_data_file([MarshalUsing(typeof(Utf8StringMarshaler))] string file);
+
+    [LibraryImport(Lib, EntryPoint = "obs_add_safe_module")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_add_safe_module([MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    [LibraryImport(Lib, EntryPoint = "obs_add_core_module")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_add_core_module([MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    [LibraryImport(Lib, EntryPoint = "obs_add_disabled_module")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_add_disabled_module([MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    public static bool obs_get_module_allow_disable(string name) => obs_get_module_allow_disable_native(name) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_get_module_allow_disable")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_get_module_allow_disable_native([MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    #endregion
+
+    #region Private Data
+
+    /// <summary>
+    /// Gets the global private data object (adds a reference; release when done).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_private_data")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsDataHandle obs_get_private_data();
+
+    /// <summary>
+    /// Replaces the global private data with a copy of <paramref name="settings"/> (null clears).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_set_private_data")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_set_private_data(ObsDataHandle settings);
+
+    /// <summary>
+    /// Merges <paramref name="settings"/> into the global private data.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_apply_private_data")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_apply_private_data(ObsDataHandle settings);
+
+    #endregion
+
+    #region Bulk Source Persistence
+
+    /// <summary>
+    /// Filter for <c>obs_save_sources_filtered</c>: return 1 to include the (borrowed) source.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate byte SaveSourceFilterCallback(nint data, ObsSourceHandle source);
+
+    /// <summary>
+    /// Saves every public, non-filter, non-removed source (scenes included) into a new array
+    /// (release when done).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_save_sources")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsDataArrayHandle obs_save_sources();
+
+    [LibraryImport(Lib, EntryPoint = "obs_save_sources_filtered")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsDataArrayHandle obs_save_sources_filtered(SaveSourceFilterCallback callback, nint data);
+
+    /// <summary>
+    /// Callback for <c>obs_load_sources</c>: the source is borrowed and released by libobs
+    /// after the load completes, so take a reference to keep it.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void LoadSourceCallback(nint data, ObsSourceHandle source);
+
+    [LibraryImport(Lib, EntryPoint = "obs_load_sources")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_load_sources(ObsDataArrayHandle array, LoadSourceCallback callback, nint data);
+
+    #endregion
 }
