@@ -512,4 +512,207 @@ internal static partial class ObsData
     internal static partial ObsDataType obs_data_item_gettype(nint item);
 
     #endregion
+
+    #region Vectors and Frame Rates
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_set_vec2")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_set_vec2(ObsDataHandle data, [MarshalUsing(typeof(Utf8StringMarshaler))] string name, in Vec2 val);
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_set_vec3")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_set_vec3(ObsDataHandle data, [MarshalUsing(typeof(Utf8StringMarshaler))] string name, in Vec3 val);
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_set_vec4")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_set_vec4(ObsDataHandle data, [MarshalUsing(typeof(Utf8StringMarshaler))] string name, in Vec4 val);
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_set_quat")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_set_quat(ObsDataHandle data, [MarshalUsing(typeof(Utf8StringMarshaler))] string name, in Quat val);
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_set_default_vec2")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_set_default_vec2(ObsDataHandle data, [MarshalUsing(typeof(Utf8StringMarshaler))] string name, in Vec2 val);
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_set_default_vec3")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_set_default_vec3(ObsDataHandle data, [MarshalUsing(typeof(Utf8StringMarshaler))] string name, in Vec3 val);
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_set_default_vec4")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_set_default_vec4(ObsDataHandle data, [MarshalUsing(typeof(Utf8StringMarshaler))] string name, in Vec4 val);
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_set_default_quat")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_set_default_quat(ObsDataHandle data, [MarshalUsing(typeof(Utf8StringMarshaler))] string name, in Quat val);
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_vec2")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_get_vec2(ObsDataHandle data, [MarshalUsing(typeof(Utf8StringMarshaler))] string name, out Vec2 val);
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_vec3")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_get_vec3(ObsDataHandle data, [MarshalUsing(typeof(Utf8StringMarshaler))] string name, out Vec3 val);
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_vec4")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_get_vec4(ObsDataHandle data, [MarshalUsing(typeof(Utf8StringMarshaler))] string name, out Vec4 val);
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_quat")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_get_quat(ObsDataHandle data, [MarshalUsing(typeof(Utf8StringMarshaler))] string name, out Quat val);
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_default_vec2")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_get_default_vec2(ObsDataHandle data, [MarshalUsing(typeof(Utf8StringMarshaler))] string name, out Vec2 val);
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_default_vec3")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_get_default_vec3(ObsDataHandle data, [MarshalUsing(typeof(Utf8StringMarshaler))] string name, out Vec3 val);
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_default_vec4")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_get_default_vec4(ObsDataHandle data, [MarshalUsing(typeof(Utf8StringMarshaler))] string name, out Vec4 val);
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_default_quat")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_get_default_quat(ObsDataHandle data, [MarshalUsing(typeof(Utf8StringMarshaler))] string name, out Quat val);
+
+    /// <summary>
+    /// Stores a frame rate as a nested object ({numerator, denominator}) or, when
+    /// <paramref name="option"/> is non-null, as a named option ({option}).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_set_frames_per_second")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_set_frames_per_second(
+        ObsDataHandle data,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        MediaFramesPerSecond fps,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string? option);
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_set_default_frames_per_second")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_set_default_frames_per_second(
+        ObsDataHandle data,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        MediaFramesPerSecond fps,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string? option);
+
+    /// <summary>
+    /// Reads a frame rate. Returns true if either a valid numerator/denominator pair or an
+    /// option string was found; <paramref name="option"/> points at an OBS-owned string
+    /// (do not free) or is null.
+    /// </summary>
+    public static bool obs_data_get_frames_per_second(ObsDataHandle data, string name, out MediaFramesPerSecond fps, out nint option)
+        => obs_data_get_frames_per_second_native(data, name, out fps, out option) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_frames_per_second")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_data_get_frames_per_second_native(
+        ObsDataHandle data,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        out MediaFramesPerSecond fps,
+        out nint option);
+
+    public static bool obs_data_get_default_frames_per_second(ObsDataHandle data, string name, out MediaFramesPerSecond fps, out nint option)
+        => obs_data_get_default_frames_per_second_native(data, name, out fps, out option) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_default_frames_per_second")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_data_get_default_frames_per_second_native(
+        ObsDataHandle data,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        out MediaFramesPerSecond fps,
+        out nint option);
+
+    #endregion
+
+    #region Default Objects and Arrays
+
+    /// <summary>
+    /// Sets a default nested object (the data object takes its own reference).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_set_default_obj")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_set_default_obj(
+        ObsDataHandle data,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        ObsDataHandle obj);
+
+    /// <summary>
+    /// Sets a default array (the data object takes its own reference).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_set_default_array")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_set_default_array(
+        ObsDataHandle data,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        ObsDataArrayHandle array);
+
+    /// <summary>
+    /// Gets a default nested object (adds a reference; release when done).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_default_obj")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsDataHandle obs_data_get_default_obj(
+        ObsDataHandle data,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    /// <summary>
+    /// Gets a default array (adds a reference; release when done).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_default_array")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsDataArrayHandle obs_data_get_default_array(
+        ObsDataHandle data,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    #endregion
+
+    #region JSON Extras
+
+    /// <summary>
+    /// Returns the JSON string produced by the most recent obs_data_get_json call on this
+    /// object (owned by the object; null if none was produced yet).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_get_last_json")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalUsing(typeof(Utf8StringMarshalerNoFree))]
+    internal static partial string? obs_data_get_last_json(ObsDataHandle data);
+
+    /// <summary>
+    /// Saves pretty-printed JSON atomically (write to temp, rename, keep a backup).
+    /// </summary>
+    public static bool obs_data_save_json_pretty_safe(ObsDataHandle data, string file, string tempExt, string backupExt)
+        => obs_data_save_json_pretty_safe_native(data, file, tempExt, backupExt) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_data_save_json_pretty_safe")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_data_save_json_pretty_safe_native(
+        ObsDataHandle data,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string file,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string tempExt,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string backupExt);
+
+    #endregion
+
+    #region Array Extras
+
+    /// <summary>
+    /// Adds a reference to a data array.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_array_addref")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_array_addref(ObsDataArrayHandle array);
+
+    /// <summary>
+    /// Appends every item of <paramref name="array2"/> to <paramref name="array"/>
+    /// (each appended item gets its own reference).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_data_array_push_back_array")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_data_array_push_back_array(ObsDataArrayHandle array, ObsDataArrayHandle array2);
+
+    #endregion
 }

@@ -167,11 +167,15 @@ public struct Vec3
     public float Y;
     public float Z;
 
+    /// <summary>Padding to match libobs's 16-byte <c>struct vec3</c>. Always 0.</summary>
+    public float W;
+
     public Vec3(float x, float y, float z)
     {
         X = x;
         Y = y;
         Z = z;
+        W = 0;
     }
 
     public static Vec3 Zero => new(0, 0, 0);
@@ -431,4 +435,111 @@ public struct ObsEncoderRoi
     /// reduces it (negative values are ignored by some encoders).
     /// </summary>
     public float Priority;
+}
+
+/// <summary>
+/// 4D vector structure (libobs <c>struct vec4</c>).
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct Vec4
+{
+    public float X;
+    public float Y;
+    public float Z;
+    public float W;
+
+    public Vec4(float x, float y, float z, float w)
+    {
+        X = x;
+        Y = y;
+        Z = z;
+        W = w;
+    }
+
+    public static Vec4 Zero => new(0, 0, 0, 0);
+
+    public override readonly string ToString() => $"({X}, {Y}, {Z}, {W})";
+}
+
+/// <summary>
+/// Quaternion structure (libobs <c>struct quat</c>).
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct Quat
+{
+    public float X;
+    public float Y;
+    public float Z;
+    public float W;
+
+    public Quat(float x, float y, float z, float w)
+    {
+        X = x;
+        Y = y;
+        Z = z;
+        W = w;
+    }
+
+    public static Quat Identity => new(0, 0, 0, 1);
+
+    public override readonly string ToString() => $"({X}, {Y}, {Z}, {W})";
+}
+
+/// <summary>
+/// 4x4 matrix (libobs <c>struct matrix4</c>): three axis rows plus a translation row.
+/// Used for scene item draw/box transforms; a point transforms as
+/// <c>p.x * X + p.y * Y + p.z * Z + T</c>.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct Matrix4
+{
+    public Vec4 X;
+    public Vec4 Y;
+    public Vec4 Z;
+    public Vec4 T;
+
+    public static Matrix4 Identity => new()
+    {
+        X = new Vec4(1, 0, 0, 0),
+        Y = new Vec4(0, 1, 0, 0),
+        Z = new Vec4(0, 0, 1, 0),
+        T = new Vec4(0, 0, 0, 1),
+    };
+
+    /// <summary>
+    /// Transforms a 2D point (z = 0, w = 1) by this matrix, returning the resulting x/y.
+    /// For scene item transforms this maps item-local coordinates to canvas pixels.
+    /// </summary>
+    public readonly Vec2 Transform(Vec2 point) => new(
+        point.X * X.X + point.Y * Y.X + T.X,
+        point.X * X.Y + point.Y * Y.Y + T.Y);
+
+    public override readonly string ToString() => $"[{X}; {Y}; {Z}; {T}]";
+}
+
+/// <summary>
+/// A frame rate expressed as a rational number (libobs <c>struct media_frames_per_second</c>).
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct MediaFramesPerSecond
+{
+    public uint Numerator;
+    public uint Denominator;
+
+    public MediaFramesPerSecond(uint numerator, uint denominator)
+    {
+        Numerator = numerator;
+        Denominator = denominator;
+    }
+
+    /// <summary>Gets whether both terms are non-zero.</summary>
+    public readonly bool IsValid => Numerator != 0 && Denominator != 0;
+
+    /// <summary>Gets the frame rate as a floating-point value (0 if invalid).</summary>
+    public readonly double Value => IsValid ? (double)Numerator / Denominator : 0;
+
+    /// <summary>Gets the frame interval, or <see cref="TimeSpan.Zero"/> if invalid.</summary>
+    public readonly TimeSpan Interval => IsValid ? TimeSpan.FromSeconds((double)Denominator / Numerator) : TimeSpan.Zero;
+
+    public override readonly string ToString() => Denominator == 1 ? $"{Numerator} fps" : $"{Numerator}/{Denominator} fps";
 }

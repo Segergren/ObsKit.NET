@@ -384,4 +384,227 @@ public sealed class Settings : ObsObject
 
     /// <inheritdoc/>
     public override string ToString() => ToJsonPretty() ?? "{}";
+
+    #region Arrays, Vectors and Frame Rates
+
+    /// <summary>Sets an array value (this object takes its own reference to the array).</summary>
+    public Settings Set(string name, SettingsArray value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        ObsData.obs_data_set_array(Handle, name, value.Handle);
+        return this;
+    }
+
+    /// <summary>Sets a 2D vector value (stored as an object with x/y keys).</summary>
+    public Settings Set(string name, Vec2 value)
+    {
+        ObsData.obs_data_set_vec2(Handle, name, in value);
+        return this;
+    }
+
+    /// <summary>Sets a 3D vector value (stored as an object with x/y/z keys).</summary>
+    public Settings Set(string name, Vec3 value)
+    {
+        ObsData.obs_data_set_vec3(Handle, name, in value);
+        return this;
+    }
+
+    /// <summary>Sets a 4D vector value (stored as an object with x/y/z/w keys).</summary>
+    public Settings Set(string name, Vec4 value)
+    {
+        ObsData.obs_data_set_vec4(Handle, name, in value);
+        return this;
+    }
+
+    /// <summary>Sets a quaternion value (stored as an object with x/y/z/w keys).</summary>
+    public Settings Set(string name, Quat value)
+    {
+        ObsData.obs_data_set_quat(Handle, name, in value);
+        return this;
+    }
+
+    /// <summary>
+    /// Sets a frame-rate value in the format used by <c>OBS_PROPERTY_FRAME_RATE</c> properties:
+    /// either a numerator/denominator pair or, when <paramref name="option"/> is given, a
+    /// named option such as <c>"Match Output FPS"</c>.
+    /// </summary>
+    public Settings SetFramesPerSecond(string name, MediaFramesPerSecond fps, string? option = null)
+    {
+        ObsData.obs_data_set_frames_per_second(Handle, name, fps, option);
+        return this;
+    }
+
+    /// <summary>
+    /// Gets an array value. The returned array holds its own reference; dispose it when done.
+    /// Returns null if the key is absent or not an array.
+    /// </summary>
+    public SettingsArray? GetArray(string name)
+    {
+        var handle = ObsData.obs_data_get_array(Handle, name);
+        return handle.IsNull ? null : new SettingsArray(handle);
+    }
+
+    /// <summary>Gets a 2D vector value (zero if absent).</summary>
+    public Vec2 GetVec2(string name)
+    {
+        ObsData.obs_data_get_vec2(Handle, name, out var value);
+        return value;
+    }
+
+    /// <summary>Gets a 3D vector value (zero if absent).</summary>
+    public Vec3 GetVec3(string name)
+    {
+        ObsData.obs_data_get_vec3(Handle, name, out var value);
+        return value;
+    }
+
+    /// <summary>Gets a 4D vector value (zero if absent).</summary>
+    public Vec4 GetVec4(string name)
+    {
+        ObsData.obs_data_get_vec4(Handle, name, out var value);
+        return value;
+    }
+
+    /// <summary>Gets a quaternion value (zero if absent).</summary>
+    public Quat GetQuat(string name)
+    {
+        ObsData.obs_data_get_quat(Handle, name, out var value);
+        return value;
+    }
+
+    /// <summary>
+    /// Reads a frame-rate value written by <see cref="SetFramesPerSecond"/> (or an OBS
+    /// frame-rate property). Exactly one of <paramref name="fps"/> (valid) or
+    /// <paramref name="option"/> (non-null) is populated when this returns true.
+    /// </summary>
+    public bool TryGetFramesPerSecond(string name, out MediaFramesPerSecond fps, out string? option)
+    {
+        var found = ObsData.obs_data_get_frames_per_second(Handle, name, out fps, out var optionPtr);
+        option = optionPtr != nint.Zero ? System.Runtime.InteropServices.Marshal.PtrToStringUTF8(optionPtr) : null;
+        return found;
+    }
+
+    #endregion
+
+    #region Default Objects, Arrays and Vectors
+
+    /// <summary>Sets a default nested object.</summary>
+    public Settings SetDefault(string name, Settings value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        ObsData.obs_data_set_default_obj(Handle, name, value.Handle);
+        return this;
+    }
+
+    /// <summary>Sets a default array value.</summary>
+    public Settings SetDefault(string name, SettingsArray value)
+    {
+        ArgumentNullException.ThrowIfNull(value);
+        ObsData.obs_data_set_default_array(Handle, name, value.Handle);
+        return this;
+    }
+
+    /// <summary>Sets a default 2D vector value.</summary>
+    public Settings SetDefault(string name, Vec2 value)
+    {
+        ObsData.obs_data_set_default_vec2(Handle, name, in value);
+        return this;
+    }
+
+    /// <summary>Sets a default 3D vector value.</summary>
+    public Settings SetDefault(string name, Vec3 value)
+    {
+        ObsData.obs_data_set_default_vec3(Handle, name, in value);
+        return this;
+    }
+
+    /// <summary>Sets a default 4D vector value.</summary>
+    public Settings SetDefault(string name, Vec4 value)
+    {
+        ObsData.obs_data_set_default_vec4(Handle, name, in value);
+        return this;
+    }
+
+    /// <summary>Sets a default quaternion value.</summary>
+    public Settings SetDefault(string name, Quat value)
+    {
+        ObsData.obs_data_set_default_quat(Handle, name, in value);
+        return this;
+    }
+
+    /// <summary>Sets a default frame-rate value (see <see cref="SetFramesPerSecond"/>).</summary>
+    public Settings SetDefaultFramesPerSecond(string name, MediaFramesPerSecond fps, string? option = null)
+    {
+        ObsData.obs_data_set_default_frames_per_second(Handle, name, fps, option);
+        return this;
+    }
+
+    /// <summary>Gets a default nested object (dispose when done), or null if none.</summary>
+    public Settings? GetDefaultObject(string name)
+    {
+        var handle = ObsData.obs_data_get_default_obj(Handle, name);
+        return handle.IsNull ? null : new Settings(handle);
+    }
+
+    /// <summary>Gets a default array value (dispose when done), or null if none.</summary>
+    public SettingsArray? GetDefaultArray(string name)
+    {
+        var handle = ObsData.obs_data_get_default_array(Handle, name);
+        return handle.IsNull ? null : new SettingsArray(handle);
+    }
+
+    /// <summary>Gets a default 2D vector value (zero if absent).</summary>
+    public Vec2 GetDefaultVec2(string name)
+    {
+        ObsData.obs_data_get_default_vec2(Handle, name, out var value);
+        return value;
+    }
+
+    /// <summary>Gets a default 3D vector value (zero if absent).</summary>
+    public Vec3 GetDefaultVec3(string name)
+    {
+        ObsData.obs_data_get_default_vec3(Handle, name, out var value);
+        return value;
+    }
+
+    /// <summary>Gets a default 4D vector value (zero if absent).</summary>
+    public Vec4 GetDefaultVec4(string name)
+    {
+        ObsData.obs_data_get_default_vec4(Handle, name, out var value);
+        return value;
+    }
+
+    /// <summary>Gets a default quaternion value (zero if absent).</summary>
+    public Quat GetDefaultQuat(string name)
+    {
+        ObsData.obs_data_get_default_quat(Handle, name, out var value);
+        return value;
+    }
+
+    /// <summary>Reads a default frame-rate value (see <see cref="TryGetFramesPerSecond"/>).</summary>
+    public bool TryGetDefaultFramesPerSecond(string name, out MediaFramesPerSecond fps, out string? option)
+    {
+        var found = ObsData.obs_data_get_default_frames_per_second(Handle, name, out fps, out var optionPtr);
+        option = optionPtr != nint.Zero ? System.Runtime.InteropServices.Marshal.PtrToStringUTF8(optionPtr) : null;
+        return found;
+    }
+
+    #endregion
+
+    #region JSON Extras
+
+    /// <summary>
+    /// Gets the JSON produced by the most recent <see cref="ToJson"/>/<see cref="ToJsonPretty"/>
+    /// call without re-serializing, or null if none has been produced yet.
+    /// </summary>
+    public string? LastJson => ObsData.obs_data_get_last_json(Handle);
+
+    /// <summary>
+    /// Saves pretty-printed JSON atomically: writes to <c>path + tempExt</c>, keeps the previous
+    /// file as <c>path + backupExt</c>, then renames into place (see <see cref="SaveToFileSafe"/>).
+    /// </summary>
+    public bool SaveToFilePrettySafe(string path, string tempExt = ".tmp", string backupExt = ".bak")
+        => ObsData.obs_data_save_json_pretty_safe(Handle, path, tempExt, backupExt);
+
+    #endregion
 }
