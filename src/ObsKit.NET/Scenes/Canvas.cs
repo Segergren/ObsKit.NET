@@ -1,3 +1,4 @@
+using ObsKit.NET.Signals;
 using ObsKit.NET.Core;
 using ObsKit.NET.Native.Interop;
 using ObsKit.NET.Native.Types;
@@ -313,4 +314,103 @@ public sealed class Canvas : ObsObject
 
     /// <inheritdoc/>
     public override string ToString() => $"Canvas: {Name}";
+
+    #region Private Canvases, Persistence, Signals and Weak References
+
+    /// <summary>
+    /// Creates a private canvas: not enumerated by <see cref="GetAll"/>, not found by name,
+    /// and not saved. Otherwise identical to <see cref="Create"/>.
+    /// </summary>
+    public static Canvas CreatePrivate(string name, uint width, uint height, ObsCanvasFlags flags = ObsCanvasFlags.Program)
+    {
+        var ovi = default(ObsVideoInfo);
+        if (!ObsCore.obs_get_video_info(ref ovi))
+            throw new InvalidOperationException("OBS video is not initialized.");
+
+        ovi.BaseWidth = width;
+        ovi.BaseHeight = height;
+        ovi.OutputWidth = width;
+        ovi.OutputHeight = height;
+
+        ObsCanvasHandle handle;
+        try
+        {
+            handle = ObsCanvas.obs_canvas_create_private(name, ref ovi, (uint)flags);
+        }
+        catch (EntryPointNotFoundException e)
+        {
+            throw new NotSupportedException("The canvas API requires OBS Studio 31 or later.", e);
+        }
+
+        if (handle.IsNull)
+            throw new InvalidOperationException($"Failed to create private canvas '{name}'.");
+
+        return new Canvas(handle);
+    }
+
+    /// <summary>
+    /// Serializes the canvas identity (name, UUID, flags) so <see cref="Load"/> can recreate it
+    /// with the same UUID. Returns null for ephemeral or removed canvases. Scenes are saved
+    /// separately (see <see cref="Obs.SaveSources"/>). Dispose when done.
+    /// </summary>
+    public Settings? Save()
+    {
+        var handle = ObsCanvas.obs_save_canvas(Handle);
+        return handle.IsNull ? null : new Settings(handle);
+    }
+
+    /// <summary>
+    /// Recreates a canvas from <see cref="Save"/> data, preserving its UUID. Video settings are
+    /// inherited from the main canvas; call <see cref="ResetVideo"/> to set its resolution.
+    /// </summary>
+    public static Canvas Load(Settings data)
+    {
+        ThrowIfNotInitialized();
+        ArgumentNullException.ThrowIfNull(data);
+        var handle = ObsCanvas.obs_load_canvas(data.Handle);
+        if (handle.IsNull)
+            throw new InvalidOperationException("Failed to load canvas.");
+        return new Canvas(handle);
+    }
+
+    /// <summary>
+    /// Detaches a scene from this canvas (the scene keeps existing).
+    /// </summary>
+    public void RemoveScene(Scene scene)
+    {
+        ArgumentNullException.ThrowIfNull(scene);
+        ObsCanvas.obs_canvas_scene_remove(scene.Handle);
+    }
+
+    /// <summary>
+    /// Connects to one of the canvas's signals. Keep the returned connection alive for as
+    /// long as the callback should fire; dispose it to disconnect.
+    /// </summary>
+    public Signals.SignalConnection ConnectSignal(Signals.CanvasSignal signal, Signals.SignalCallback callback)
+        => ConnectSignal(signal.ToSignalName(), callback);
+
+    /// <summary>
+    /// Connects to a canvas signal by name (e.g. "source_add", "channel_change").
+    /// </summary>
+    public Signals.SignalConnection ConnectSignal(string signal, Signals.SignalCallback callback)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(signal);
+        ArgumentNullException.ThrowIfNull(callback);
+        var handler = ObsCanvas.obs_canvas_get_signal_handler(Handle);
+        return new Signals.SignalConnection(handler, signal, callback);
+    }
+
+    /// <summary>
+    /// Creates a weak reference that does not keep the canvas alive. Upgrade with
+    /// <see cref="WeakCanvas.TryGetCanvas"/>.
+    /// </summary>
+    public WeakCanvas GetWeakReference()
+    {
+        var weak = ObsCanvas.obs_canvas_get_weak_canvas(Handle);
+        if (weak == nint.Zero)
+            throw new InvalidOperationException("Failed to create a weak reference.");
+        return new WeakCanvas(weak);
+    }
+
+    #endregion
 }

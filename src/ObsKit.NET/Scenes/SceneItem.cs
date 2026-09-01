@@ -572,4 +572,109 @@ public sealed class SceneItem : ObsObject
             ? $"SceneItem[{Id}]: {source.Name}"
             : $"SceneItem[{Id}]";
     }
+
+    #region Transform Matrices, Ids, Group Resize, Item Transitions and Persistence
+
+    /// <summary>
+    /// Gets the matrix that maps the item's source pixels (after crop) to canvas pixels,
+    /// including scale, rotation, position and bounds. Use for hit-testing and drawing
+    /// selection outlines in a preview: transform (0,0) and (width,height) to get the corners.
+    /// </summary>
+    public Matrix4 GetDrawTransform()
+    {
+        ObsScene.obs_sceneitem_get_draw_transform(Handle, out var m);
+        return m;
+    }
+
+    /// <summary>
+    /// Gets the matrix that maps the unit square (0..1) to the item's bounding box on the canvas.
+    /// </summary>
+    public Matrix4 GetBoxTransform()
+    {
+        ObsScene.obs_sceneitem_get_box_transform(Handle, out var m);
+        return m;
+    }
+
+    /// <summary>
+    /// Gets the item's bounding-box size in canvas pixels (after scale/bounds, before rotation).
+    /// </summary>
+    public Vec2 GetBoxScale()
+    {
+        ObsScene.obs_sceneitem_get_box_scale(Handle, out var v);
+        return v;
+    }
+
+    /// <summary>
+    /// Overrides the item's id (normally assigned by the scene). Ids must stay unique within
+    /// the scene; intended for restoring ids from persisted data.
+    /// </summary>
+    public void SetId(long id) => ObsScene.obs_sceneitem_set_id(Handle, id);
+
+    /// <summary>
+    /// For group items: defers the group's bounding-box recalculation until the returned
+    /// scope is disposed, so that moving several child items triggers a single resize:
+    /// <c>using (group.DeferGroupResize()) { ... }</c>
+    /// </summary>
+    public IDisposable DeferGroupResize()
+    {
+        ObsScene.obs_sceneitem_defer_group_resize_begin(Handle);
+        return new DeferGroupResizeScope(this);
+    }
+
+    private sealed class DeferGroupResizeScope(SceneItem item) : IDisposable
+    {
+        private SceneItem? _item = item;
+
+        public void Dispose()
+        {
+            var item = Interlocked.Exchange(ref _item, null);
+            if (item != null)
+                ObsScene.obs_sceneitem_defer_group_resize_end(item.Handle);
+        }
+    }
+
+    /// <summary>
+    /// Plays the item's show (<paramref name="visible"/> = true) or hide transition set via
+    /// <see cref="SetShowTransition"/>/<see cref="SetHideTransition"/> without changing
+    /// <see cref="IsVisible"/>. Does nothing if no transition is set.
+    /// </summary>
+    public void TriggerTransition(bool visible) => ObsScene.obs_sceneitem_do_transition(Handle, visible);
+
+    /// <summary>
+    /// Serializes the show or hide transition (type, settings, duration) so it can be restored
+    /// with <see cref="LoadTransition"/>. Returns null if none is set. Dispose when done.
+    /// </summary>
+    public Settings? SaveTransition(bool show)
+    {
+        var handle = ObsScene.obs_sceneitem_transition_save(Handle, show);
+        return handle.IsNull ? null : new Settings(handle);
+    }
+
+    /// <summary>
+    /// Restores a show or hide transition from data produced by <see cref="SaveTransition"/>.
+    /// </summary>
+    public void LoadTransition(Settings data, bool show)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ObsScene.obs_sceneitem_transition_load(Handle, data.Handle, show);
+    }
+
+    /// <summary>
+    /// Dissolves this group, moving its items back into the parent scene, optionally without
+    /// emitting reorder/refresh signals.
+    /// </summary>
+    public void Ungroup(bool signal) => ObsScene.obs_sceneitem_group_ungroup2(Handle, signal);
+
+    /// <summary>
+    /// Appends this item's serialized form (source name, transform, crop, visibility, lock,
+    /// transitions, private settings) to <paramref name="array"/>; feed the array to
+    /// <see cref="Scene.AddItems"/> to recreate the items in a scene.
+    /// </summary>
+    public void Save(SettingsArray array)
+    {
+        ArgumentNullException.ThrowIfNull(array);
+        ObsScene.obs_sceneitem_save(Handle, array.Handle);
+    }
+
+    #endregion
 }

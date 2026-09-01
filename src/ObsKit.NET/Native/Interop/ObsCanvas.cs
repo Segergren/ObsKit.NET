@@ -218,4 +218,56 @@ internal static partial class ObsCanvas
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial ObsSceneHandle obs_canvas_get_scene_by_name(
         ObsCanvasHandle canvas, [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    #region Private Canvases, Persistence, Signals and Weak References
+
+    /// <summary>
+    /// Creates a private canvas (not enumerated or saved). The MAIN flag is stripped.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_canvas_create_private")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsCanvasHandle obs_canvas_create_private(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        ref ObsVideoInfo ovi,
+        uint flags);
+
+    /// <summary>
+    /// Serializes a canvas (name, uuid, private flag, flags) into a new data object (release
+    /// when done). Returns null for ephemeral or removed canvases.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_save_canvas")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsDataHandle obs_save_canvas(ObsCanvasHandle canvas);
+
+    /// <summary>
+    /// Recreates a canvas from obs_save_canvas data (returns an owned reference).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_load_canvas")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsCanvasHandle obs_load_canvas(ObsDataHandle data);
+
+    /// <summary>
+    /// Detaches a scene from its canvas.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_canvas_scene_remove")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_canvas_scene_remove(ObsSceneHandle scene);
+
+    [LibraryImport(Lib, EntryPoint = "obs_canvas_get_signal_handler")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial SignalHandlerHandle obs_canvas_get_signal_handler(ObsCanvasHandle canvas);
+
+    [LibraryImport(Lib, EntryPoint = "obs_canvas_get_weak_canvas")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_canvas_get_weak_canvas(ObsCanvasHandle canvas);
+
+    [LibraryImport(Lib, EntryPoint = "obs_weak_canvas_get_canvas")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsCanvasHandle obs_weak_canvas_get_canvas(nint weak);
+
+    [LibraryImport(Lib, EntryPoint = "obs_weak_canvas_release")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_weak_canvas_release(nint weak);
+
+    #endregion
 }

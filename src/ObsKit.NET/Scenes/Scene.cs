@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Collections;
 using ObsKit.NET.Core;
 using ObsKit.NET.Native.Interop;
@@ -418,4 +419,166 @@ public sealed class Scene : ObsObject, IEnumerable<SceneItem>
     }
 
     public override string ToString() => $"Scene: {Name}";
+
+    #region Groups, Ordering, Atomic Updates and Persistence
+
+    /// <summary>
+    /// Creates a group that immediately contains <paramref name="items"/> (existing items of
+    /// this scene, moved into the group in the given order).
+    /// </summary>
+    /// <param name="name">The group name (unique within the scene).</param>
+    /// <param name="items">Items of this scene to move into the group.</param>
+    /// <param name="signal">Whether to emit the item_add/reorder signals.</param>
+    /// <returns>The created group scene item.</returns>
+    public SceneItem InsertGroup(string name, IReadOnlyList<SceneItem> items, bool signal = true)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentNullException.ThrowIfNull(items);
+
+        var handles = new nint[items.Count];
+        for (var i = 0; i < items.Count; i++)
+            handles[i] = items[i].Handle;
+
+        ObsSceneItemHandle itemHandle;
+        var pinned = GCHandle.Alloc(handles, GCHandleType.Pinned);
+        try
+        {
+            itemHandle = ObsScene.obs_scene_insert_group2(Handle, name, pinned.AddrOfPinnedObject(), (nuint)handles.Length, signal);
+        }
+        finally
+        {
+            pinned.Free();
+        }
+
+        if (itemHandle.IsNull)
+            throw new InvalidOperationException($"Failed to insert group '{name}' into scene");
+
+        // Like obs_scene_add_group2, the returned reference is the scene's own.
+        ObsScene.obs_sceneitem_addref(itemHandle);
+        var sceneItem = new SceneItem(itemHandle, this, ownsHandle: true);
+        _ownedSceneItems.Add(sceneItem);
+        return sceneItem;
+    }
+
+    /// <summary>Gets whether this scene is the internal scene of a group.</summary>
+    public bool IsGroup => ObsScene.obs_scene_is_group(Handle);
+
+    /// <summary>
+    /// Gets the scene behind a group source (the source of a group scene item), or null if the
+    /// source is not a group. Dispose the returned scene when done.
+    /// </summary>
+    public static Scene? FromGroupSource(Source source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        var handle = ObsScene.obs_group_from_source(source.Handle);
+        if (handle.IsNull)
+            return null;
+        var refd = ObsScene.obs_scene_get_ref(handle);
+        return refd.IsNull ? null : new Scene(refd, ownsHandle: true);
+    }
+
+    /// <summary>
+    /// Sets the full z-order of the scene including group membership. Each entry names an
+    /// item and the group it should belong to (null for top level); groups themselves appear
+    /// as entries with a null group. The list must contain exactly the scene's current items.
+    /// </summary>
+    /// <returns>False if the set of items does not match the scene's contents.</returns>
+    public bool ReorderItems(IReadOnlyList<(SceneItem? Group, SceneItem Item)> order)
+    {
+        ArgumentNullException.ThrowIfNull(order);
+
+        var entries = new ObsSceneItemOrderInfoNative[order.Count];
+        for (var i = 0; i < order.Count; i++)
+        {
+            entries[i].Group = order[i].Group?.Handle ?? default;
+            entries[i].Item = order[i].Item.Handle;
+        }
+
+        var pinned = GCHandle.Alloc(entries, GCHandleType.Pinned);
+        try
+        {
+            return ObsScene.obs_scene_reorder_items2(Handle, pinned.AddrOfPinnedObject(), (nuint)entries.Length);
+        }
+        finally
+        {
+            pinned.Free();
+        }
+    }
+
+    /// <summary>
+    /// Runs <paramref name="update"/> with the scene fully locked, so the graphics thread
+    /// cannot render a half-applied set of changes (e.g. several item transforms at once).
+    /// Do not call back into other scene operations that take the scene lock, and keep it short.
+    /// </summary>
+    public void AtomicUpdate(Action<Scene> update)
+    {
+        ArgumentNullException.ThrowIfNull(update);
+
+        Exception? error = null;
+        ObsScene.SceneAtomicUpdateCallback callback = (_, _) =>
+        {
+            try
+            {
+                update(this);
+            }
+            catch (Exception e)
+            {
+                error = e;
+            }
+        };
+        ObsScene.obs_scene_atomic_update(Handle, callback, nint.Zero);
+        GC.KeepAlive(callback);
+
+        if (error != null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error).Throw();
+    }
+
+    /// <summary>
+    /// Removes items whose sources have been removed (e.g. after
+    /// <see cref="Source.Remove"/> on a source that was still in the scene).
+    /// </summary>
+    public void PruneSources() => ObsScene.obs_scene_prune_sources(Handle);
+
+    /// <summary>
+    /// Snapshots the transforms of this scene's items (all of them, or only selected ones)
+    /// into a settings object that <see cref="LoadTransformStates"/> restores. Useful for an
+    /// undo step around a transform edit. Dispose when done.
+    /// </summary>
+    public Settings SaveTransformStates(bool allItems = true)
+    {
+        var handle = ObsScene.obs_scene_save_transform_states(Handle, allItems);
+        if (handle.IsNull)
+            throw new InvalidOperationException("Failed to save transform states.");
+        return new Settings(handle);
+    }
+
+    /// <summary>
+    /// Restores item transforms from a <see cref="SaveTransformStates"/> snapshot. Scenes and
+    /// items are located by name and id, so the snapshot can span scenes.
+    /// </summary>
+    public static void LoadTransformStates(Settings snapshot)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        var json = snapshot.ToJson();
+        if (json != null)
+            ObsScene.obs_scene_load_transform_states(json);
+    }
+
+    /// <summary>
+    /// Recreates items from an array built with <see cref="SceneItem.Save"/>. Sources are
+    /// looked up by name and must already exist.
+    /// </summary>
+    public void AddItems(SettingsArray items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+        ObsScene.obs_sceneitems_add(Handle, items.Handle);
+    }
+
+    /// <summary>
+    /// Detaches this scene from its canvas (OBS 32+). The scene keeps existing but is no
+    /// longer listed under the canvas.
+    /// </summary>
+    public void RemoveFromCanvas() => ObsCanvas.obs_canvas_scene_remove(Handle);
+
+    #endregion
 }

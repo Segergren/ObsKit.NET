@@ -605,4 +605,194 @@ internal static partial class ObsScene
     internal static partial ObsDataHandle obs_sceneitem_get_private_settings(ObsSceneItemHandle item);
 
     #endregion
+
+    #region Transforms, Ids and Group Resize
+
+    /// <summary>
+    /// Gets the item's draw transform (item-local pixels to canvas pixels, including
+    /// crop, scale, rotation, position and bounds).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_get_draw_transform")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_get_draw_transform(ObsSceneItemHandle item, out Matrix4 transform);
+
+    /// <summary>
+    /// Gets the item's bounding-box transform (unit square to the item's on-canvas box).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_get_box_transform")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_get_box_transform(ObsSceneItemHandle item, out Matrix4 transform);
+
+    /// <summary>
+    /// Gets the item's bounding-box size in canvas pixels (after scale/bounds, before rotation).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_get_box_scale")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_get_box_scale(ObsSceneItemHandle item, out Vec2 scale);
+
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_set_id")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_set_id(ObsSceneItemHandle item, long id);
+
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_defer_group_resize_begin")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_defer_group_resize_begin(ObsSceneItemHandle item);
+
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_defer_group_resize_end")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_defer_group_resize_end(ObsSceneItemHandle item);
+
+    /// <summary>
+    /// Ungroups, optionally without emitting the reorder/refresh signals.
+    /// </summary>
+    public static void obs_sceneitem_group_ungroup2(ObsSceneItemHandle group, bool signal)
+        => obs_sceneitem_group_ungroup2_native(group, signal ? (byte)1 : (byte)0);
+
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_group_ungroup2")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial void obs_sceneitem_group_ungroup2_native(ObsSceneItemHandle group, byte signal);
+
+    #endregion
+
+    #region Show/Hide Transitions
+
+    /// <summary>
+    /// Plays the item's show (visible=true) or hide transition, if one is set.
+    /// </summary>
+    public static void obs_sceneitem_do_transition(ObsSceneItemHandle item, bool visible)
+        => obs_sceneitem_do_transition_native(item, visible ? (byte)1 : (byte)0);
+
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_do_transition")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial void obs_sceneitem_do_transition_native(ObsSceneItemHandle item, byte visible);
+
+    /// <summary>
+    /// Loads a show/hide transition (type, settings, duration) from data saved by
+    /// obs_sceneitem_transition_save.
+    /// </summary>
+    public static void obs_sceneitem_transition_load(ObsSceneItemHandle item, ObsDataHandle data, bool show)
+        => obs_sceneitem_transition_load_native(item, data, show ? (byte)1 : (byte)0);
+
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_transition_load")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial void obs_sceneitem_transition_load_native(ObsSceneItemHandle item, ObsDataHandle data, byte show);
+
+    /// <summary>
+    /// Saves the show/hide transition into a new data object (release when done).
+    /// </summary>
+    public static ObsDataHandle obs_sceneitem_transition_save(ObsSceneItemHandle item, bool show)
+        => obs_sceneitem_transition_save_native(item, show ? (byte)1 : (byte)0);
+
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_transition_save")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial ObsDataHandle obs_sceneitem_transition_save_native(ObsSceneItemHandle item, byte show);
+
+    #endregion
+
+    #region Item Persistence
+
+    /// <summary>
+    /// Appends the item's serialized form (source name, transform, crop, visibility, ...)
+    /// to an array.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitem_save")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitem_save(ObsSceneItemHandle item, ObsDataArrayHandle array);
+
+    /// <summary>
+    /// Adds items to a scene from an array produced by obs_sceneitem_save (sources are
+    /// looked up by name).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_sceneitems_add")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_sceneitems_add(ObsSceneHandle scene, ObsDataArrayHandle array);
+
+    #endregion
+
+    #region Groups, Ordering and Atomic Updates
+
+    /// <summary>
+    /// Creates a group containing <paramref name="items"/> (pointer to <paramref name="count"/>
+    /// obs_sceneitem_t pointers, which are moved into the group), returning the scene's own
+    /// (borrowed) reference.
+    /// </summary>
+    public static ObsSceneItemHandle obs_scene_insert_group2(ObsSceneHandle scene, string name, nint items, nuint count, bool signal)
+        => obs_scene_insert_group2_native(scene, name, items, count, signal ? (byte)1 : (byte)0);
+
+    [LibraryImport(Lib, EntryPoint = "obs_scene_insert_group2")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial ObsSceneItemHandle obs_scene_insert_group2_native(
+        ObsSceneHandle scene,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        nint items,
+        nuint count,
+        byte signal);
+
+    public static bool obs_scene_is_group(ObsSceneHandle scene) => obs_scene_is_group_native(scene) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_scene_is_group")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_scene_is_group_native(ObsSceneHandle scene);
+
+    /// <summary>
+    /// Gets the scene behind a group source (borrowed pointer, no reference added), or null
+    /// if the source is not a group.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_group_from_source")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsSceneHandle obs_group_from_source(ObsSourceHandle source);
+
+    /// <summary>
+    /// Reorders items including group membership: <paramref name="itemOrder"/> points at
+    /// <paramref name="count"/> <see cref="ObsSceneItemOrderInfoNative"/> entries listing, for
+    /// each item, its group (or null) in the desired order.
+    /// </summary>
+    public static bool obs_scene_reorder_items2(ObsSceneHandle scene, nint itemOrder, nuint count)
+        => obs_scene_reorder_items2_native(scene, itemOrder, count) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_scene_reorder_items2")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_scene_reorder_items2_native(ObsSceneHandle scene, nint itemOrder, nuint count);
+
+    /// <summary>
+    /// Callback for <c>obs_scene_atomic_update</c>, invoked with the scene fully locked.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void SceneAtomicUpdateCallback(nint data, ObsSceneHandle scene);
+
+    [LibraryImport(Lib, EntryPoint = "obs_scene_atomic_update")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_scene_atomic_update(ObsSceneHandle scene, SceneAtomicUpdateCallback callback, nint data);
+
+    /// <summary>
+    /// Removes items whose sources have been removed.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_scene_prune_sources")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_scene_prune_sources(ObsSceneHandle scene);
+
+    #endregion
+
+    #region Transform States
+
+    /// <summary>
+    /// Saves the transform of the scene's items (all, or only selected ones) into a new data
+    /// object (release when done) that obs_scene_load_transform_states accepts as JSON.
+    /// </summary>
+    public static ObsDataHandle obs_scene_save_transform_states(ObsSceneHandle scene, bool allItems)
+        => obs_scene_save_transform_states_native(scene, allItems ? (byte)1 : (byte)0);
+
+    [LibraryImport(Lib, EntryPoint = "obs_scene_save_transform_states")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial ObsDataHandle obs_scene_save_transform_states_native(ObsSceneHandle scene, byte allItems);
+
+    /// <summary>
+    /// Restores item transforms from the JSON produced by obs_scene_save_transform_states
+    /// (scenes and items are looked up by name/id).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_scene_load_transform_states")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_scene_load_transform_states([MarshalUsing(typeof(Utf8StringMarshaler))] string json);
+
+    #endregion
 }

@@ -238,4 +238,43 @@ public static class SignalExtensions
         SceneSignal.ItemLocked => "item_locked",
         _ => throw new ArgumentOutOfRangeException(nameof(signal), signal, null)
     };
+
+    /// <summary>
+    /// Converts a CanvasSignal enum value to its OBS signal string name.
+    /// </summary>
+    public static string ToSignalName(this CanvasSignal signal) => signal switch
+    {
+        CanvasSignal.Destroy => "destroy",
+        CanvasSignal.Remove => "remove",
+        CanvasSignal.VideoReset => "video_reset",
+        CanvasSignal.SourceAdd => "source_add",
+        CanvasSignal.SourceRemove => "source_remove",
+        CanvasSignal.SourceRename => "source_rename",
+        CanvasSignal.Rename => "rename",
+        CanvasSignal.ChannelChange => "channel_change",
+        _ => throw new ArgumentOutOfRangeException(nameof(signal), signal, null)
+    };
+}
+
+/// <summary>
+/// Signals emitted by OBS canvases (OBS 31+).
+/// </summary>
+public enum CanvasSignal
+{
+    /// <summary>Emitted when the canvas is destroyed. Calldata: canvas (ptr).</summary>
+    Destroy,
+    /// <summary>Emitted when the canvas is removed. Calldata: canvas (ptr).</summary>
+    Remove,
+    /// <summary>Emitted after the canvas video mix was reset. Calldata: canvas (ptr).</summary>
+    VideoReset,
+    /// <summary>Emitted when a source is added to the canvas. Calldata: canvas (ptr), source (ptr).</summary>
+    SourceAdd,
+    /// <summary>Emitted when a source is removed from the canvas. Calldata: canvas (ptr), source (ptr).</summary>
+    SourceRemove,
+    /// <summary>Emitted when a source of the canvas is renamed. Calldata: source (ptr), new_name, prev_name.</summary>
+    SourceRename,
+    /// <summary>Emitted when the canvas is renamed. Calldata: source (ptr), new_name, prev_name.</summary>
+    Rename,
+    /// <summary>Emitted when an output channel changes. Calldata: canvas (ptr), channel (int), source (ptr), prev_source (ptr).</summary>
+    ChannelChange,
 }

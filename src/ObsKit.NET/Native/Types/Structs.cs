@@ -629,3 +629,13 @@ internal unsafe struct ObsSourceFrameNative
     public byte Flags;
     public byte Trc;
 }
+
+/// <summary>
+/// Native layout of OBS's <c>struct obs_sceneitem_order_info</c>.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct ObsSceneItemOrderInfoNative
+{
+    public nint Group;
+    public nint Item;
+}
