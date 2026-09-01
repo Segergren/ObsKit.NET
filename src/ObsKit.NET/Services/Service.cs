@@ -474,7 +474,7 @@ public class Service : ObsObject
     /// Introspects the configurable properties of a service type with its defaults applied
     /// (e.g. the server list of "rtmp_common"), without creating an instance.
     /// </summary>
-    /// <param name="typeId">The service type id (e.g. <see cref="RtmpCommon"/>).</param>
+    /// <param name="typeId">The service type id (e.g. <see cref="Types.RtmpCommon"/>).</param>
     public static IReadOnlyList<ObsPropertyInfo> GetProperties(string typeId)
     {
         ThrowIfNotInitialized();
@@ -499,6 +499,68 @@ public class Service : ObsObject
         if (weak == nint.Zero)
             throw new InvalidOperationException("Failed to create a weak reference.");
         return new WeakService(weak);
+    }
+
+    #endregion
+
+    /// <summary>
+    /// Registers a hotkey tied to this service; it is unregistered automatically when the service
+    /// is destroyed. Bind key combinations with <see cref="Hotkeys.RegisteredHotkey.Bind"/>.
+    /// </summary>
+    public Hotkeys.RegisteredHotkey RegisterHotkey(string name, string description, Action<bool> onChanged)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+        ArgumentNullException.ThrowIfNull(description);
+        ArgumentNullException.ThrowIfNull(onChanged);
+
+        return new Hotkeys.RegisteredHotkey(name, description, onChanged,
+            callback => ObsHotkey.obs_hotkey_register_service(Handle, name, description, callback, nint.Zero));
+    }
+
+    #region Hotkey Pairs and Persistence
+
+    /// <summary>
+    /// Registers a pair of mutually-exclusive hotkeys tied to this service (e.g. enable/disable).
+    /// When both share a key combination, only the handler that returns true consumes the press.
+    /// Dispose the returned object to unregister; it is also unregistered when the service is destroyed.
+    /// </summary>
+    public Hotkeys.RegisteredHotkeyPair RegisterHotkeyPair(
+        string primaryName, string primaryDescription,
+        string secondaryName, string secondaryDescription,
+        Func<bool, bool> onPrimary, Func<bool, bool> onSecondary)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(primaryName);
+        ArgumentException.ThrowIfNullOrEmpty(secondaryName);
+        ArgumentNullException.ThrowIfNull(primaryDescription);
+        ArgumentNullException.ThrowIfNull(secondaryDescription);
+        ArgumentNullException.ThrowIfNull(onPrimary);
+        ArgumentNullException.ThrowIfNull(onSecondary);
+
+        return new Hotkeys.RegisteredHotkeyPair(
+            primaryName, primaryDescription, secondaryName, secondaryDescription, onPrimary, onSecondary,
+            (cb0, cb1) => ObsHotkey.obs_hotkey_pair_register_service(Handle,
+                primaryName, primaryDescription, secondaryName, secondaryDescription, cb0, cb1, nint.Zero, nint.Zero));
+    }
+
+    /// <summary>
+    /// Saves the bindings of every hotkey registered on this service (built-in ones included),
+    /// keyed by hotkey name, for storing alongside your own settings. Dispose when done.
+    /// </summary>
+    public Settings SaveHotkeys()
+    {
+        var data = ObsHotkey.obs_hotkeys_save_service(Handle);
+        if (data.IsNull)
+            throw new InvalidOperationException("Failed to save hotkeys.");
+        return new Settings(data);
+    }
+
+    /// <summary>
+    /// Restores hotkey bindings saved with <see cref="SaveHotkeys"/> (hotkeys are matched by name).
+    /// </summary>
+    public void LoadHotkeys(Settings hotkeys)
+    {
+        ArgumentNullException.ThrowIfNull(hotkeys);
+        ObsHotkey.obs_hotkeys_load_service(Handle, hotkeys.Handle);
     }
 
     #endregion

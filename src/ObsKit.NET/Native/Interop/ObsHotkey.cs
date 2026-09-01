@@ -277,4 +277,191 @@ internal static partial class ObsHotkey
     internal static partial void obs_key_combination_to_str(Types.ObsKeyCombination key, ref DStrNative str);
 
     #endregion
+
+    #region Encoder/Service Registration and Pairs on Objects
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_register_encoder")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nuint obs_hotkey_register_encoder(
+        Types.ObsEncoderHandle encoder,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string description,
+        HotkeyCallback func,
+        nint data);
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_register_service")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nuint obs_hotkey_register_service(
+        Types.ObsServiceHandle service,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string description,
+        HotkeyCallback func,
+        nint data);
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_pair_register_source")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nuint obs_hotkey_pair_register_source(
+        Types.ObsSourceHandle source,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name0,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string description0,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name1,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string description1,
+        HotkeyActiveCallback func0,
+        HotkeyActiveCallback func1,
+        nint data0,
+        nint data1);
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_pair_register_output")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nuint obs_hotkey_pair_register_output(
+        Types.ObsOutputHandle output,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name0,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string description0,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name1,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string description1,
+        HotkeyActiveCallback func0,
+        HotkeyActiveCallback func1,
+        nint data0,
+        nint data1);
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_pair_register_encoder")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nuint obs_hotkey_pair_register_encoder(
+        Types.ObsEncoderHandle encoder,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name0,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string description0,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name1,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string description1,
+        HotkeyActiveCallback func0,
+        HotkeyActiveCallback func1,
+        nint data0,
+        nint data1);
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_pair_register_service")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nuint obs_hotkey_pair_register_service(
+        Types.ObsServiceHandle service,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name0,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string description0,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name1,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string description1,
+        HotkeyActiveCallback func0,
+        HotkeyActiveCallback func1,
+        nint data0,
+        nint data1);
+
+    #endregion
+
+    #region Names, Descriptions and Pair Partners
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_set_name")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_hotkey_set_name(nuint id, [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_set_description")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_hotkey_set_description(nuint id, [MarshalUsing(typeof(Utf8StringMarshaler))] string description);
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_pair_set_names")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_hotkey_pair_set_names(
+        nuint id,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name0,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string name1);
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_pair_set_descriptions")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_hotkey_pair_set_descriptions(
+        nuint id,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string description0,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string description1);
+
+    /// <summary>
+    /// Gets the id of the other hotkey in a pair, or OBS_INVALID_HOTKEY_PAIR_ID (nuint.MaxValue).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_get_pair_partner_id")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nuint obs_hotkey_get_pair_partner_id(nint key);
+
+    #endregion
+
+    #region Binding Persistence
+
+    /// <summary>
+    /// Saves a hotkey's bindings into a new array (release when done), in OBS's hotkey JSON
+    /// format ({"key": "OBS_KEY_F1", "control": true, ...} per binding).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_save")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial Types.ObsDataArrayHandle obs_hotkey_save(nuint id);
+
+    /// <summary>
+    /// Replaces a hotkey's bindings from an array in OBS's hotkey JSON format.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_load")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_hotkey_load(nuint id, Types.ObsDataArrayHandle data);
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_pair_save")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_hotkey_pair_save(nuint id, out Types.ObsDataArrayHandle data0, out Types.ObsDataArrayHandle data1);
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkey_pair_load")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_hotkey_pair_load(nuint id, Types.ObsDataArrayHandle data0, Types.ObsDataArrayHandle data1);
+
+    /// <summary>
+    /// Saves all hotkeys registered by a source (keyed by hotkey name) into a new data object.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_hotkeys_save_source")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial Types.ObsDataHandle obs_hotkeys_save_source(Types.ObsSourceHandle source);
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkeys_load_source")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_hotkeys_load_source(Types.ObsSourceHandle source, Types.ObsDataHandle hotkeys);
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkeys_save_output")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial Types.ObsDataHandle obs_hotkeys_save_output(Types.ObsOutputHandle output);
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkeys_load_output")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_hotkeys_load_output(Types.ObsOutputHandle output, Types.ObsDataHandle hotkeys);
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkeys_save_encoder")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial Types.ObsDataHandle obs_hotkeys_save_encoder(Types.ObsEncoderHandle encoder);
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkeys_load_encoder")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_hotkeys_load_encoder(Types.ObsEncoderHandle encoder, Types.ObsDataHandle hotkeys);
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkeys_save_service")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial Types.ObsDataHandle obs_hotkeys_save_service(Types.ObsServiceHandle service);
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkeys_load_service")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_hotkeys_load_service(Types.ObsServiceHandle service, Types.ObsDataHandle hotkeys);
+
+    #endregion
+
+    #region Translations
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkeys_set_audio_hotkeys_translations")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_hotkeys_set_audio_hotkeys_translations(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string mute,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string unmute,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string pushToMute,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string pushToTalk);
+
+    [LibraryImport(Lib, EntryPoint = "obs_hotkeys_set_sceneitem_hotkeys_translations")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_hotkeys_set_sceneitem_hotkeys_translations(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string show,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string hide);
+
+    #endregion
 }

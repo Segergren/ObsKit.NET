@@ -688,11 +688,13 @@ public static class Obs
         var result = new List<ObsHotkeyInfo>();
         ObsHotkey.EnumHotkeyCallback callback = (_, id, key) =>
         {
+            var partner = ObsHotkey.obs_hotkey_get_pair_partner_id(key);
             result.Add(new ObsHotkeyInfo(
                 id,
                 ObsHotkey.obs_hotkey_get_name(key) ?? string.Empty,
                 ObsHotkey.obs_hotkey_get_description(key),
-                (ObsHotkeyRegistererType)ObsHotkey.obs_hotkey_get_registerer_type(key)));
+                (ObsHotkeyRegistererType)ObsHotkey.obs_hotkey_get_registerer_type(key),
+                partner == nuint.MaxValue ? null : partner));
             return 1;
         };
         ObsHotkey.obs_enum_hotkeys(callback, nint.Zero);
@@ -1399,6 +1401,61 @@ public static class Obs
         ObsCore.obs_load_sources(data.Handle, callback, nint.Zero);
         GC.KeepAlive(callback);
         return loaded;
+    }
+
+    #endregion
+
+    #region Hotkey Persistence and Translations
+
+    /// <summary>
+    /// Saves the bindings of any hotkey (including built-in ones from
+    /// <see cref="EnumerateHotkeys"/>) in OBS's hotkey JSON format. Dispose the array when done.
+    /// </summary>
+    /// <param name="id">The hotkey id.</param>
+    public static SettingsArray SaveHotkeyBindings(ulong id)
+    {
+        ThrowIfNotInitialized();
+        return RegisteredHotkey.SaveBindingsForId(id);
+    }
+
+    /// <summary>
+    /// Replaces the bindings of any hotkey from an array produced by
+    /// <see cref="SaveHotkeyBindings"/> (or OBS's own hotkey settings).
+    /// </summary>
+    /// <param name="id">The hotkey id.</param>
+    /// <param name="bindings">The bindings to apply.</param>
+    public static void LoadHotkeyBindings(ulong id, SettingsArray bindings)
+    {
+        ThrowIfNotInitialized();
+        ArgumentNullException.ThrowIfNull(bindings);
+        ObsHotkey.obs_hotkey_load((nuint)id, bindings.Handle);
+    }
+
+    /// <summary>
+    /// Sets the descriptions libobs uses for the per-source audio hotkeys it registers
+    /// automatically (mute, unmute, push-to-mute, push-to-talk). Call before creating sources;
+    /// defaults are English.
+    /// </summary>
+    public static void SetAudioHotkeyTranslations(string mute, string unmute, string pushToMute, string pushToTalk)
+    {
+        ThrowIfNotInitialized();
+        ArgumentNullException.ThrowIfNull(mute);
+        ArgumentNullException.ThrowIfNull(unmute);
+        ArgumentNullException.ThrowIfNull(pushToMute);
+        ArgumentNullException.ThrowIfNull(pushToTalk);
+        ObsHotkey.obs_hotkeys_set_audio_hotkeys_translations(mute, unmute, pushToMute, pushToTalk);
+    }
+
+    /// <summary>
+    /// Sets the descriptions libobs uses for the per-scene-item show/hide hotkeys it registers
+    /// automatically. Call before creating scenes; defaults are English.
+    /// </summary>
+    public static void SetSceneItemHotkeyTranslations(string show, string hide)
+    {
+        ThrowIfNotInitialized();
+        ArgumentNullException.ThrowIfNull(show);
+        ArgumentNullException.ThrowIfNull(hide);
+        ObsHotkey.obs_hotkeys_set_sceneitem_hotkeys_translations(show, hide);
     }
 
     #endregion

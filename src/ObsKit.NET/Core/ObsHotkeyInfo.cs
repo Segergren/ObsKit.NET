@@ -24,4 +24,5 @@ public enum ObsHotkeyRegistererType
 /// <param name="Name">The internal hotkey name (e.g. "hotkey_start").</param>
 /// <param name="Description">The localized description.</param>
 /// <param name="RegistererType">What kind of object registered the hotkey.</param>
-public sealed record ObsHotkeyInfo(ulong Id, string Name, string? Description, ObsHotkeyRegistererType RegistererType);
+/// <param name="PartnerId">For hotkeys registered as a pair, the id of the other hotkey; otherwise null.</param>
+public sealed record ObsHotkeyInfo(ulong Id, string Name, string? Description, ObsHotkeyRegistererType RegistererType, ulong? PartnerId = null);
