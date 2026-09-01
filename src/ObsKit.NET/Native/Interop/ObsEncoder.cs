@@ -455,4 +455,128 @@ internal static partial class ObsEncoder
     internal static partial nuint obs_encoder_get_mixer_index(ObsEncoderHandle encoder);
 
     #endregion
+
+    #region Extra Data, Defaults, Properties, ROI Enumeration
+
+    /// <summary>
+    /// Gets the encoder's codec extra data (e.g. SPS/PPS for H.264, AudioSpecificConfig for
+    /// AAC). The pointer is owned by the encoder and only valid while it stays active; copy
+    /// immediately. Returns false if the encoder has no extra data yet.
+    /// </summary>
+    public static bool obs_encoder_get_extra_data(ObsEncoderHandle encoder, out nint extraData, out nuint size)
+        => obs_encoder_get_extra_data_native(encoder, out extraData, out size) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_get_extra_data")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_encoder_get_extra_data_native(ObsEncoderHandle encoder, out nint extraData, out nuint size);
+
+    /// <summary>
+    /// Gets a new data object with the default settings of the encoder's type (release when done).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_get_defaults")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsDataHandle obs_encoder_get_defaults(ObsEncoderHandle encoder);
+
+    /// <summary>
+    /// Gets the properties of an encoder instance, evaluated against its settings
+    /// (destroy with obs_properties_destroy).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_properties")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_encoder_properties(ObsEncoderHandle encoder);
+
+    /// <summary>
+    /// Gets the number of priming (pre-roll) samples an audio encoder emits before real audio.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_get_priming_samples")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial uint obs_encoder_get_priming_samples(ObsEncoderHandle encoder);
+
+    /// <summary>
+    /// Gets a counter that increments whenever the encoder's ROI list changes.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_get_roi_increment")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial uint obs_encoder_get_roi_increment(ObsEncoderHandle encoder);
+
+    /// <summary>
+    /// Callback for <c>obs_encoder_enum_roi</c>; <paramref name="roi"/> points at an
+    /// <see cref="ObsEncoderRoi"/> valid only during the call.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void EnumRoiCallback(nint param, nint roi);
+
+    /// <summary>
+    /// Enumerates the encoder's regions of interest, most recently added first.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_enum_roi")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_encoder_enum_roi(ObsEncoderHandle encoder, EnumRoiCallback callback, nint param);
+
+    /// <summary>
+    /// Returns whether the video mix feeding the encoder currently produces textures in the
+    /// given format (NV12 or P010) for GPU texture encoding. The encoder must have video set.
+    /// </summary>
+    public static bool obs_encoder_video_tex_active(ObsEncoderHandle encoder, VideoFormat format)
+        => obs_encoder_video_tex_active_native(encoder, format) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_video_tex_active")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_encoder_video_tex_active_native(ObsEncoderHandle encoder, VideoFormat format);
+
+    #endregion
+
+    #region Encoder Groups
+
+    /// <summary>
+    /// Creates an encoder group for synchronized encoder startup (destroy with
+    /// obs_encoder_group_destroy).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_group_create")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_encoder_group_create();
+
+    /// <summary>
+    /// Destroys a group and releases its encoder references. Deferred until the group's
+    /// encoders have all stopped if any are active.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_group_destroy")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_encoder_group_destroy(nint group);
+
+    /// <summary>
+    /// Moves an encoder into a group (the group takes a strong reference), or out of its
+    /// group when <paramref name="group"/> is null. Fails if the encoder or group is active.
+    /// </summary>
+    public static bool obs_encoder_set_group(ObsEncoderHandle encoder, nint group)
+        => obs_encoder_set_group_native(encoder, group) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_set_group")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_encoder_set_group_native(ObsEncoderHandle encoder, nint group);
+
+    #endregion
+
+    #region Weak References
+
+    [LibraryImport(Lib, EntryPoint = "obs_encoder_get_weak_encoder")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_encoder_get_weak_encoder(ObsEncoderHandle encoder);
+
+    [LibraryImport(Lib, EntryPoint = "obs_weak_encoder_get_encoder")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsEncoderHandle obs_weak_encoder_get_encoder(nint weak);
+
+    [LibraryImport(Lib, EntryPoint = "obs_weak_encoder_release")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_weak_encoder_release(nint weak);
+
+    public static bool obs_weak_encoder_references_encoder(nint weak, ObsEncoderHandle encoder)
+        => obs_weak_encoder_references_encoder_native(weak, encoder) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_weak_encoder_references_encoder")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_weak_encoder_references_encoder_native(nint weak, ObsEncoderHandle encoder);
+
+    #endregion
 }

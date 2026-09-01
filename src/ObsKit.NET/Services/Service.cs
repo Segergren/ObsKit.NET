@@ -467,4 +467,39 @@ public class Service : ObsObject
 
     /// <inheritdoc/>
     public override string ToString() => $"Service[{TypeId}]: {Name} -> {Url}";
+
+    #region Introspection and Weak References
+
+    /// <summary>
+    /// Introspects the configurable properties of a service type with its defaults applied
+    /// (e.g. the server list of "rtmp_common"), without creating an instance.
+    /// </summary>
+    /// <param name="typeId">The service type id (e.g. <see cref="RtmpCommon"/>).</param>
+    public static IReadOnlyList<ObsPropertyInfo> GetProperties(string typeId)
+    {
+        ThrowIfNotInitialized();
+        ArgumentException.ThrowIfNullOrEmpty(typeId);
+        return ObsPropertyReader.ReadAllAndDestroy(ObsService.obs_get_service_properties(typeId));
+    }
+
+    /// <summary>
+    /// Introspects this service's configurable properties, evaluated against its current
+    /// settings (so e.g. the server list matches the selected platform).
+    /// </summary>
+    public IReadOnlyList<ObsPropertyInfo> GetProperties()
+        => ObsPropertyReader.ReadAllAndDestroy(ObsService.obs_service_properties(Handle));
+
+    /// <summary>
+    /// Creates a weak reference that does not keep the service alive. Upgrade with
+    /// <see cref="WeakService.TryGetService"/>.
+    /// </summary>
+    public WeakService GetWeakReference()
+    {
+        var weak = ObsService.obs_service_get_weak_service(Handle);
+        if (weak == nint.Zero)
+            throw new InvalidOperationException("Failed to create a weak reference.");
+        return new WeakService(weak);
+    }
+
+    #endregion
 }

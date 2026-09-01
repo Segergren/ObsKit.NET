@@ -243,6 +243,44 @@ internal static partial class ObsService
         [MarshalUsing(typeof(Utf8StringMarshaler))] string name);
 
     #endregion
+
+    #region Properties and Weak References
+
+    /// <summary>
+    /// Gets the properties of a service type with defaults applied (destroy with obs_properties_destroy).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_get_service_properties")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_get_service_properties([MarshalUsing(typeof(Utf8StringMarshaler))] string id);
+
+    /// <summary>
+    /// Gets the properties of a service instance evaluated against its settings
+    /// (destroy with obs_properties_destroy).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_service_properties")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_service_properties(ObsServiceHandle service);
+
+    [LibraryImport(Lib, EntryPoint = "obs_service_get_weak_service")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial nint obs_service_get_weak_service(ObsServiceHandle service);
+
+    [LibraryImport(Lib, EntryPoint = "obs_weak_service_get_service")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial ObsServiceHandle obs_weak_service_get_service(nint weak);
+
+    [LibraryImport(Lib, EntryPoint = "obs_weak_service_release")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_weak_service_release(nint weak);
+
+    public static bool obs_weak_service_references_service(nint weak, ObsServiceHandle service)
+        => obs_weak_service_references_service_native(weak, service) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_weak_service_references_service")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_weak_service_references_service_native(nint weak, ObsServiceHandle service);
+
+    #endregion
 }
 
 /// <summary>

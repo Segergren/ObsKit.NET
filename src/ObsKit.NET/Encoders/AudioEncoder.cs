@@ -299,4 +299,57 @@ public sealed class AudioEncoder : ObsObject
 
     /// <inheritdoc/>
     public override string ToString() => $"AudioEncoder[{TypeId}]: {Name}";
+
+    #region Extra Data, Introspection, Weak References
+
+    /// <summary>
+    /// Gets the codec configuration bytes the encoder emits out-of-band (e.g. the AAC
+    /// AudioSpecificConfig). Only available while the encoder is active; returns null otherwise.
+    /// </summary>
+    public byte[]? GetExtraData()
+    {
+        if (!ObsEncoder.obs_encoder_get_extra_data(Handle, out var ptr, out var size) || ptr == nint.Zero || size == 0)
+            return null;
+        var result = new byte[(int)size];
+        System.Runtime.InteropServices.Marshal.Copy(ptr, result, 0, result.Length);
+        return result;
+    }
+
+    /// <summary>
+    /// Gets the number of priming (pre-roll) samples the codec emits before real audio,
+    /// which muxers use to write edit lists. 0 if the encoder does not report any.
+    /// </summary>
+    public uint PrimingSamples => ObsEncoder.obs_encoder_get_priming_samples(Handle);
+
+    /// <summary>
+    /// Gets the default settings of this encoder's type (dispose when done).
+    /// </summary>
+    public Settings GetDefaults()
+    {
+        var handle = ObsEncoder.obs_encoder_get_defaults(Handle);
+        if (handle.IsNull)
+            throw new InvalidOperationException("Encoder has no defaults.");
+        return new Settings(handle);
+    }
+
+    /// <summary>
+    /// Introspects this encoder's configurable properties, evaluated against its current settings.
+    /// For type-level introspection use <see cref="EncoderInfo.GetProperties"/>.
+    /// </summary>
+    public IReadOnlyList<ObsPropertyInfo> GetProperties()
+        => ObsPropertyReader.ReadAllAndDestroy(ObsEncoder.obs_encoder_properties(Handle));
+
+    /// <summary>
+    /// Creates a weak reference that does not keep the encoder alive. Upgrade with
+    /// <see cref="WeakEncoder.TryGetAudioEncoder"/>.
+    /// </summary>
+    public WeakEncoder GetWeakReference()
+    {
+        var weak = ObsEncoder.obs_encoder_get_weak_encoder(Handle);
+        if (weak == nint.Zero)
+            throw new InvalidOperationException("Failed to create a weak reference.");
+        return new WeakEncoder(weak);
+    }
+
+    #endregion
 }
