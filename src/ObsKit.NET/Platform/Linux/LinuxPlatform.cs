@@ -70,7 +70,8 @@ internal sealed class LinuxPlatform : IPlatformServices
                                                     Width = (int)crtc.width,
                                                     Height = (int)crtc.height,
                                                     IsPrimary = index == 1,
-                                                    RefreshRate = 60
+                                                    RefreshRate = 60,
+                                                    RefreshRateExact = 60
                                                 });
                                             }
                                             finally
@@ -109,7 +110,8 @@ internal sealed class LinuxPlatform : IPlatformServices
                             Width = X11.XDisplayWidth(display, i),
                             Height = X11.XDisplayHeight(display, i),
                             IsPrimary = i == 0,
-                            RefreshRate = 60
+                            RefreshRate = 60,
+                            RefreshRateExact = 60
                         });
                     }
                 }
@@ -142,7 +144,8 @@ internal sealed class LinuxPlatform : IPlatformServices
                 Width = 1920,
                 Height = 1080,
                 IsPrimary = true,
-                RefreshRate = 60
+                RefreshRate = 60,
+                RefreshRateExact = 60
             }
         ];
     }

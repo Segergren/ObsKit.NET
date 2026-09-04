@@ -55,15 +55,17 @@ internal sealed partial class MacOSPlatform : IPlatformServices
                 var height = (int)CoreGraphics.CGDisplayPixelsHigh(displayId);
 
                 // Get refresh rate from display mode
-                int refreshRate = 60; // Default
+                double exactRate = 0;
                 var mode = CoreGraphics.CGDisplayCopyDisplayMode(displayId);
                 if (mode != 0)
                 {
                     var rate = CoreGraphics.CGDisplayModeGetRefreshRate(mode);
                     if (rate > 0)
-                        refreshRate = (int)Math.Round(rate);
+                        exactRate = rate;
                     CoreFoundation.CFRelease(mode);
                 }
+
+                int refreshRate = exactRate > 0 ? (int)Math.Round(exactRate) : 60;
 
                 var isPrimary = displayId == mainDisplayId;
 
@@ -78,7 +80,8 @@ internal sealed partial class MacOSPlatform : IPlatformServices
                     Width = width > 0 ? width : (int)bounds.Size.Width,
                     Height = height > 0 ? height : (int)bounds.Size.Height,
                     IsPrimary = isPrimary,
-                    RefreshRate = refreshRate
+                    RefreshRate = refreshRate,
+                    RefreshRateExact = exactRate > 0 ? exactRate : refreshRate
                 });
             }
         }
@@ -105,7 +108,8 @@ internal sealed partial class MacOSPlatform : IPlatformServices
                 Width = 2560,
                 Height = 1600,
                 IsPrimary = true,
-                RefreshRate = 60
+                RefreshRate = 60,
+                RefreshRateExact = 60
             }
         ];
     }

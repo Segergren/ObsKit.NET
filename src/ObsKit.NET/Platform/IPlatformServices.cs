@@ -27,6 +27,21 @@ public interface IPlatformServices
 }
 
 /// <summary>
+/// The color mode a monitor is currently composing in.
+/// </summary>
+public enum MonitorColorMode
+{
+    /// <summary>Standard dynamic range.</summary>
+    Sdr = 0,
+
+    /// <summary>Wide color gamut, but not HDR.</summary>
+    WideColorGamut = 1,
+
+    /// <summary>High dynamic range.</summary>
+    Hdr = 2
+}
+
+/// <summary>
 /// Information about a display monitor.
 /// </summary>
 public sealed class MonitorInfo
@@ -83,9 +98,48 @@ public sealed class MonitorInfo
     public bool IsPrimary { get; init; }
 
     /// <summary>
-    /// Gets the monitor's refresh rate in Hz.
+    /// Gets the monitor's refresh rate in Hz, rounded to the nearest whole number.
     /// </summary>
     public int RefreshRate { get; init; }
+
+    /// <summary>
+    /// Gets the monitor's exact refresh rate in Hz (e.g. 59.94). Falls back to 60 when the
+    /// platform cannot report one.
+    /// </summary>
+    public double RefreshRateExact { get; init; }
+
+    /// <summary>
+    /// Gets whether the monitor is a built-in panel (laptop display or embedded output).
+    /// </summary>
+    public bool IsInternal { get; init; }
+
+    /// <summary>
+    /// Gets whether the monitor supports HDR. On Windows builds older than 11 24H2 this is
+    /// approximated from the advanced-color support flag, which also covers wide color gamut.
+    /// </summary>
+    public bool IsHdrCapable { get; init; }
+
+    /// <summary>
+    /// Gets the color mode the monitor is currently composing in. Windows 11 24H2 and later
+    /// distinguish HDR from wide color gamut; older builds fall back to a best-effort guess.
+    /// </summary>
+    public MonitorColorMode ColorMode { get; init; }
+
+    /// <summary>
+    /// Gets whether the monitor is currently in HDR mode.
+    /// </summary>
+    public bool IsHdrEnabled => ColorMode == MonitorColorMode.Hdr;
+
+    /// <summary>
+    /// Gets the monitor's bits per color channel, or 0 if unknown.
+    /// </summary>
+    public int BitsPerColorChannel { get; init; }
+
+    /// <summary>
+    /// Gets the SDR white level in nits, used to scale SDR content on an HDR display.
+    /// Defaults to 80 when the monitor does not report one.
+    /// </summary>
+    public int SdrWhiteLevelNits { get; init; }
 
     /// <summary>
     /// Gets the OBS-compatible monitor ID for capture.

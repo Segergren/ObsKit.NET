@@ -15,6 +15,9 @@ internal sealed class WindowsPlatform : IPlatformServices
         // First, build a map of device name to device interface ID using EnumDisplayDevices
         var deviceIdMap = BuildDeviceIdMap();
 
+        // CCD details keyed by the same GDI device name, for friendly names and exact timings
+        var displayConfig = DisplayConfig.QueryActiveDisplays();
+
         var monitors = new List<MonitorInfo>();
         int index = 0;
 
@@ -34,6 +37,10 @@ internal sealed class WindowsPlatform : IPlatformServices
 
                     // Get the full device interface ID for OBS monitor capture
                     deviceIdMap.TryGetValue(deviceName, out var deviceId);
+                    displayConfig.TryGetValue(deviceName, out var details);
+
+                    var friendlyName = details?.FriendlyName;
+                    var refreshRate = details?.RefreshRate ?? 0;
 
                     monitors.Add(new MonitorInfo
                     {
@@ -41,13 +48,19 @@ internal sealed class WindowsPlatform : IPlatformServices
                         Handle = hMonitor,
                         DeviceName = deviceName,
                         DeviceId = deviceId ?? deviceName, // Fall back to device name if not found
-                        Name = deviceName,
+                        Name = string.IsNullOrEmpty(friendlyName) ? deviceName : friendlyName,
                         X = info.rcMonitor.Left,
                         Y = info.rcMonitor.Top,
                         Width = info.rcMonitor.Width,
                         Height = info.rcMonitor.Height,
                         IsPrimary = (info.dwFlags & User32.MONITORINFOEX.MONITORINFOF_PRIMARY) != 0,
-                        RefreshRate = 60 // Default, could be retrieved via EnumDisplaySettings
+                        RefreshRate = refreshRate > 0 ? (int)Math.Round(refreshRate) : 60,
+                        RefreshRateExact = refreshRate > 0 ? refreshRate : 60,
+                        IsInternal = details?.IsInternal ?? false,
+                        IsHdrCapable = details?.IsHdrCapable ?? false,
+                        ColorMode = details?.ColorMode ?? MonitorColorMode.Sdr,
+                        BitsPerColorChannel = details?.BitsPerColorChannel ?? 0,
+                        SdrWhiteLevelNits = details?.SdrWhiteLevelNits ?? DisplayConfig.DefaultSdrWhiteLevelNits
                     });
                 }
             }

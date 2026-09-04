@@ -748,6 +748,26 @@ using var priv = Obs.GetPrivateData();
 priv.Set("my_app_session", sessionId);
 ```
 
+## Monitors & Windows
+
+Enumerate what is capturable. Monitor details come from the CCD API on Windows, so `Name` is
+the real panel name and refresh rates keep their fractional part.
+
+```csharp
+foreach (var m in Platform.Monitors)
+    Console.WriteLine($"{m.Name}: {m.Width}x{m.Height} @ {m.RefreshRateExact:0.##} Hz, {m.ColorMode}");
+// LG ULTRAGEAR: 2560x1440 @ 179.96 Hz, Sdr
+
+var primary = Platform.PrimaryMonitor;
+using var capture = MonitorCapture.FromMonitor(primary!);
+
+foreach (var w in Platform.Windows)
+    Console.WriteLine($"{w.Title} ({w.ProcessName})");
+```
+
+`ColorMode` tells HDR apart from wide color gamut on Windows 11 24H2 and later; older builds
+cannot, and fall back to a best-effort guess.
+
 ## Encoders
 
 ```csharp
