@@ -673,6 +673,19 @@ internal static partial class ObsCore
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial void base_set_log_handler(LogHandlerDelegate handler, nint param);
 
+    /// <summary>
+    /// Delegate for the OBS crash handler (<c>bcrash</c>). Same format/va_list shape as the log handler.
+    /// </summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal delegate void CrashHandlerDelegate(nint format, nint args, nint param);
+
+    /// <summary>
+    /// Sets the crash handler for fatal OBS errors. libobs accepts only the first handler set per process.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "base_set_crash_handler")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void base_set_crash_handler(CrashHandlerDelegate handler, nint param);
+
     #endregion
 
     #region Frame Hooks

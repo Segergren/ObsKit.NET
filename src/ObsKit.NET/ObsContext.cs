@@ -19,6 +19,7 @@ public sealed class ObsContext : IDisposable
     private bool _comInitialized;
     private readonly ObsConfiguration _config;
     private ObsCore.LogHandlerDelegate? _logHandler;
+    private ObsCore.CrashHandlerDelegate? _crashHandler;
 
     internal ObsContext(ObsConfiguration config)
     {
@@ -33,6 +34,11 @@ public sealed class ObsContext : IDisposable
         if (_config.LogHandler != null)
         {
             SetupLogging(_config.LogHandler);
+        }
+
+        if (_config.CrashHandler != null)
+        {
+            SetupCrashHandler(_config.CrashHandler);
         }
 
         // Initialize COM in MTA mode on Windows (required for DXGI and capture sources)
@@ -242,6 +248,34 @@ public sealed class ObsContext : IDisposable
         };
 
         ObsCore.base_set_log_handler(_logHandler, 0);
+    }
+
+    private void SetupCrashHandler(Action<string> handler)
+    {
+        // Keep a reference to prevent GC
+        _crashHandler = (format, args, param) =>
+        {
+            string message;
+            try
+            {
+                message = FormatLogMessage(format, args);
+            }
+            catch
+            {
+                message = "libobs crashed";
+            }
+
+            try
+            {
+                handler(message);
+            }
+            catch
+            {
+                // libobs exits the process once we return
+            }
+        };
+
+        ObsCore.base_set_crash_handler(_crashHandler, 0);
     }
 
     // Single-pass so we never reuse the va_list: on the SysV/AMD64 ABI (Linux/macOS) va_list is a

@@ -14,6 +14,7 @@ public sealed class ObsConfiguration
     internal string? DataPath { get; private set; }
     internal List<(string Bin, string Data)> ModulePaths { get; } = [];
     internal Action<ObsLogLevel, string>? LogHandler { get; private set; }
+    internal Action<string>? CrashHandler { get; private set; }
     internal HashSet<string> ExcludedModules { get; } = new(StringComparer.OrdinalIgnoreCase);
     internal bool LoadModulesBeforeVideo { get; private set; } = false;
 
@@ -83,6 +84,22 @@ public sealed class ObsConfiguration
     public ObsConfiguration WithLogging(Action<ObsLogLevel, string> handler)
     {
         LogHandler = handler ?? throw new ArgumentNullException(nameof(handler));
+        return this;
+    }
+
+    /// <summary>
+    /// Sets a handler for fatal libobs errors (<c>bcrash</c>), for example a failed rebuild
+    /// of a lost graphics device. libobs can only have one crash handler per process.
+    /// </summary>
+    /// <remarks>
+    /// The handler runs on the thread that crashed, possibly while libobs locks are held, so it
+    /// must not call back into OBS. libobs exits the process as soon as the handler returns;
+    /// a handler that wants a different exit (relaunch, non-zero exit code) must do it itself
+    /// and never return.
+    /// </remarks>
+    public ObsConfiguration WithCrashHandler(Action<string> handler)
+    {
+        CrashHandler = handler ?? throw new ArgumentNullException(nameof(handler));
         return this;
     }
 
