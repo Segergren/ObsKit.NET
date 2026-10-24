@@ -80,6 +80,17 @@ internal enum ObsNixPlatform
 }
 
 /// <summary>
+/// Module origin passed to obs_load_plugins (obs_runtime_module_type, OBS 33+).
+/// </summary>
+internal enum ObsRuntimeModuleType
+{
+    Undefined = 0,
+    Core = 1,
+    Plugin = 2,
+    LegacyPlugin = 3,
+}
+
+/// <summary>
 /// Video transfer characteristics.
 /// </summary>
 public enum VideoTrc

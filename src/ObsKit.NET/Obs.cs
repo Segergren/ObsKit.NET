@@ -144,8 +144,8 @@ public static class Obs
     ///     .WithAudio(a => a.WithSampleRate(48000))
     ///     .WithDataPath("C:/Program Files/obs-studio/data/libobs")
     ///     .WithModulePath(
-    ///         "C:/Program Files/obs-studio/obs-plugins/64bit",
-    ///         "C:/Program Files/obs-studio/data/obs-plugins/%module%"));
+    ///         "C:/Program Files/obs-studio/core/%module%",       // OBS 32 and earlier: obs-plugins/64bit
+    ///         "C:/Program Files/obs-studio/core/%module%/data")); // OBS 32 and earlier: data/obs-plugins/%module%
     /// </code>
     /// </example>
     public static ObsContext Initialize(Action<ObsConfiguration>? configure)
@@ -1222,11 +1222,19 @@ public static class Obs
     /// <see cref="AddDisabledModule"/>. Must be called before modules are loaded.
     /// </summary>
     /// <param name="name">The module name (file name without extension).</param>
+    /// <exception cref="NotSupportedException">The OBS runtime is OBS 33 or later, where the core module list is fixed when libobs is built.</exception>
     public static void AddCoreModule(string name)
     {
         ThrowIfNotInitialized();
         ArgumentException.ThrowIfNullOrEmpty(name);
-        ObsCore.obs_add_core_module(name);
+        try
+        {
+            ObsCore.obs_add_core_module(name);
+        }
+        catch (EntryPointNotFoundException e)
+        {
+            throw new NotSupportedException("OBS Studio 33 removed obs_add_core_module; core modules are fixed when libobs is built.", e);
+        }
     }
 
     /// <summary>
@@ -1434,7 +1442,8 @@ public static class Obs
     /// <summary>
     /// Sets the descriptions libobs uses for the per-source audio hotkeys it registers
     /// automatically (mute, unmute, push-to-mute, push-to-talk). Call before creating sources;
-    /// defaults are English.
+    /// defaults are English. On OBS 33+ this also clears the monitor on/off descriptions; use
+    /// the overload that takes them to set those as well.
     /// </summary>
     public static void SetAudioHotkeyTranslations(string mute, string unmute, string pushToMute, string pushToTalk)
     {
@@ -1443,7 +1452,35 @@ public static class Obs
         ArgumentNullException.ThrowIfNull(unmute);
         ArgumentNullException.ThrowIfNull(pushToMute);
         ArgumentNullException.ThrowIfNull(pushToTalk);
-        ObsHotkey.obs_hotkeys_set_audio_hotkeys_translations(mute, unmute, pushToMute, pushToTalk);
+        SetAudioHotkeyTranslationsNative(mute, unmute, pushToMute, pushToTalk, null, null);
+    }
+
+    /// <summary>
+    /// Sets the descriptions libobs uses for the per-source audio hotkeys it registers
+    /// automatically, including the monitor on/off pair added in OBS 33. Call before creating
+    /// sources. On earlier OBS versions the monitor descriptions are ignored.
+    /// </summary>
+    public static void SetAudioHotkeyTranslations(string mute, string unmute, string pushToMute, string pushToTalk,
+        string monitorOn, string monitorOff)
+    {
+        ThrowIfNotInitialized();
+        ArgumentNullException.ThrowIfNull(mute);
+        ArgumentNullException.ThrowIfNull(unmute);
+        ArgumentNullException.ThrowIfNull(pushToMute);
+        ArgumentNullException.ThrowIfNull(pushToTalk);
+        ArgumentNullException.ThrowIfNull(monitorOn);
+        ArgumentNullException.ThrowIfNull(monitorOff);
+        SetAudioHotkeyTranslationsNative(mute, unmute, pushToMute, pushToTalk, monitorOn, monitorOff);
+    }
+
+    private static void SetAudioHotkeyTranslationsNative(string mute, string unmute, string pushToMute,
+        string pushToTalk, string? monitorOn, string? monitorOff)
+    {
+        // OBS 33 added the monitor parameters to the same export
+        if (ObsCore.IsVersionAtLeast(33))
+            ObsHotkey.obs_hotkeys_set_audio_hotkeys_translations_v33(mute, unmute, pushToMute, pushToTalk, monitorOn, monitorOff);
+        else
+            ObsHotkey.obs_hotkeys_set_audio_hotkeys_translations(mute, unmute, pushToMute, pushToTalk);
     }
 
     /// <summary>

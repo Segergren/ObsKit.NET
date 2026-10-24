@@ -449,6 +449,9 @@ internal static partial class ObsHotkey
 
     #region Translations
 
+    /// <summary>
+    /// Signature before OBS 33.
+    /// </summary>
     [LibraryImport(Lib, EntryPoint = "obs_hotkeys_set_audio_hotkeys_translations")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial void obs_hotkeys_set_audio_hotkeys_translations(
@@ -456,6 +459,19 @@ internal static partial class ObsHotkey
         [MarshalUsing(typeof(Utf8StringMarshaler))] string unmute,
         [MarshalUsing(typeof(Utf8StringMarshaler))] string pushToMute,
         [MarshalUsing(typeof(Utf8StringMarshaler))] string pushToTalk);
+
+    /// <summary>
+    /// Signature since OBS 33 (adds the monitor on/off descriptions; null leaves them unset).
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_hotkeys_set_audio_hotkeys_translations")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_hotkeys_set_audio_hotkeys_translations_v33(
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string mute,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string unmute,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string pushToMute,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string pushToTalk,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string? monitorOn,
+        [MarshalUsing(typeof(Utf8StringMarshaler))] string? monitorOff);
 
     [LibraryImport(Lib, EntryPoint = "obs_hotkeys_set_sceneitem_hotkeys_translations")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]

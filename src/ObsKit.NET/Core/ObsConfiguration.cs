@@ -68,8 +68,8 @@ public sealed class ObsConfiguration
     /// <summary>
     /// Adds a module search path for plugins.
     /// </summary>
-    /// <param name="binPath">Path to plugin binaries (e.g., "obs-plugins/64bit").</param>
-    /// <param name="dataPath">Path to plugin data (e.g., "data/obs-plugins/%module%").</param>
+    /// <param name="binPath">Path to plugin binaries (e.g., "core/%module%" on OBS 33+, "obs-plugins/64bit" before).</param>
+    /// <param name="dataPath">Path to plugin data (e.g., "core/%module%/data" on OBS 33+, "data/obs-plugins/%module%" before).</param>
     public ObsConfiguration WithModulePath(string binPath, string dataPath)
     {
         ArgumentNullException.ThrowIfNull(binPath);

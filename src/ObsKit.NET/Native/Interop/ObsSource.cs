@@ -430,6 +430,26 @@ internal static partial class ObsSource
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial void obs_source_set_monitoring_type(ObsSourceHandle source, ObsMonitoringType type);
 
+    /// <summary>
+    /// Gets whether audio monitoring is enabled (OBS 33+).
+    /// </summary>
+    public static bool obs_source_get_monitoring_enabled(ObsSourceHandle source)
+        => obs_source_get_monitoring_enabled_native(source) != 0;
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_get_monitoring_enabled")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial byte obs_source_get_monitoring_enabled_native(ObsSourceHandle source);
+
+    /// <summary>
+    /// Enables or disables audio monitoring (OBS 33+).
+    /// </summary>
+    public static void obs_source_set_monitoring_enabled(ObsSourceHandle source, bool enabled)
+        => obs_source_set_monitoring_enabled_native(source, enabled ? (byte)1 : (byte)0);
+
+    [LibraryImport(Lib, EntryPoint = "obs_source_set_monitoring_enabled")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial void obs_source_set_monitoring_enabled_native(ObsSourceHandle source, byte enabled);
+
     #endregion
 
     #region Flags

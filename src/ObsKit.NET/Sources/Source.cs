@@ -308,11 +308,46 @@ public class Source : ObsObject
     /// Gets or sets how this source's audio is monitored.
     /// Monitoring plays the source's audio through the device configured with
     /// <see cref="Obs.SetAudioMonitoringDevice"/> (e.g. to let the user hear their microphone).
+    /// OBS 33 replaced the type with an on/off switch (<see cref="MonitoringEnabled"/>); from that
+    /// version on, <see cref="ObsMonitoringType.MonitorOnly"/> behaves like <see cref="ObsMonitoringType.MonitorAndOutput"/>.
     /// </summary>
     public ObsMonitoringType MonitoringType
     {
-        get => ObsSource.obs_source_get_monitoring_type(Handle);
-        set => ObsSource.obs_source_set_monitoring_type(Handle, value);
+        get
+        {
+            if (ObsCore.IsVersionAtLeast(33))
+                return MonitoringEnabled ? ObsMonitoringType.MonitorAndOutput : ObsMonitoringType.None;
+            return ObsSource.obs_source_get_monitoring_type(Handle);
+        }
+        set
+        {
+            if (ObsCore.IsVersionAtLeast(33))
+                MonitoringEnabled = value != ObsMonitoringType.None;
+            else
+                ObsSource.obs_source_set_monitoring_type(Handle, value);
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets whether this source's audio is played through the monitoring device while
+    /// staying in the output mix. Before OBS 33, enabling it selects
+    /// <see cref="ObsMonitoringType.MonitorAndOutput"/> and any monitoring type reads as enabled.
+    /// </summary>
+    public bool MonitoringEnabled
+    {
+        get
+        {
+            if (ObsCore.IsVersionAtLeast(33))
+                return ObsSource.obs_source_get_monitoring_enabled(Handle);
+            return ObsSource.obs_source_get_monitoring_type(Handle) != ObsMonitoringType.None;
+        }
+        set
+        {
+            if (ObsCore.IsVersionAtLeast(33))
+                ObsSource.obs_source_set_monitoring_enabled(Handle, value);
+            else
+                ObsSource.obs_source_set_monitoring_type(Handle, value ? ObsMonitoringType.MonitorAndOutput : ObsMonitoringType.None);
+        }
     }
 
     /// <summary>
@@ -1062,6 +1097,7 @@ public class Source : ObsObject
     /// <summary>
     /// Gets or sets whether the source is hidden from UI lists (it still renders and is still
     /// enumerated; this is only a presentation hint stored with the source).
+    /// Deprecated in OBS 33, which plans to remove it in OBS 34.
     /// </summary>
     public bool IsHidden
     {

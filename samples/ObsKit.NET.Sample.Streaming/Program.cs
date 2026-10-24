@@ -10,8 +10,15 @@ Console.WriteLine("==============================\n");
 
 var obsPath = AppContext.BaseDirectory;
 var dataPath = Path.Combine(obsPath, "data", "libobs");
-var pluginBinPath = Path.Combine(obsPath, "obs-plugins", "64bit");
-var pluginDataPath = Path.Combine(obsPath, "data", "obs-plugins", "%module%");
+
+// OBS 33+ keeps each module in core/<module>/, earlier versions use obs-plugins/64bit
+var coreLayout = Directory.Exists(Path.Combine(obsPath, "core"));
+var pluginBinPath = coreLayout
+    ? Path.Combine(obsPath, "core", "%module%")
+    : Path.Combine(obsPath, "obs-plugins", "64bit");
+var pluginDataPath = coreLayout
+    ? Path.Combine(obsPath, "core", "%module%", "data")
+    : Path.Combine(obsPath, "data", "obs-plugins", "%module%");
 
 // Verify OBS runtime exists
 if (!File.Exists(Path.Combine(obsPath, "obs.dll")))

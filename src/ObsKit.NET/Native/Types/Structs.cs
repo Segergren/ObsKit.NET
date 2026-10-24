@@ -253,13 +253,26 @@ public struct ObsSceneItemCrop
 }
 
 /// <summary>
-/// Module failure information for obs_load_all_modules2.
+/// Module failure information for obs_load_all_modules2 and obs_load_plugins.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 internal struct ObsModuleFailureInfo
 {
     public nint FailedModules; // char** - array of module names that failed
     public nuint Count;
+}
+
+/// <summary>
+/// Native layout of OBS's <c>struct obs_runtime_module_info</c> (OBS 33+), with its
+/// <c>path_info</c> member flattened.
+/// </summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct ObsRuntimeModuleInfo
+{
+    public nint Binary; // const char*
+    public nint Data;   // const char*
+    public ObsRuntimeModuleType Type;
+    public nint Name;   // const char*
 }
 
 /// <summary>

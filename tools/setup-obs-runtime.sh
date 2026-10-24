@@ -219,15 +219,37 @@ setup_windows() {
         fi
     fi
 
+    # Copy core folder (OBS 33+ keeps each module and its data in core/<module>/)
+    if [[ -d "$obs_root/core" ]]; then
+        echo "  Copying core/..."
+        mkdir -p "$output_path/core"
+
+        for item in "$obs_root/core"/*; do
+            local name=$(basename "$item")
+            if should_exclude "$name.dll" "windows"; then
+                echo "    Skipping: $name"
+            else
+                cp -r "$item" "$output_path/core/"
+            fi
+        done
+    fi
+
     echo ""
     echo "Directory structure:"
     echo "  $output_path/"
     echo "  ├── obs.dll, obs-ffmpeg-mux.exe, etc."
-    echo "  ├── data/"
-    echo "  │   ├── libobs/"
-    echo "  │   └── obs-plugins/"
-    echo "  └── obs-plugins/"
-    echo "      └── 64bit/"
+    if [[ -d "$output_path/core" ]]; then
+        echo "  ├── data/"
+        echo "  │   └── libobs/"
+        echo "  └── core/"
+        echo "      └── <module>/ (<module>.dll and data/)"
+    else
+        echo "  ├── data/"
+        echo "  │   ├── libobs/"
+        echo "  │   └── obs-plugins/"
+        echo "  └── obs-plugins/"
+        echo "      └── 64bit/"
+    fi
 }
 
 setup_linux() {

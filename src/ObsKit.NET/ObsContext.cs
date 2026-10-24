@@ -92,10 +92,38 @@ public sealed class ObsContext : IDisposable
         if (_config.ModulePaths.Count == 0)
             return;
 
+        // OBS 33 made obs_load_all_modules a no-op
+        var perPathLoader = ObsCore.IsVersionAtLeast(33);
+
         if (_config.ExcludedModules.Count == 0)
         {
             // No exclusions - use the fast path
-            ObsCore.obs_load_all_modules();
+            if (perPathLoader)
+            {
+                foreach (var (binPath, dataPathTemplate) in _config.ModulePaths)
+                {
+                    LoadPlugins(binPath, dataPathTemplate);
+                }
+            }
+            else
+            {
+                ObsCore.obs_load_all_modules();
+            }
+        }
+        else if (perPathLoader)
+        {
+            // Selective loading - libobs resolves the module layout, we skip the exclusions
+            foreach (var module in Obs.FindModules())
+            {
+                if (_config.ExcludedModules.Contains(module.Name) || IsNonModuleDll(module.Name))
+                    continue;
+
+                var result = ObsCore.obs_open_module(out var handle, module.BinaryPath, module.DataPath);
+                if (result == 0 && handle != 0)
+                {
+                    ObsCore.obs_init_module(handle);
+                }
+            }
         }
         else
         {
@@ -107,6 +135,29 @@ public sealed class ObsContext : IDisposable
         }
 
         ObsCore.obs_post_load_modules();
+    }
+
+    private static void LoadPlugins(string binPath, string dataPathTemplate)
+    {
+        // Plugin keeps the disabled list and duplicate-name check; LegacyPlugin would skip every built-in module, even in flat Linux core folders
+        var info = new ObsRuntimeModuleInfo
+        {
+            Binary = Marshal.StringToCoTaskMemUTF8(NormalizeObsPath(binPath)),
+            Data = Marshal.StringToCoTaskMemUTF8(NormalizeObsPath(dataPathTemplate)),
+            Type = ObsRuntimeModuleType.Plugin,
+        };
+
+        try
+        {
+            var failures = default(ObsModuleFailureInfo);
+            ObsCore.obs_load_plugins(ref info, ref failures);
+            ObsCore.obs_module_failure_info_free(ref failures);
+        }
+        finally
+        {
+            Marshal.FreeCoTaskMem(info.Binary);
+            Marshal.FreeCoTaskMem(info.Data);
+        }
     }
 
     /// <summary>

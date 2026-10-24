@@ -11,12 +11,15 @@ using ObsKit.NET.Sources;
 
 var obsPath = AppContext.BaseDirectory;
 
+// OBS 33+ keeps each module in core/<module>/, earlier versions use obs-plugins/64bit
+var coreLayout = Directory.Exists(Path.Combine(obsPath, "core"));
+
 // Initialize OBS
 using var obs = Obs.Initialize(config => config
     .WithDataPath(Path.Combine(obsPath, "data", "libobs"))
     .WithModulePath(
-        Path.Combine(obsPath, "obs-plugins", "64bit"),
-        Path.Combine(obsPath, "data", "obs-plugins", "%module%"))
+        coreLayout ? Path.Combine(obsPath, "core", "%module%") : Path.Combine(obsPath, "obs-plugins", "64bit"),
+        coreLayout ? Path.Combine(obsPath, "core", "%module%", "data") : Path.Combine(obsPath, "data", "obs-plugins", "%module%"))
     .ForHeadlessOperation()
     .WithVideo(v => v.Resolution(1920, 1080).Fps(60))
     .WithAudio(a => a.WithSampleRate(48000)));
@@ -312,7 +315,7 @@ foreach (var (name, id) in Obs.EnumerateAudioMonitoringDevices())
 Obs.SetAudioMonitoringDevice("default");
 
 // Let the user hear their mic through the monitoring device
-mic.MonitoringType = ObsMonitoringType.MonitorAndOutput;
+mic.MonitoringEnabled = true;
 
 // Set volume in dB directly (not clamped to unity, so it can apply gain)
 mic.VolumeDb = -6.0f;
@@ -1030,9 +1033,14 @@ YourApp/
 ├── obs.dll, obs-ffmpeg-mux.exe, *.dll  # From OBS bin/64bit/
 ├── data/
 │   ├── libobs/                          # Shader files
-│   └── obs-plugins/                     # Plugin data
-└── obs-plugins/64bit/                   # Plugin DLLs
+│   └── obs-plugins/                     # Plugin data (OBS 32 and earlier)
+├── obs-plugins/64bit/                   # Plugin DLLs (OBS 32 and earlier)
+└── core/<module>/                       # Plugin DLL and data/ (OBS 33+)
 ```
+
+OBS 33 ships its bundled modules in `core/<module>/` instead of `obs-plugins/64bit`, so pass
+`core/%module%` and `core/%module%/data` to `WithModulePath` for an OBS 33+ runtime (the Quick
+Start picks whichever layout is present).
 
 ### Linux Structure
 
@@ -1043,6 +1051,9 @@ YourApp/
 ├── obs-plugins/                         # Plugin .so files
 └── data/libobs/, obs-plugins/           # Data files
 ```
+
+OBS 33 packages install modules to `lib/<arch>/obs-modules/core/` and their data to
+`share/obs/obs-modules/core/<module>/`.
 
 Run with: `LD_LIBRARY_PATH="$PWD/lib" ./YourApp`
 

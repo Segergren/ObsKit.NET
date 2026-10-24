@@ -70,6 +70,20 @@ internal static partial class ObsCore
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial uint obs_get_version();
 
+    private static uint _version;
+
+    /// <summary>
+    /// Whether the loaded libobs is at least <paramref name="major"/>.<paramref name="minor"/>
+    /// (obs_get_version packs the version as major &lt;&lt; 24 | minor &lt;&lt; 16 | patch).
+    /// </summary>
+    internal static bool IsVersionAtLeast(uint major, uint minor = 0)
+    {
+        // The loaded libobs cannot change within a process
+        if (_version == 0)
+            _version = obs_get_version();
+        return _version >= (major << 24 | minor << 16);
+    }
+
     /// <summary>
     /// Gets the OBS version as a string.
     /// </summary>
@@ -429,11 +443,26 @@ internal static partial class ObsCore
         [MarshalUsing(typeof(Utf8StringMarshaler))] string dataPath);
 
     /// <summary>
-    /// Loads all available modules/plugins.
+    /// Loads all available modules/plugins. A no-op since OBS 33; use <see cref="obs_load_plugins"/>.
     /// </summary>
     [LibraryImport(Lib, EntryPoint = "obs_load_all_modules")]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     internal static partial void obs_load_all_modules();
+
+    /// <summary>
+    /// Loads the modules in one search path (OBS 33+). libobs only reads the paths during
+    /// the call. Free <paramref name="failureInfo"/> with <see cref="obs_module_failure_info_free"/>.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_load_plugins")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_load_plugins(ref ObsRuntimeModuleInfo info, ref ObsModuleFailureInfo failureInfo);
+
+    /// <summary>
+    /// Frees the failed-module list filled in by <see cref="obs_load_plugins"/>.
+    /// </summary>
+    [LibraryImport(Lib, EntryPoint = "obs_module_failure_info_free")]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    internal static partial void obs_module_failure_info_free(ref ObsModuleFailureInfo failureInfo);
 
     /// <summary>
     /// Loads all modules from a specific directory with optional exclusions.

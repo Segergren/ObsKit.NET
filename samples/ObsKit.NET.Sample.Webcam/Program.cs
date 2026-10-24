@@ -14,11 +14,14 @@ if (!File.Exists(Path.Combine(obsPath, "obs.dll")))
     return 1;
 }
 
+// OBS 33+ keeps each module in core/<module>/, earlier versions use obs-plugins/64bit
+var coreLayout = Directory.Exists(Path.Combine(obsPath, "core"));
+
 using var obs = Obs.Initialize(config => config
     .WithDataPath(Path.Combine(obsPath, "data", "libobs"))
     .WithModulePath(
-        Path.Combine(obsPath, "obs-plugins", "64bit"),
-        Path.Combine(obsPath, "data", "obs-plugins", "%module%"))
+        coreLayout ? Path.Combine(obsPath, "core", "%module%") : Path.Combine(obsPath, "obs-plugins", "64bit"),
+        coreLayout ? Path.Combine(obsPath, "core", "%module%", "data") : Path.Combine(obsPath, "data", "obs-plugins", "%module%"))
     .ForHeadlessOperation()
     .WithVideo(v => v.Resolution(1920, 1080).Fps(30))
     .WithAudio(a => a.WithSampleRate(48000)));
